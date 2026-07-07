@@ -1,0 +1,60 @@
+{
+    "database": {
+        "connection": "mysql",
+        "host": "127.0.0.1",
+        "port": "3306",
+        "database": "workorder_system",
+        "username": "workorder_user",
+        "password": "your_password_here",
+        "charset": "utf8mb4",
+        "collation": "utf8mb4_unicode_ci"
+    },
+    "app": {
+        "name": "校园网工单系统",
+        "env": "production",
+        "debug": false,
+        "url": "http://localhost",
+        "timezone": "Asia/Shanghai",
+        "locale": "zh_CN"
+    },
+    "mail": {
+        "driver": "smtp",
+        "host": "smtp.mailtrap.io",
+        "port": "2525",
+        "username": null,
+        "password": null,
+        "encryption": null,
+        "from": {
+            "address": "noreply@workorder.com",
+            "name": "校园网工单系统"
+        }
+    },
+    "server": {
+        "webserver": "apache",
+        "php_version": "8.1",
+        "memory_limit": "256M",
+        "max_execution_time": "300",
+        "upload_max_filesize": "50M",
+        "post_max_size": "50M"
+    },
+    "security": {
+        "force_ssl": false,
+        "session_lifetime": 120,
+        "password_min_length": 8,
+        "max_login_attempts": 5,
+        "lockout_duration": 60
+    },
+    "backup": {
+        "enabled": true,
+        "schedule": "0 2 * * *",
+        "retention_days": 30,
+        "backup_path": "/var/backups/workorder"
+    },
+    "features": {
+        "notifications": true,
+        "file_uploads": true,
+        "api_access": true,
+        "multi_language": false,
+        "ldap_auth": false
+    }
+}

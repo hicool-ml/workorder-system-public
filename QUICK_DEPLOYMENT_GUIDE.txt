@@ -1,0 +1,31 @@
+========================================
+校园网工单系统 - 快速部署指南
+========================================
+
+1. 上传部署包到Ubuntu Server 24
+   scp campus-workorder-system-*.tar.gz user@server:/tmp/
+
+2. 登录服务器并解压
+   ssh user@server
+   cd /tmp
+   tar -xzf campus-workorder-system-*.tar.gz
+   cd campus-workorder-system-*
+
+3. 运行一键部署
+   sudo bash deploy_to_ubuntu.sh
+
+4. 访问系统
+   系统地址: http://服务器IP
+   系统管理员: 用户名"系统管理员" / 密码"admin123"
+   工程师: 用户名"测试工程师" / 密码"engineer123"
+   普通用户: 用户名"测试用户" / 密码"user123"
+
+========================================
+部署包信息
+========================================
+文件名: campus-workorder-system-v1.0.0_20251121_173319.tar.gz
+大小: 1.1M
+SHA256: e3fdb94d3df2121d68af9b8b154363b8caf5799b341f604ffc33e984ff0762ea
+打包时间: Fri Nov 21 08:46:07 PM CST 2025
+
+========================================

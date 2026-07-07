@@ -1,0 +1,39 @@
+<IfModule mod_rewrite.c>
+    <IfModule mod_negotiation.c>
+        Options -MultiViews -Indexes
+    </IfModule>
+
+    RewriteEngine On
+
+    # 处理内网外网访问问题 - 防止端口切换循环
+    # 注意：Cloudflare隧道访问时不要强制重定向，让Laravel处理协议检测
+    
+    # 注释掉内网HTTPS重定向规则，避免在Cloudflare隧道场景下造成问题
+    # 在Cloudflare隧道架构下，协议应该由Laravel的TrustProxies中间件处理
+    # 而不是在Apache层面强制重定向
+    
+    # # 如果是内网IP访问且检测到HTTPS，重定向到HTTP
+    # RewriteCond %{HTTP_HOST} ^(localhost|127\.0\.0\.1|192\.168\.|10\.|172\.1[6-9]\.|172\.2[0-9]\.|172\.3[01]\.) [NC]
+    # RewriteCond %{HTTPS} on
+    # RewriteRule ^ http://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+    
+    # Cloudflare隧道访问时，由TrustProxies中间件处理协议检测
+
+    # Handle Authorization Header
+    RewriteCond %{HTTP:Authorization} .
+    RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+
+    # Handle X-XSRF-Token Header
+    RewriteCond %{HTTP:x-xsrf-token} .
+    RewriteRule .* - [E=HTTP_X_XSRF_TOKEN:%{HTTP:X-XSRF-Token}]
+
+    # Redirect Trailing Slashes If Not A Folder...
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteCond %{REQUEST_URI} (.+)/$
+    RewriteRule ^ %1 [L,R=301]
+
+    # Send Requests To Front Controller...
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteRule ^ index.php [L]
+</IfModule>
