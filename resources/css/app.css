@@ -7,6 +7,26 @@
 
 @theme {
     --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", "Helvetica Neue", Arial, sans-serif;
+
+    --color-bg: var(--c-bg);
+    --color-card: var(--c-card);
+    --color-surface-muted: var(--c-muted);
+
+    --color-ink: var(--c-ink);
+    --color-ink-muted: var(--c-ink-muted);
+    --color-ink-subtle: var(--c-ink-subtle);
+
+    --color-border: var(--c-border);
+    --color-border-strong: var(--c-border-strong);
+
+    --color-brand: var(--c-brand);
+    --color-brand-dark: var(--c-brand-dark);
+    --color-brand-light: var(--c-brand-light);
+    --color-brand-100: #dbeafe;
+    --color-brand-300: #93c5fd;
+    --color-brand-600: var(--c-brand);
+    --color-brand-700: var(--c-brand-dark);
+    --color-brand-800: #1e3a5f;
 }
 
 :root {
@@ -14,7 +34,7 @@
     --c-card: #ffffff;
     --c-muted: #f1f5f9;
     --c-ink: #0f172a;
-    --c-ink-muted: #64748b;
+    --c-ink-muted: #475569;
     --c-ink-subtle: #94a3b8;
     --c-border: #e2e8f0;
     --c-border-strong: #cbd5e1;
@@ -28,8 +48,8 @@
     --c-card: #1e293b;
     --c-muted: #334155;
     --c-ink: #f1f5f9;
-    --c-ink-muted: #94a3b8;
-    --c-ink-subtle: #64748b;
+    --c-ink-muted: #cbd5e1;
+    --c-ink-subtle: #94a3b8;
     --c-border: #334155;
     --c-border-strong: #475569;
     --c-brand: #3b82f6;

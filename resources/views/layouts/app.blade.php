@@ -142,7 +142,7 @@
     </aside>
 
     {{-- Desktop top bar --}}
-    <header class="hidden lg:flex sticky top-0 z-30 h-14 items-center justify-between px-6 lg:ml-64 lg:ml-64 bg-white border-b border-border">
+    <header class="hidden lg:flex sticky top-0 z-30 h-14 items-center justify-between px-6 lg:ml-64 lg:ml-64 bg-card border-b border-border">
         <div class="flex items-center gap-3">
             @isset($breadcrumbs)
                 <nav class="flex items-center gap-2 text-sm text-ink-muted">
@@ -164,21 +164,21 @@
             </a>
             {{-- Theme switcher --}}
             <div class="relative">
-                <button id="theme-toggle" class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors" aria-label="主题切换" style="color: var(--c-ink-muted);">
+                <button id="theme-toggle" class="p-2 rounded-lg hover:bg-surface-muted transition-colors" aria-label="主题切换" style="color: var(--c-ink-muted);">
                     <svg class="w-5 h-5 theme-icon-light" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
                     <svg class="w-5 h-5 theme-icon-dark hidden" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
                     <svg class="w-5 h-5 theme-icon-system hidden" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><path stroke-linecap="round" stroke-linejoin="round" d="M8 21h8M12 17v4"/></svg>
                 </button>
                 <div id="theme-menu" class="hidden absolute right-0 mt-2 w-36 card shadow-lg py-1 z-50">
-                    <button data-theme="light" class="theme-option flex items-center gap-2 w-full px-3 py-2 text-sm text-left hover:bg-slate-100 dark:hover:bg-slate-700" style="color: var(--c-ink);">
+                    <button data-theme="light" class="theme-option flex items-center gap-2 w-full px-3 py-2 text-sm text-left hover:bg-surface-muted" style="color: var(--c-ink);">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
                         <span>浅色</span>
                     </button>
-                    <button data-theme="dark" class="theme-option flex items-center gap-2 w-full px-3 py-2 text-sm text-left hover:bg-slate-100 dark:hover:bg-slate-700" style="color: var(--c-ink);">
+                    <button data-theme="dark" class="theme-option flex items-center gap-2 w-full px-3 py-2 text-sm text-left hover:bg-surface-muted" style="color: var(--c-ink);">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
                         <span>深色</span>
                     </button>
-                    <button data-theme="system" class="theme-option flex items-center gap-2 w-full px-3 py-2 text-sm text-left hover:bg-slate-100 dark:hover:bg-slate-700" style="color: var(--c-ink);">
+                    <button data-theme="system" class="theme-option flex items-center gap-2 w-full px-3 py-2 text-sm text-left hover:bg-surface-muted" style="color: var(--c-ink);">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><path stroke-linecap="round" stroke-linejoin="round" d="M8 21h8M12 17v4"/></svg>
                         <span>跟随系统</span>
                     </button>
@@ -238,7 +238,7 @@
 
     {{-- Mobile bottom action bar (for workorder list quick actions) --}}
     {{-- This is controlled by JS, shown only when workorders are selected --}}
-    <div id="mobile-action-bar" class="hidden lg:hidden fixed bottom-0 left-0 right-0 z-30 bg-white border-t border-border shadow-lg" style="padding-bottom: env(safe-area-inset-bottom);">
+    <div id="mobile-action-bar" class="hidden lg:hidden fixed bottom-0 left-0 right-0 z-30 bg-card border-t border-border shadow-lg" style="padding-bottom: env(safe-area-inset-bottom);">
         <div class="flex items-center justify-around px-4 py-2" id="mobile-action-content"></div>
     </div>
 
