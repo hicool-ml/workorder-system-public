@@ -3,209 +3,138 @@
 @section('title', '编辑工单分类 - ' . $workorderCategory->name)
 
 @section('content')
-<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
-    <h1 class="h2">编辑工单分类</h1>
-    <div class="btn-toolbar mb-2 mb-md-0">
-        <a href="{{ route('workorder-categories.show', $workorderCategory->id) }}" class="btn btn-secondary me-2">
-            <i class="fas fa-eye"></i> 查看详情
+<div class="flex items-center justify-between mb-6 gap-3 flex-wrap">
+    <div>
+        <h1 class="text-xl font-semibold text-ink">编辑工单分类</h1>
+        <p class="text-sm text-ink-muted mt-0.5">{{ $workorderCategory->name }}</p>
+    </div>
+    <div class="flex items-center gap-2">
+        <a href="{{ route('workorder-categories.show', $workorderCategory->id) }}" class="btn btn-secondary">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z M12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6z"/></svg>
+            <span>查看详情</span>
         </a>
         <a href="{{ route('workorder-categories.index') }}" class="btn btn-secondary">
-            <i class="fas fa-arrow-left"></i> 返回列表
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7 7-7M3 12h18"/></svg>
+            <span>返回列表</span>
         </a>
     </div>
 </div>
 
-<div class="row">
-    <div class="col-md-8">
-        <div class="card">
-            <div class="card-header">
-                <h5 class="card-title mb-0">编辑分类信息</h5>
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <div class="lg:col-span-2">
+        <form method="POST" action="{{ route('workorder-categories.update', $workorderCategory->id) }}" class="card p-5 space-y-5">
+            @csrf
+            @method('PUT')
+
+            <div>
+                <h3 class="text-sm font-semibold text-ink mb-3">层级设置</h3>
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div class="sm:col-span-1">
+                        <label class="label" for="parent_id">父分类</label>
+                        <select class="input" id="parent_id" name="parent_id">
+                            <option value="">无（一级分类）</option>
+                            @foreach($parentCategories as $category)
+                            <option value="{{ $category->id }}" data-level="{{ $category->level }}" {{ old('parent_id', $workorderCategory->parent_id) == $category->id ? 'selected' : '' }}>{{ str_repeat('　　', $category->level - 1) }}{{ $category->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div>
+                        <label class="label" for="level">层级</label>
+                        <input type="text" class="input" id="level" name="level" value="{{ old('level', $workorderCategory->level) }}" readonly>
+                    </div>
+                    <div>
+                        <label class="label" for="sort_order">排序</label>
+                        <input type="number" class="input" id="sort_order" name="sort_order" value="{{ old('sort_order', $workorderCategory->sort_order) }}" min="0">
+                    </div>
+                </div>
             </div>
-            <div class="card-body">
-                <form method="POST" action="{{ route('workorder-categories.update', $workorderCategory->id) }}">
-                    @csrf
-                    @method('PUT')
-                    
-                    <!-- 层级设置 -->
-                    <h6 class="mb-3">层级设置</h6>
-                    <div class="row g-3 mb-4">
-                        <div class="col-md-6">
-                            <label for="parent_id" class="form-label">父分类</label>
-                            <select class="form-select" id="parent_id" name="parent_id" onchange="updateLevel()">
-                                <option value="">无（一级分类）</option>
-                                @foreach($parentCategories as $category)
-                                <option value="{{ $category->id }}"
-                                        {{ old('parent_id', $workorderCategory->parent_id) == $category->id ? 'selected' : '' }}
-                                        data-level="{{ $category->level }}">
-                                    {{ str_repeat('　　', $category->level - 1) }}{{ $category->name }}
-                                </option>
-                                @endforeach
-                            </select>
-                            <div class="form-text">选择父分类后，当前分类将自动设置为子分类</div>
-                        </div>
-                        <div class="col-md-3">
-                            <label for="level" class="form-label">层级</label>
-                            <input type="text" class="form-control" id="level" name="level"
-                                   value="{{ old('level', $workorderCategory->level) }}" readonly>
-                            <div class="form-text">系统自动计算</div>
-                        </div>
-                        <div class="col-md-3">
-                            <label for="sort_order" class="form-label">排序</label>
-                            <input type="number" class="form-control" id="sort_order" name="sort_order"
-                                   value="{{ old('sort_order', $workorderCategory->sort_order) }}" min="0">
-                            <div class="form-text">数字越小排序越靠前</div>
-                        </div>
+
+            <div class="pt-4 border-t border-border">
+                <h3 class="text-sm font-semibold text-ink mb-3">基本信息</h3>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="label" for="name">分类名称 <span class="text-red-500">*</span></label>
+                        <input type="text" class="input" id="name" name="name" value="{{ old('name', $workorderCategory->name) }}" required maxlength="100">
+                        @error('name')<p class="text-xs text-red-500 mt-1">{{ $message }}</p>@enderror
                     </div>
-                    
-                    <!-- 基本信息 -->
-                    <h6 class="mb-3">基本信息</h6>
-                    <div class="row g-3 mb-4">
-                        <div class="col-md-6">
-                            <label for="name" class="form-label">分类名称 <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control" id="name" name="name"
-                                   value="{{ old('name', $workorderCategory->name) }}" required maxlength="100"
-                                   placeholder="请输入分类名称">
-                        </div>
-                        <div class="col-md-6">
-                            <label for="code" class="form-label">分类编码 <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control" id="code" name="code"
-                                   value="{{ old('code', $workorderCategory->code) }}" required maxlength="50"
-                                   placeholder="请输入分类编码，如：NETWORK_ISSUE">
-                        </div>
+                    <div>
+                        <label class="label" for="code">分类编码 <span class="text-red-500">*</span></label>
+                        <input type="text" class="input" id="code" name="code" value="{{ old('code', $workorderCategory->code) }}" required maxlength="50">
+                        @error('code')<p class="text-xs text-red-500 mt-1">{{ $message }}</p>@enderror
                     </div>
-                    
-                    <div class="mb-4">
-                        <label for="description" class="form-label">分类描述</label>
-                        <textarea class="form-control" id="description" name="description" rows="4"
-                                  placeholder="请输入分类描述">{{ old('description', $workorderCategory->description) }}</textarea>
-                        <div class="form-text">详细描述该分类的用途和范围</div>
-                    </div>
-                    
-                    <!-- 状态设置 -->
-                    <h6 class="mb-3">状态设置</h6>
-                    <div class="row g-3 mb-4">
-                        <div class="col-md-6">
-                            <label for="status" class="form-label">状态 <span class="text-danger">*</span></label>
-                            <select class="form-select" id="status" name="status" required>
-                                @foreach(\App\Models\WorkorderCategory::getStatusOptions() as $key => $value)
-                                <option value="{{ $key }}" {{ old('status', $workorderCategory->status ? 'active' : 'inactive') == $key ? 'selected' : '' }}>
-                                    {{ $value }}
-                                </option>
-                                @endforeach
-                            </select>
-                        </div>
-                    </div>
-                    
-                    <!-- 提交按钮 -->
-                    <div class="d-flex justify-content-end">
-                        <a href="{{ route('workorder-categories.show', $workorderCategory->id) }}" class="btn btn-secondary me-2">
-                            <i class="fas fa-times"></i> 取消
-                        </a>
-                        <button type="submit" class="btn btn-primary">
-                            <i class="fas fa-save"></i> 保存更改
-                        </button>
-                    </div>
-                </form>
+                </div>
+                <div class="mt-4">
+                    <label class="label" for="description">分类描述</label>
+                    <textarea class="input" id="description" name="description" rows="4">{{ old('description', $workorderCategory->description) }}</textarea>
+                </div>
             </div>
-        </div>
+
+            <div class="pt-4 border-t border-border">
+                <h3 class="text-sm font-semibold text-ink mb-3">状态设置</h3>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="label" for="status">状态 <span class="text-red-500">*</span></label>
+                        <select class="input" id="status" name="status" required>
+                            @foreach(\App\Models\WorkorderCategory::getStatusOptions() as $key => $value)
+                            <option value="{{ $key }}" {{ old('status', $workorderCategory->status ? 'active' : 'inactive') == $key ? 'selected' : '' }}>{{ $value }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex items-center justify-end gap-2 pt-2 border-t border-border">
+                <a href="{{ route('workorder-categories.show', $workorderCategory->id) }}" class="btn btn-secondary">取消</a>
+                <button type="submit" class="btn btn-primary">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                    <span>保存更改</span>
+                </button>
+            </div>
+        </form>
     </div>
-    
-    <div class="col-md-4">
-        <!-- 分类信息 -->
-        <div class="card mb-4">
-            <div class="card-header">
-                <h6 class="card-title mb-0">分类信息</h6>
-            </div>
-            <div class="card-body">
-                <div class="mb-2">
-                    <strong>分类ID：</strong>{{ $workorderCategory->id }}
-                </div>
-                <div class="mb-2">
-                    <strong>当前层级：</strong>
-                    <span class="badge bg-{{ $workorderCategory->level == 1 ? 'primary' : ($workorderCategory->level == 2 ? 'info' : 'secondary') }}">
-                        {{ $workorderCategory->level_text }}
-                    </span>
-                </div>
-                <div class="mb-2">
-                    <strong>当前状态：</strong>
-                    <span class="badge bg-{{ $workorderCategory->status ? 'success' : 'danger' }}">
-                        {{ $workorderCategory->status_text }}
-                    </span>
-                </div>
-                <div class="mb-2">
-                    <strong>创建时间：</strong>{{ $workorderCategory->created_at ? $workorderCategory->created_at->format('Y-m-d H:i:s') : '-' }}
-                </div>
-                <div class="mb-2">
-                    <strong>最后更新：</strong>{{ $workorderCategory->updated_at ? $workorderCategory->updated_at->format('Y-m-d H:i:s') : '-' }}
-                </div>
+
+    <div class="lg:col-span-1 space-y-4">
+        <div class="card p-5">
+            <h3 class="text-sm font-semibold text-ink mb-3">分类信息</h3>
+            <dl class="space-y-2 text-sm">
+                <div class="flex justify-between"><dt style="color: var(--c-ink-muted);">分类ID</dt><dd class="text-ink">{{ $workorderCategory->id }}</dd></div>
+                <div class="flex justify-between items-center"><dt style="color: var(--c-ink-muted);">当前层级</dt><dd><span class="badge bg-blue-100 text-blue-700">{{ $workorderCategory->level_text }}</span></dd></div>
+                <div class="flex justify-between items-center"><dt style="color: var(--c-ink-muted);">当前状态</dt><dd>@if($workorderCategory->status)<span class="badge bg-green-100 text-green-700">{{ $workorderCategory->status_text }}</span>@else<span class="badge bg-red-100 text-red-700">{{ $workorderCategory->status_text }}</span>@endif</dd></div>
+                <div class="flex justify-between"><dt style="color: var(--c-ink-muted);">创建时间</dt><dd class="text-ink">{{ $workorderCategory->created_at ? $workorderCategory->created_at->format('Y-m-d H:i') : '-' }}</dd></div>
                 @if($workorderCategory->parent)
-                <div class="mb-2">
-                    <strong>父分类：</strong>{{ $workorderCategory->parent->name }}
-                </div>
+                <div class="flex justify-between"><dt style="color: var(--c-ink-muted);">父分类</dt><dd class="text-ink">{{ $workorderCategory->parent->name }}</dd></div>
                 @endif
-            </div>
+            </dl>
         </div>
-        
-        <!-- 子分类统计 -->
+
         @if($workorderCategory->children()->count() > 0)
-        <div class="card mb-4">
-            <div class="card-header">
-                <h6 class="card-title mb-0">子分类</h6>
-            </div>
-            <div class="card-body">
-                <ul class="list-group list-group-flush">
-                    @foreach($workorderCategory->children as $child)
-                    <li class="list-group-item d-flex justify-content-between align-items-center">
-                        <div>
-                            <strong>{{ $child->name }}</strong>
-                            <br><small class="text-muted">{{ $child->code }}</small>
-                        </div>
-                        <span class="badge bg-{{ $child->status ? 'success' : 'danger' }}">
-                            {{ $child->status_text }}
-                        </span>
-                    </li>
-                    @endforeach
-                </ul>
+        <div class="card p-5">
+            <h3 class="text-sm font-semibold text-ink mb-3">子分类</h3>
+            <div class="space-y-2">
+                @foreach($workorderCategory->children as $child)
+                <div class="flex items-center justify-between gap-2 p-2 rounded-lg" style="background-color: var(--c-muted);">
+                    <div class="min-w-0">
+                        <p class="font-medium text-ink truncate">{{ $child->name }}</p>
+                        <p class="text-xs" style="color: var(--c-ink-subtle);">{{ $child->code }}</p>
+                    </div>
+                    @if($child->status)<span class="badge bg-green-100 text-green-700">{{ $child->status_text }}</span>@else<span class="badge bg-red-100 text-red-700">{{ $child->status_text }}</span>@endif
+                </div>
+                @endforeach
             </div>
         </div>
         @endif
-        
-        <!-- 工单统计 -->
-        <div class="card mb-4">
-            <div class="card-header">
-                <h6 class="card-title mb-0">工单统计</h6>
-            </div>
-            <div class="card-body">
-                <div class="row text-center">
-                    <div class="col-6 mb-3">
-                        <div class="border rounded p-2">
-                            <strong>{{ $workorderCategory->workorders()->count() }}</strong>
-                            <br><small class="text-muted">总工单数</small>
-                        </div>
-                    </div>
-                    <div class="col-6 mb-3">
-                        <div class="border rounded p-2">
-                            <strong>{{ $workorderCategory->workorders()->whereIn('status', ['pending', 'assigned', 'processing'])->count() }}</strong>
-                            <br><small class="text-muted">待处理</small>
-                        </div>
-                    </div>
+
+        <div class="card p-5">
+            <h3 class="text-sm font-semibold text-ink mb-3">工单统计</h3>
+            <div class="grid grid-cols-2 gap-3">
+                <div class="text-center p-3 rounded-lg" style="background-color: var(--c-muted);">
+                    <p class="text-xl font-bold text-ink">{{ $workorderCategory->workorders()->count() }}</p>
+                    <p class="text-xs mt-0.5" style="color: var(--c-ink-muted);">总工单数</p>
                 </div>
-            </div>
-        </div>
-        
-        <!-- 编辑提示 -->
-        <div class="card">
-            <div class="card-header">
-                <h6 class="card-title mb-0">编辑提示</h6>
-            </div>
-            <div class="card-body">
-                <ul class="mb-0">
-                    <li>修改父分类会自动更新当前分类的层级</li>
-                    <li>不能将分类设置为自己的子分类或后代分类</li>
-                    <li>系统最多支持3级分类结构</li>
-                    <li>有子分类或关联工单的分类不能删除</li>
-                    <li>禁用分类不会影响已有工单，但新建工单无法选择</li>
-                </ul>
+                <div class="text-center p-3 rounded-lg" style="background-color: var(--c-muted);">
+                    <p class="text-xl font-bold text-amber-600">{{ $workorderCategory->workorders()->whereIn('status', ['pending', 'assigned', 'processing'])->count() }}</p>
+                    <p class="text-xs mt-0.5" style="color: var(--c-ink-muted);">待处理</p>
+                </div>
             </div>
         </div>
     </div>
@@ -214,33 +143,32 @@
 
 @section('scripts')
 <script>
-function updateLevel() {
-    var parentSelect = document.getElementById('parent_id');
+var currentLevel = {{ $workorderCategory->level }};
+var currentId = {{ $workorderCategory->id }};
+var originalParent = '{{ $workorderCategory->parent_id }}';
+
+document.getElementById('parent_id').addEventListener('change', function() {
+    var selected = this.options[this.selectedIndex];
     var levelInput = document.getElementById('level');
-    var selectedOption = parentSelect.options[parentSelect.selectedIndex];
-    var currentLevel = {{ $workorderCategory->level }};
-    var currentId = {{ $workorderCategory->id }};
-    
-    if (selectedOption && selectedOption.value) {
-        var parentLevel = parseInt(selectedOption.getAttribute('data-level'));
-        levelInput.value = parentLevel + 1;
-        
-        // 检查是否超过3级
-        if (levelInput.value > 3) {
-            alert('分类层级最多支持3级，请选择其他父分类');
-            parentSelect.value = '{{ $workorderCategory->parent_id }}';
-            levelInput.value = currentLevel;
-        }
-        
-        // 检查是否选择自己为父分类
-        if (selectedOption.value == currentId) {
+    if (selected && selected.value) {
+        if (selected.value == currentId) {
             alert('不能将分类设置为自己的父分类');
-            parentSelect.value = '{{ $workorderCategory->parent_id }}';
+            this.value = originalParent;
             levelInput.value = currentLevel;
+            return;
+        }
+        var parentLevel = parseInt(selected.getAttribute('data-level'));
+        var newLevel = parentLevel + 1;
+        if (newLevel > 3) {
+            alert('分类层级最多支持3级，请选择其他父分类');
+            this.value = originalParent;
+            levelInput.value = currentLevel;
+        } else {
+            levelInput.value = newLevel;
         }
     } else {
         levelInput.value = 1;
     }
-}
+});
 </script>
 @endsection

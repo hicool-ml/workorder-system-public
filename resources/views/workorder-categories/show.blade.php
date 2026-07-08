@@ -3,269 +3,147 @@
 @section('title', '分类详情 - ' . $workorderCategory->name)
 
 @section('content')
-<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
-    <h1 class="h2">分类详情</h1>
-    <div class="btn-toolbar mb-2 mb-md-0">
-        <a href="{{ route('workorder-categories.edit', $workorderCategory->id) }}" class="btn btn-warning me-2">
-            <i class="fas fa-edit"></i> 编辑
+<div class="flex items-center justify-between mb-6 gap-3 flex-wrap">
+    <h1 class="text-xl font-semibold text-ink">分类详情</h1>
+    <div class="flex items-center gap-2">
+        <a href="{{ route('workorder-categories.edit', $workorderCategory->id) }}" class="btn btn-primary">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7 M18.5 2.5a2.1 2.1 0 0 1 3 3L12 15l-4 1 1-4z"/></svg>
+            <span>编辑</span>
         </a>
         <a href="{{ route('workorder-categories.index') }}" class="btn btn-secondary">
-            <i class="fas fa-arrow-left"></i> 返回列表
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7 7-7M3 12h18"/></svg>
+            <span>返回列表</span>
         </a>
     </div>
 </div>
 
-<div class="row">
-    <div class="col-md-8">
-        <!-- 基本信息 -->
-        <div class="card mb-4">
-            <div class="card-header">
-                <h5 class="card-title mb-0">基本信息</h5>
-            </div>
-            <div class="card-body">
-                <div class="row mb-3">
-                    <div class="col-md-6">
-                        <strong>分类名称：</strong>{{ $workorderCategory->name }}
-                    </div>
-                    <div class="col-md-6">
-                        <strong>分类编码：</strong>{{ $workorderCategory->code }}
-                    </div>
-                </div>
-                
-                <div class="row mb-3">
-                    <div class="col-md-6">
-                        <strong>分类层级：</strong>
-                        <span class="badge bg-{{ $workorderCategory->level == 1 ? 'primary' : ($workorderCategory->level == 2 ? 'info' : 'secondary') }}">
-                            {{ $workorderCategory->level_text }}
-                        </span>
-                    </div>
-                    <div class="col-md-6">
-                        <strong>排序：</strong>{{ $workorderCategory->sort_order }}
-                    </div>
-                </div>
-                
-                <div class="row mb-3">
-                    <div class="col-md-6">
-                        <strong>状态：</strong>
-                        <span class="badge bg-{{ $workorderCategory->status ? 'success' : 'danger' }}">
-                            {{ $workorderCategory->status_text }}
-                        </span>
-                    </div>
-                    <div class="col-md-6">
-                        <strong>完整路径：</strong>
-                        <span class="text-muted">{{ $workorderCategory->full_path }}</span>
-                    </div>
-                </div>
-                
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <div class="lg:col-span-2 space-y-6">
+        {{-- Basic info --}}
+        <div class="card p-5">
+            <h3 class="text-sm font-semibold text-ink mb-4">基本信息</h3>
+            <dl class="space-y-3 text-sm">
+                <div class="flex justify-between gap-2"><dt style="color: var(--c-ink-muted);">分类名称</dt><dd class="font-medium text-ink text-right">{{ $workorderCategory->name }}</dd></div>
+                <div class="flex justify-between gap-2"><dt style="color: var(--c-ink-muted);">分类编码</dt><dd class="text-ink text-right">{{ $workorderCategory->code }}</dd></div>
+                <div class="flex justify-between gap-2 items-center"><dt style="color: var(--c-ink-muted);">分类层级</dt><dd class="text-right"><span class="badge bg-blue-100 text-blue-700">{{ $workorderCategory->level_text }}</span></dd></div>
+                <div class="flex justify-between gap-2"><dt style="color: var(--c-ink-muted);">排序</dt><dd class="text-ink text-right">{{ $workorderCategory->sort_order }}</dd></div>
+                <div class="flex justify-between gap-2 items-center"><dt style="color: var(--c-ink-muted);">状态</dt><dd class="text-right">@if($workorderCategory->status)<span class="badge bg-green-100 text-green-700">{{ $workorderCategory->status_text }}</span>@else<span class="badge bg-red-100 text-red-700">{{ $workorderCategory->status_text }}</span>@endif</dd></div>
+                <div class="flex justify-between gap-2"><dt style="color: var(--c-ink-muted);">完整路径</dt><dd class="text-ink text-right">{{ $workorderCategory->full_path }}</dd></div>
                 @if($workorderCategory->description)
-                <div class="mb-3">
-                    <strong>分类描述：</strong>
-                    <div class="mt-2 p-3 bg-light rounded">
-                        {{ nl2br($workorderCategory->description) }}
-                    </div>
+                <div class="pt-3 border-t border-border">
+                    <p class="text-xs font-medium mb-1" style="color: var(--c-ink-muted);">分类描述</p>
+                    <p class="text-sm text-ink">{!! nl2br(e($workorderCategory->description)) !!}</p>
                 </div>
                 @endif
-                
-                <div class="row mb-3">
-                    <div class="col-md-6">
-                        <strong>创建时间：</strong>{{ $workorderCategory->created_at->format('Y-m-d H:i:s') }}
-                    </div>
-                    <div class="col-md-6">
-                        <strong>最后更新：</strong>{{ $workorderCategory->updated_at->format('Y-m-d H:i:s') }}
-                    </div>
-                </div>
-                
+                <div class="flex justify-between gap-2"><dt style="color: var(--c-ink-muted);">创建时间</dt><dd class="text-ink text-right">{{ $workorderCategory->created_at->format('Y-m-d H:i') }}</dd></div>
                 @if($workorderCategory->parent)
-                <div class="mb-3">
-                    <strong>父分类：</strong>
-                    <a href="{{ route('workorder-categories.show', $workorderCategory->parent->id) }}" 
-                       class="text-decoration-none">
-                        {{ $workorderCategory->parent->name }}
-                    </a>
-                    <span class="badge bg-info ms-2">{{ $workorderCategory->parent->level_text }}</span>
-                </div>
+                <div class="flex justify-between gap-2"><dt style="color: var(--c-ink-muted);">父分类</dt><dd class="text-right"><a href="{{ route('workorder-categories.show', $workorderCategory->parent->id) }}" class="text-brand-600 hover:underline">{{ $workorderCategory->parent->name }}</a></dd></div>
                 @endif
-            </div>
+            </dl>
         </div>
-        
-        <!-- 子分类 -->
+
+        {{-- Children --}}
         @if($workorderCategory->children()->count() > 0)
-        <div class="card mb-4">
-            <div class="card-header">
-                <h5 class="card-title mb-0">子分类 ({{ $workorderCategory->children()->count() }})</h5>
+        <div class="card">
+            <div class="px-5 py-4 border-b border-border flex items-center justify-between">
+                <h3 class="text-sm font-semibold text-ink">子分类</h3>
+                <span class="badge bg-blue-100 text-blue-700">{{ $workorderCategory->children()->count() }}</span>
             </div>
-            <div class="card-body">
-                <div class="row">
-                    @foreach($workorderCategory->children as $child)
-                    <div class="col-md-6 mb-3">
-                        <div class="border rounded p-3">
-                            <div class="d-flex justify-content-between align-items-start mb-2">
-                                <h6 class="mb-0">{{ $child->name }}</h6>
-                                <span class="badge bg-{{ $child->status == 'active' ? 'success' : 'danger' }}">
-                                    {{ $child->status_text }}
-                                </span>
-                            </div>
-                            <div class="mb-2">
-                                <small class="text-muted">编码：{{ $child->code }}</small><br>
-                                <small class="text-muted">层级：{{ $child->level_text }}</small>
-                            </div>
-                            <div class="d-flex justify-content-between">
-                                <a href="{{ route('workorder-categories.show', $child->id) }}" 
-                                   class="btn btn-sm btn-outline-primary">
-                                    <i class="fas fa-eye"></i> 查看
-                                </a>
-                                <a href="{{ route('workorder-categories.edit', $child->id) }}" 
-                                   class="btn btn-sm btn-outline-warning">
-                                    <i class="fas fa-edit"></i> 编辑
-                                </a>
-                            </div>
-                        </div>
+            <div class="p-5 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                @foreach($workorderCategory->children as $child)
+                <div class="p-4 rounded-lg border border-border">
+                    <div class="flex items-center justify-between gap-2 mb-2">
+                        <a href="{{ route('workorder-categories.show', $child->id) }}" class="font-medium text-ink hover:text-brand-600">{{ $child->name }}</a>
+                        @if($child->status == 'active')<span class="badge bg-green-100 text-green-700">启用</span>@else<span class="badge bg-red-100 text-red-700">禁用</span>@endif
                     </div>
-                    @endforeach
+                    <p class="text-xs" style="color: var(--c-ink-subtle);">编码：{{ $child->code }} · {{ $child->level_text }}</p>
                 </div>
+                @endforeach
             </div>
         </div>
         @endif
-        
-        <!-- 相关工单 -->
+
+        {{-- Related workorders --}}
         <div class="card">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="card-title mb-0">相关工单</h5>
-                <span class="badge bg-primary">{{ $workorderCategory->workorders()->count() }}</span>
+            <div class="px-5 py-4 border-b border-border flex items-center justify-between">
+                <h3 class="text-sm font-semibold text-ink">相关工单</h3>
+                <span class="badge bg-blue-100 text-blue-700">{{ $workorderCategory->workorders()->count() }}</span>
             </div>
-            <div class="card-body">
-                @if($workorderCategory->workorders()->count() > 0)
-                <div class="table-responsive">
-                    <table class="table table-sm">
-                        <thead>
-                            <tr>
-                                <th>工单号</th>
-                                <th>标题</th>
-                                <th>状态</th>
-                                <th>创建人</th>
-                                <th>创建时间</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach($workorderCategory->workorders()->latest()->limit(10)->get() as $workorder)
-                            <tr>
-                                <td>
-                                    <a href="{{ route('workorders.show', $workorder->id) }}" 
-                                       class="text-decoration-none">
-                                        {{ $workorder->ticket_no }}
-                                    </a>
-                                </td>
-                                <td>{{ Str::limit($workorder->title, 30) }}</td>
-                                <td>
-                                    <span class="badge bg-{{ $workorder->status == 'closed' ? 'success' : 'info' }}">
-                                        {{ $workorder->status_text }}
-                                    </span>
-                                </td>
-                                <td>{{ $workorder->creator->name }}</td>
-                                <td>{{ $workorder->created_at->format('m-d H:i') }}</td>
-                            </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
-                </div>
-                @else
-                <div class="text-center py-4 text-muted">
-                    <i class="fas fa-inbox fa-2x mb-2"></i>
-                    <p>暂无相关工单</p>
-                </div>
-                @endif
+            @if($workorderCategory->workorders()->count() > 0)
+            <div class="md:hidden divide-y divide-border">
+                @foreach($workorderCategory->workorders()->latest()->limit(10)->get() as $workorder)
+                <a href="{{ route('workorders.show', $workorder->id) }}" class="block p-4">
+                    <div class="flex items-center justify-between gap-2 mb-1">
+                        <span class="font-medium text-ink truncate">{{ Str::limit($workorder->title, 30) }}</span>
+                        <span class="badge {{ $workorder->status == 'closed' ? 'bg-gray-100 text-gray-600' : 'bg-blue-100 text-blue-700' }}">{{ $workorder->status_text }}</span>
+                    </div>
+                    <p class="text-xs" style="color: var(--c-ink-subtle);">{{ $workorder->ticket_no }} · {{ $workorder->creator->name }} · {{ $workorder->created_at->format('m-d H:i') }}</p>
+                </a>
+                @endforeach
             </div>
+            <div class="hidden md:block overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead><tr class="border-b border-border text-left">
+                        <th class="px-5 py-3 font-medium" style="color: var(--c-ink-muted);">工单号</th>
+                        <th class="px-5 py-3 font-medium" style="color: var(--c-ink-muted);">标题</th>
+                        <th class="px-5 py-3 font-medium" style="color: var(--c-ink-muted);">状态</th>
+                        <th class="px-5 py-3 font-medium" style="color: var(--c-ink-muted);">创建人</th>
+                        <th class="px-5 py-3 font-medium" style="color: var(--c-ink-muted);">创建时间</th>
+                    </tr></thead>
+                    <tbody>
+                    @foreach($workorderCategory->workorders()->latest()->limit(10)->get() as $workorder)
+                    <tr class="border-b border-border">
+                        <td class="px-5 py-3"><a href="{{ route('workorders.show', $workorder->id) }}" class="text-brand-600 hover:underline">{{ $workorder->ticket_no }}</a></td>
+                        <td class="px-5 py-3 text-ink">{{ Str::limit($workorder->title, 30) }}</td>
+                        <td class="px-5 py-3"><span class="badge {{ $workorder->status == 'closed' ? 'bg-gray-100 text-gray-600' : 'bg-blue-100 text-blue-700' }}">{{ $workorder->status_text }}</span></td>
+                        <td class="px-5 py-3 text-ink">{{ $workorder->creator->name }}</td>
+                        <td class="px-5 py-3 text-ink">{{ $workorder->created_at->format('m-d H:i') }}</td>
+                    </tr>
+                    @endforeach
+                    </tbody>
+                </table>
+            </div>
+            @else
+            <div class="p-8 text-center text-sm" style="color: var(--c-ink-muted);">暂无相关工单</div>
+            @endif
         </div>
     </div>
-    
-    <div class="col-md-4">
-        <!-- 分类统计 -->
-        <div class="card mb-4">
-            <div class="card-header">
-                <h6 class="card-title mb-0">分类统计</h6>
-            </div>
-            <div class="card-body">
-                <div class="row text-center">
-                    <div class="col-6 mb-3">
-                        <div class="border rounded p-2">
-                            <strong>{{ $workorderCategory->workorders()->count() }}</strong>
-                            <br><small class="text-muted">总工单数</small>
-                        </div>
-                    </div>
-                    <div class="col-6 mb-3">
-                        <div class="border rounded p-2">
-                            <strong>{{ $workorderCategory->workorders()->whereIn('status', ['pending', 'assigned', 'processing'])->count() }}</strong>
-                            <br><small class="text-muted">待处理</small>
-                        </div>
-                    </div>
+
+    {{-- Sidebar --}}
+    <div class="lg:col-span-1 space-y-4">
+        <div class="card p-5">
+            <h3 class="text-sm font-semibold text-ink mb-3">分类统计</h3>
+            <div class="grid grid-cols-2 gap-3">
+                <div class="text-center p-3 rounded-lg" style="background-color: var(--c-muted);">
+                    <p class="text-xl font-bold text-ink">{{ $workorderCategory->workorders()->count() }}</p>
+                    <p class="text-xs mt-0.5" style="color: var(--c-ink-muted);">总工单</p>
                 </div>
-                
-                <div class="row text-center">
-                    <div class="col-6 mb-3">
-                        <div class="border rounded p-2">
-                            <strong>{{ $workorderCategory->workorders()->whereIn('status', ['resolved', 'closed'])->count() }}</strong>
-                            <br><small class="text-muted">已完成</small>
-                        </div>
-                    </div>
-                    <div class="col-6 mb-3">
-                        <div class="border rounded p-2">
-                            <strong>{{ $workorderCategory->children()->count() }}</strong>
-                            <br><small class="text-muted">子分类数</small>
-                        </div>
-                    </div>
+                <div class="text-center p-3 rounded-lg" style="background-color: var(--c-muted);">
+                    <p class="text-xl font-bold text-amber-600">{{ $workorderCategory->workorders()->whereIn('status', ['pending', 'assigned', 'processing'])->count() }}</p>
+                    <p class="text-xs mt-0.5" style="color: var(--c-ink-muted);">待处理</p>
+                </div>
+                <div class="text-center p-3 rounded-lg" style="background-color: var(--c-muted);">
+                    <p class="text-xl font-bold text-green-600">{{ $workorderCategory->workorders()->whereIn('status', ['resolved', 'closed'])->count() }}</p>
+                    <p class="text-xs mt-0.5" style="color: var(--c-ink-muted);">已完成</p>
+                </div>
+                <div class="text-center p-3 rounded-lg" style="background-color: var(--c-muted);">
+                    <p class="text-xl font-bold text-ink">{{ $workorderCategory->children()->count() }}</p>
+                    <p class="text-xs mt-0.5" style="color: var(--c-ink-muted);">子分类</p>
                 </div>
             </div>
         </div>
-        
-        <!-- 分类属性 -->
-        <div class="card mb-4">
-            <div class="card-header">
-                <h6 class="card-title mb-0">分类属性</h6>
-            </div>
-            <div class="card-body">
-                <div class="mb-2">
-                    <strong>是否根分类：</strong>
-                    @if($workorderCategory->isRoot())
-                        <i class="fas fa-check text-success"></i> 是
-                    @else
-                        <i class="fas fa-times text-danger"></i> 否
-                    @endif
-                </div>
-                <div class="mb-2">
-                    <strong>是否叶子节点：</strong>
-                    @if($workorderCategory->isLeaf())
-                        <i class="fas fa-check text-success"></i> 是
-                    @else
-                        <i class="fas fa-times text-danger"></i> 否
-                    @endif
-                </div>
-                <div class="mb-2">
-                    <strong>分类ID：</strong>{{ $workorderCategory->id }}
-                </div>
-            </div>
-        </div>
-        
-        <!-- 操作按钮 -->
-        <div class="card">
-            <div class="card-header">
-                <h6 class="card-title mb-0">快速操作</h6>
-            </div>
-            <div class="card-body">
-                <div class="d-grid gap-2">
-                    <a href="{{ route('workorder-categories.edit', $workorderCategory->id) }}" 
-                       class="btn btn-warning">
-                        <i class="fas fa-edit"></i> 编辑分类
-                    </a>
-                    
-                    @if($workorderCategory->children()->count() == 0)
-                    <a href="{{ route('workorders.create', ['category_id' => $workorderCategory->id]) }}" 
-                       class="btn btn-primary">
-                        <i class="fas fa-plus"></i> 创建工单
-                    </a>
-                    @endif
-                    
-                </div>
-            </div>
+
+        <div class="card p-5 space-y-3">
+            <a href="{{ route('workorder-categories.edit', $workorderCategory->id) }}" class="btn btn-secondary w-full">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7 M18.5 2.5a2.1 2.1 0 0 1 3 3L12 15l-4 1 1-4z"/></svg>
+                <span>编辑分类</span>
+            </a>
+            @if($workorderCategory->children()->count() == 0)
+            <a href="{{ route('workorders.create', ['category_id' => $workorderCategory->id]) }}" class="btn btn-primary w-full">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 5v14M5 12h14"/></svg>
+                <span>创建工单</span>
+            </a>
+            @endif
         </div>
     </div>
 </div>

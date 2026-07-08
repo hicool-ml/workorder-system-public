@@ -3,476 +3,346 @@
 @section('title', '系统设置')
 
 @section('content')
-<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
-    <h1 class="h2">系统设置</h1>
-    <div class="btn-toolbar mb-2 mb-md-0">
-        <div class="btn-group me-2">
-            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="initializeDefaults()">
-                <i class="fas fa-redo"></i> 初始化默认设置
-            </button>
-        </div>
-    </div>
+<div class="flex items-center justify-between mb-6 gap-3 flex-wrap">
+    <h1 class="text-xl font-semibold text-ink">系统设置</h1>
+    <button type="button" onclick="initializeDefaults()" class="btn btn-secondary">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 1 1-3-6.7L21 8 M21 3v5h-5"/></svg>
+        <span>初始化默认设置</span>
+    </button>
 </div>
 
-<div class="row">
-    <!-- 注册设置 -->
-    <div class="col-12 mb-4">
-        <div class="card">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="mb-0">
-                    <i class="fas fa-user-plus"></i> 注册设置
-                </h5>
-                <div class="form-check form-switch">
-                    <input class="form-check-input" type="checkbox" id="registration_enabled"
-                           name="registration_enabled"
-                           @if($groupedSettings['registration']->firstWhere('key', 'registration_enabled')?->typed_value)
-                           checked
-                           @endif
-                           onchange="toggleRegistration(this.checked)">
-                    <label class="form-check-label" for="registration_enabled">
-                        开放注册
+<div class="space-y-6">
+    {{-- Registration settings --}}
+    <div class="card overflow-hidden">
+        <div class="px-5 py-4 border-b border-border flex items-center justify-between gap-3">
+            <h3 class="text-sm font-semibold text-ink">注册设置</h3>
+            <label class="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" id="registration_enabled" class="rounded w-4 h-4" @if($groupedSettings['registration']->firstWhere('key', 'registration_enabled')?->typed_value) checked @endif onchange="toggleRegistration(this.checked)">
+                <span class="text-sm" style="color: var(--c-ink-muted);">开放注册</span>
+            </label>
+        </div>
+        <form method="POST" action="{{ route('system-settings.update') }}" class="p-5">
+            @csrf
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <label class="label" for="default_user_role">默认用户角色</label>
+                    <select class="input" id="default_user_role" name="settings[default_user_role]">
+                        <option value="user" @if($groupedSettings['user']->firstWhere('key', 'default_user_role')?->typed_value === 'user') selected @endif>普通用户</option>
+                        <option value="engineer" @if($groupedSettings['user']->firstWhere('key', 'default_user_role')?->typed_value === 'engineer') selected @endif>工程师</option>
+                        <option value="workorder_manager" @if($groupedSettings['user']->firstWhere('key', 'default_user_role')?->typed_value === 'workorder_manager') selected @endif>工单管理员</option>
+                    </select>
+                    <p class="text-xs mt-1" style="color: var(--c-ink-subtle);">新注册用户的默认角色</p>
+                </div>
+                <div>
+                    <label class="flex items-center gap-2 cursor-pointer mt-6">
+                        <input type="checkbox" id="require_email_verification" name="settings[require_email_verification]" value="1" class="rounded w-4 h-4" @if($groupedSettings['registration']->firstWhere('key', 'require_email_verification')?->typed_value) checked @endif>
+                        <span class="text-sm" style="color: var(--c-ink-muted);">需要邮箱验证</span>
                     </label>
                 </div>
             </div>
-            <div class="card-body">
-                <form method="POST" action="{{ route('system-settings.update') }}">
-                    @csrf
-                    
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="default_user_role" class="form-label">默认用户角色</label>
-                                <select class="form-select" id="default_user_role" name="settings[default_user_role]">
-                                    <option value="user" @if($groupedSettings['user']->firstWhere('key', 'default_user_role')?->typed_value === 'user') selected @endif>普通用户</option>
-                                    <option value="engineer" @if($groupedSettings['user']->firstWhere('key', 'default_user_role')?->typed_value === 'engineer') selected @endif>工程师</option>
-                                    <option value="workorder_manager" @if($groupedSettings['user']->firstWhere('key', 'default_user_role')?->typed_value === 'workorder_manager') selected @endif>工单管理员</option>
-                                </select>
-                                <div class="form-text">新注册用户的默认角色</div>
-                            </div>
-                        </div>
-                        
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <div class="form-check form-switch mt-4">
-                                    <input class="form-check-input" type="checkbox" id="require_email_verification" 
-                                           name="settings[require_email_verification]" value="1"
-                                           @if($groupedSettings['registration']->firstWhere('key', 'require_email_verification')?->typed_value)
-                                           checked
-                                           @endif>
-                                    <label class="form-check-label" for="require_email_verification">
-                                        需要邮箱验证
-                                    </label>
-                                </div>
-                                <div class="form-text">注册时是否需要验证邮箱地址</div>
-                            </div>
-                        </div>
+            <div class="mt-4">
+                <button type="submit" class="btn btn-primary">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                    <span>保存设置</span>
+                </button>
+            </div>
+        </form>
+    </div>
+
+    {{-- System settings --}}
+    <div class="card overflow-hidden">
+        <div class="px-5 py-4 border-b border-border">
+            <h3 class="text-sm font-semibold text-ink">系统设置</h3>
+        </div>
+        <form method="POST" action="{{ route('system-settings.update') }}" class="p-5">
+            @csrf
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div class="sm:col-span-1">
+                    <label class="label" for="system_name">系统名称</label>
+                    <input type="text" class="input" id="system_name" name="settings[system_name]" value="{{ $groupedSettings['system']->firstWhere('key', 'system_name')?->typed_value ?? '校园网工单系统' }}">
+                </div>
+                <div>
+                    <label class="label" for="system_version">版本号</label>
+                    <input type="text" class="input" id="system_version" name="settings[system_version]" value="{{ $groupedSettings['version']->firstWhere('key', 'system_version')?->typed_value ?? '2.0.0' }}">
+                </div>
+                <div>
+                    <label class="label" for="system_release_date">发布日期</label>
+                    <input type="date" class="input" id="system_release_date" name="settings[system_release_date]" value="{{ $groupedSettings['version']->firstWhere('key', 'system_release_date')?->typed_value ?? date('Y-m-d') }}">
+                </div>
+            </div>
+            <div class="mt-4">
+                <button type="submit" class="btn btn-primary">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                    <span>保存设置</span>
+                </button>
+            </div>
+        </form>
+    </div>
+
+    {{-- Version management --}}
+    <div class="card overflow-hidden">
+        <div class="px-5 py-4 border-b border-border flex items-center justify-between gap-3">
+            <h3 class="text-sm font-semibold text-ink">版本管理</h3>
+            <div class="flex items-center gap-2">
+                <button type="button" onclick="openModal('versionUpdateModal')" class="btn btn-secondary btn-sm">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 5v14M5 12h14"/></svg>
+                    <span>更新版本</span>
+                </button>
+                <button type="button" onclick="loadVersionHistory()" class="btn btn-secondary btn-sm">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 3v5h5 M3.05 13A9 9 0 1 0 6 5.3L3 8 M12 7v5l4 2"/></svg>
+                    <span>版本历史</span>
+                </button>
+            </div>
+        </div>
+        <div class="p-5">
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-lg flex items-center justify-center" style="background-color: var(--c-brand-light);">
+                        <svg class="w-5 h-5" style="color: var(--c-brand);" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M20.59 13.41 13.42 20.58a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z M7 7h.01"/></svg>
                     </div>
-                    
-                    <div class="d-grid">
-                        <button type="submit" class="btn btn-primary">
-                            <i class="fas fa-save"></i> 保存设置
-                        </button>
+                    <div>
+                        <p class="text-xs" style="color: var(--c-ink-muted);">当前版本</p>
+                        <span class="badge bg-blue-100 text-blue-700">{{ $groupedSettings['version']->firstWhere('key', 'system_version')?->typed_value ?? '2.0.0' }}</span>
                     </div>
-                </form>
+                </div>
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-lg flex items-center justify-center" style="background-color: var(--c-brand-light);">
+                        <svg class="w-5 h-5" style="color: var(--c-brand);" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><path stroke-linecap="round" stroke-linejoin="round" d="M16 2v4M8 2v4M3 10h18"/></svg>
+                    </div>
+                    <div>
+                        <p class="text-xs" style="color: var(--c-ink-muted);">发布日期</p>
+                        <p class="text-sm font-medium text-ink">{{ $groupedSettings['version']->firstWhere('key', 'system_release_date')?->typed_value ?? date('Y-m-d') }}</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-lg flex items-center justify-center" style="background-color: var(--c-brand-light);">
+                        <svg class="w-5 h-5" style="color: var(--c-brand);" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 21h18 M5 21V7l8-4v18 M19 21V11l-6-4"/></svg>
+                    </div>
+                    <div>
+                        <p class="text-xs" style="color: var(--c-ink-muted);">系统名称</p>
+                        <p class="text-sm font-medium text-ink truncate">{{ $groupedSettings['system']->firstWhere('key', 'system_name')?->typed_value ?? '校园网工单系统' }}</p>
+                    </div>
+                </div>
+            </div>
+
+            <div id="versionHistory" class="hidden mt-4 pt-4 border-t border-border">
+                <h4 class="text-sm font-medium text-ink mb-3">版本历史</h4>
+                <div id="versionHistoryList" class="space-y-2"></div>
             </div>
         </div>
     </div>
 
-    <!-- 系统设置 -->
-    <div class="col-12 mb-4">
-        <div class="card">
-            <div class="card-header">
-                <h5 class="mb-0">
-                    <i class="fas fa-cog"></i> 系统设置
-                </h5>
-            </div>
-            <div class="card-body">
-                <form method="POST" action="{{ route('system-settings.update') }}">
-                    @csrf
-                    
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="system_name" class="form-label">系统名称</label>
-                                <input type="text" class="form-control" id="system_name" autocomplete="off"
-                                       name="settings[system_name]" autocomplete="off"
-                                       value="{{ $groupedSettings['system']->firstWhere('key', 'system_name')?->typed_value ?? '校园网工单系统' }}">
-                                <div class="form-text">系统的显示名称</div>
-                            </div>
-                        </div>
-                        <div class="col-md-3">
-                            <div class="mb-3">
-                                <label for="system_version" class="form-label">版本号</label>
-                                <input type="text" class="form-control" id="system_version" autocomplete="off"
-                                       name="settings[system_version]" autocomplete="off"
-                                       value="{{ $groupedSettings['version']->firstWhere('key', 'system_version')?->typed_value ?? '2.0.0' }}">
-                                <div class="form-text">当前版本号</div>
-                            </div>
-                        </div>
-                        <div class="col-md-3">
-                            <div class="mb-3">
-                                <label for="system_release_date" class="form-label">发布日期</label>
-                                <input type="date" class="form-control" id="system_release_date" autocomplete="off"
-                                       name="settings[system_release_date]" autocomplete="off"
-                                       value="{{ $groupedSettings['version']->firstWhere('key', 'system_release_date')?->typed_value ?? date('Y-m-d') }}">
-                                <div class="form-text">版本发布日期</div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="d-grid">
-                        <button type="submit" class="btn btn-primary">
-                            <i class="fas fa-save"></i> 保存设置
-                        </button>
-                    </div>
-                </form>
-            </div>
+    {{-- All settings table --}}
+    <div class="card overflow-hidden">
+        <div class="px-5 py-4 border-b border-border">
+            <h3 class="text-sm font-semibold text-ink">所有设置</h3>
         </div>
-    </div>
-
-    <!-- 版本管理 -->
-    <div class="col-12 mb-4">
-        <div class="card">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="mb-0">
-                    <i class="fas fa-code-branch"></i> 版本管理
-                </h5>
-                <div class="btn-group">
-                    <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#versionUpdateModal">
-                        <i class="fas fa-plus"></i> 更新版本
-                    </button>
-                    <button type="button" class="btn btn-sm btn-outline-info" onclick="loadVersionHistory()">
-                        <i class="fas fa-history"></i> 版本历史
-                    </button>
+        <div class="md:hidden divide-y divide-border">
+            @foreach($settings as $setting)
+            <div class="p-4">
+                <div class="flex items-center justify-between gap-2 mb-1">
+                    <code class="text-sm text-ink">{{ $setting->key }}</code>
+                    @if($setting->type === 'boolean')<span class="badge {{ $setting->typed_value ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600' }}">{{ $setting->typed_value ? '是' : '否' }}</span>@endif
+                </div>
+                <p class="text-xs mb-2" style="color: var(--c-ink-subtle);">{{ $setting->description ?? '-' }}</p>
+                <div class="flex items-center gap-2">
+                    <button type="button" class="btn btn-ghost btn-sm" onclick="editSetting('{{ $setting->key }}', '{{ $setting->value }}', '{{ $setting->type }}')">编辑</button>
+                    <form method="POST" action="{{ route('system-settings.destroy', $setting) }}" class="inline" onsubmit="return confirm('确定要删除这个设置吗？')">@csrf @method('DELETE')<button type="submit" class="btn btn-ghost btn-sm text-red-500">删除</button></form>
                 </div>
             </div>
-            <div class="card-body">
-                <div class="row">
-                    <div class="col-md-4">
-                        <div class="d-flex align-items-center">
-                            <div class="me-3">
-                                <i class="fas fa-tag fa-2x text-primary"></i>
-                            </div>
-                            <div>
-                                <h6 class="mb-0">当前版本</h6>
-                                <span class="badge bg-primary fs-6">{{ $groupedSettings['version']->firstWhere('key', 'system_version')?->typed_value ?? '2.0.0' }}</span>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-4">
-                        <div class="d-flex align-items-center">
-                            <div class="me-3">
-                                <i class="fas fa-calendar fa-2x text-success"></i>
-                            </div>
-                            <div>
-                                <h6 class="mb-0">发布日期</h6>
-                                <span class="text-muted">{{ $groupedSettings['version']->firstWhere('key', 'system_release_date')?->typed_value ?? date('Y-m-d') }}</span>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-4">
-                        <div class="d-flex align-items-center">
-                            <div class="me-3">
-                                <i class="fas fa-building fa-2x text-info"></i>
-                            </div>
-                            <div>
-                                <h6 class="mb-0">系统名称</h6>
-                                <span class="text-muted">{{ $groupedSettings['system']->firstWhere('key', 'system_name')?->typed_value ?? '校园网工单系统' }}</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- 版本历史列表 -->
-                <div id="versionHistory" class="mt-4" style="display: none;">
-                    <h6 class="border-bottom pb-2">版本历史</h6>
-                    <div id="versionHistoryList">
-                        <!-- 版本历史将通过AJAX加载 -->
-                    </div>
-                </div>
-            </div>
+            @endforeach
         </div>
-    </div>
-
-    <!-- 所有设置列表 -->
-    <div class="col-12">
-        <div class="card">
-            <div class="card-header">
-                <h5 class="mb-0">
-                    <i class="fas fa-list"></i> 所有设置
-                </h5>
-            </div>
-            <div class="card-body">
-                <div class="table-responsive">
-                    <table class="table table-striped">
-                        <thead>
-                            <tr>
-                                <th>设置键</th>
-                                <th>值</th>
-                                <th>类型</th>
-                                <th>描述</th>
-                                <th>公开</th>
-                                <th>操作</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach($settings as $setting)
-                            <tr>
-                                <td><code>{{ $setting->key }}</code></td>
-                                <td>
-                                    @if($setting->type === 'boolean')
-                                        <span class="badge bg-{{ $setting->typed_value ? 'success' : 'secondary' }}">
-                                            {{ $setting->typed_value ? '是' : '否' }}
-                                        </span>
-                                    @else
-                                        {{ Str::limit($setting->value, 50) }}
-                                    @endif
-                                </td>
-                                <td><span class="badge bg-info">{{ $setting->type }}</span></td>
-                                <td>{{ $setting->description ?? '-' }}</td>
-                                <td>
-                                    @if($setting->is_public)
-                                        <i class="fas fa-eye text-success"></i>
-                                    @else
-                                        <i class="fas fa-eye-slash text-muted"></i>
-                                    @endif
-                                </td>
-                                <td>
-                                    <div class="btn-group btn-group-sm">
-                                        <button type="button" class="btn btn-outline-primary" 
-                                                onclick="editSetting('{{ $setting->key }}', '{{ $setting->value }}', '{{ $setting->type }}')">
-                                            <i class="fas fa-edit"></i>
-                                        </button>
-                                        <form method="POST" action="{{ route('system-settings.destroy', $setting) }}" 
-                                              style="display: inline;" onsubmit="return confirm('确定要删除这个设置吗？')">
-                                            @csrf
-                                            @method('DELETE')
-                                            <button type="submit" class="btn btn-outline-danger">
-                                                <i class="fas fa-trash"></i>
-                                            </button>
-                                        </form>
-                                    </div>
-                                </td>
-                            </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
-                </div>
-            </div>
+        <div class="hidden md:block overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead><tr class="border-b border-border text-left">
+                    <th class="px-5 py-3 font-medium" style="color: var(--c-ink-muted);">设置键</th>
+                    <th class="px-5 py-3 font-medium" style="color: var(--c-ink-muted);">值</th>
+                    <th class="px-5 py-3 font-medium" style="color: var(--c-ink-muted);">类型</th>
+                    <th class="px-5 py-3 font-medium" style="color: var(--c-ink-muted);">描述</th>
+                    <th class="px-5 py-3 font-medium" style="color: var(--c-ink-muted);">公开</th>
+                    <th class="px-5 py-3 font-medium text-right" style="color: var(--c-ink-muted);">操作</th>
+                </tr></thead>
+                <tbody>
+                @foreach($settings as $setting)
+                <tr class="border-b border-border">
+                    <td class="px-5 py-3"><code class="text-ink">{{ $setting->key }}</code></td>
+                    <td class="px-5 py-3 text-ink">@if($setting->type === 'boolean')<span class="badge {{ $setting->typed_value ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600' }}">{{ $setting->typed_value ? '是' : '否' }}</span>@else{{ Str::limit($setting->value, 50) }}@endif</td>
+                    <td class="px-5 py-3"><span class="badge bg-blue-100 text-blue-700">{{ $setting->type }}</span></td>
+                    <td class="px-5 py-3 text-ink">{{ $setting->description ?? '-' }}</td>
+                    <td class="px-5 py-3">@if($setting->is_public)<span class="text-green-600">是</span>@else<span style="color: var(--c-ink-subtle);">否</span>@endif</td>
+                    <td class="px-5 py-3">
+                        <div class="flex items-center justify-end gap-1">
+                            <button type="button" class="btn btn-ghost btn-icon btn-sm" title="编辑" onclick="editSetting('{{ $setting->key }}', '{{ $setting->value }}', '{{ $setting->type }}')">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7 M18.5 2.5a2.1 2.1 0 0 1 3 3L12 15l-4 1 1-4z"/></svg>
+                            </button>
+                            <form method="POST" action="{{ route('system-settings.destroy', $setting) }}" class="inline" onsubmit="return confirm('确定要删除这个设置吗？')">@csrf @method('DELETE')<button type="submit" class="btn btn-ghost btn-icon btn-sm text-red-500" title="删除"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 6h18 M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button></form>
+                        </div>
+                    </td>
+                </tr>
+                @endforeach
+                </tbody>
+            </table>
         </div>
     </div>
 </div>
 
-<!-- 编辑设置模态框 -->
-<div class="modal fade" id="editSettingModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">编辑设置</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="关闭编辑设置对话框"></button>
-            </div>
-            <form method="POST" action="{{ route('system-settings.update') }}">
-                @csrf
-                <div class="modal-body">
-                    <div class="mb-3">
-                        <label for="edit_key" class="form-label">设置键</label>
-                        <input type="text" class="form-control" id="edit_key" autocomplete="off" name="edit_key" readonly>
-                    </div>
-                    <div class="mb-3">
-                        <label for="edit_value" class="form-label">设置值</label>
-                        <input type="text" class="form-control" id="edit_value" autocomplete="off" name="settings[edit_key]">
-                        <div class="form-text">根据设置类型输入相应的值</div>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
-                    <button type="submit" class="btn btn-primary">保存</button>
-                </div>
-            </form>
+{{-- Edit setting modal --}}
+<div id="editSettingModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" data-modal onclick="if(event.target===this)closeModal('editSettingModal')">
+    <div class="card max-w-md w-full">
+        <div class="px-5 py-4 border-b border-border flex items-center justify-between">
+            <h3 class="text-sm font-semibold text-ink">编辑设置</h3>
+            <button type="button" onclick="closeModal('editSettingModal')" class="btn btn-ghost btn-icon btn-sm">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M18 6 6 18M6 6l12 12"/></svg>
+            </button>
         </div>
+        <form method="POST" action="{{ route('system-settings.update') }}" class="p-5 space-y-4">
+            @csrf
+            <div>
+                <label class="label">设置键</label>
+                <input type="text" class="input" id="edit_key" readonly>
+            </div>
+            <div>
+                <label class="label">设置值</label>
+                <input type="text" class="input" id="edit_value" name="settings[edit_key]">
+                <p class="text-xs mt-1" style="color: var(--c-ink-subtle);">根据设置类型输入相应的值</p>
+            </div>
+            <div class="flex items-center justify-end gap-2">
+                <button type="button" onclick="closeModal('editSettingModal')" class="btn btn-secondary">取消</button>
+                <button type="submit" class="btn btn-primary">保存</button>
+            </div>
+        </form>
     </div>
 </div>
 
-<!-- 版本更新模态框 -->
-<div class="modal fade" id="versionUpdateModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">更新系统版本</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="关闭版本更新对话框"></button>
-            </div>
-            <form method="POST" action="{{ route('system-settings.update-version') }}" id="versionUpdateForm">
-                @csrf
-                <div class="modal-body">
-                    <div class="mb-3">
-                        <label for="new_version" class="form-label">新版本号</label>
-                        <input type="text" class="form-control" id="new_version" name="version" required
-                               placeholder="例如：2.1.0" value="{{ $groupedSettings['version']->firstWhere('key', 'system_version')?->typed_value ?? '2.0.0' }}">
-                        <div class="form-text">请输入新的版本号，遵循语义化版本规范</div>
-                    </div>
-                    <div class="mb-3">
-                        <label for="new_release_date" class="form-label">发布日期</label>
-                        <input type="date" class="form-control" id="new_release_date" name="release_date" required
-                               value="{{ date('Y-m-d') }}">
-                    </div>
-                    <div class="mb-3">
-                        <label for="release_notes" class="form-label">发布说明</label>
-                        <textarea class="form-control" id="release_notes" name="release_notes" rows="4"
-                                  placeholder="请输入此版本的更新内容和改进..."></textarea>
-                        <div class="form-text">可选，记录此版本的主要更新内容</div>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
-                    <button type="submit" class="btn btn-primary">
-                        <i class="fas fa-save"></i> 更新版本
-                    </button>
-                </div>
-            </form>
+{{-- Version update modal --}}
+<div id="versionUpdateModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" data-modal onclick="if(event.target===this)closeModal('versionUpdateModal')">
+    <div class="card max-w-md w-full max-h-[90vh] overflow-y-auto">
+        <div class="px-5 py-4 border-b border-border flex items-center justify-between">
+            <h3 class="text-sm font-semibold text-ink">更新系统版本</h3>
+            <button type="button" onclick="closeModal('versionUpdateModal')" class="btn btn-ghost btn-icon btn-sm">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M18 6 6 18M6 6l12 12"/></svg>
+            </button>
         </div>
+        <form id="versionUpdateForm" class="p-5 space-y-4">
+            @csrf
+            <div>
+                <label class="label" for="new_version">新版本号</label>
+                <input type="text" class="input" id="new_version" name="version" required placeholder="例如：2.1.0" value="{{ $groupedSettings['version']->firstWhere('key', 'system_version')?->typed_value ?? '2.0.0' }}">
+            </div>
+            <div>
+                <label class="label" for="new_release_date">发布日期</label>
+                <input type="date" class="input" id="new_release_date" name="release_date" required value="{{ date('Y-m-d') }}">
+            </div>
+            <div>
+                <label class="label" for="release_notes">发布说明</label>
+                <textarea class="input" id="release_notes" name="release_notes" rows="4" placeholder="请输入此版本的更新内容和改进..."></textarea>
+            </div>
+            <div class="flex items-center justify-end gap-2">
+                <button type="button" onclick="closeModal('versionUpdateModal')" class="btn btn-secondary">取消</button>
+                <button type="submit" class="btn btn-primary">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                    <span>更新版本</span>
+                </button>
+            </div>
+        </form>
     </div>
 </div>
 @endsection
 
 @section('scripts')
 <script>
+function openModal(id) {
+    var el = document.getElementById(id);
+    el.classList.remove('hidden');
+    el.classList.add('flex');
+    document.body.classList.add('overflow-hidden');
+}
+function closeModal(id) {
+    var el = document.getElementById(id);
+    el.classList.add('hidden');
+    el.classList.remove('flex');
+    document.body.classList.remove('overflow-hidden');
+}
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        ['editSettingModal', 'versionUpdateModal'].forEach(closeModal);
+    }
+});
+
 function toggleRegistration(enabled) {
-    axios.post('{{ route("system-settings.toggle-registration") }}', {
-        enabled: enabled
-    }, {
-        headers: {
-            'Accept': 'application/json',
-            'Content-Type': 'application/json'
-        }
-    })
-    .then(response => {
-        if (response.data.success) {
-            location.reload();
-        } else {
-            alert('操作失败：' + (response.data.message || '未知错误'));
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        alert('操作失败：' + (error.response?.data?.message || error.message || '网络错误'));
-    });
+    fetch('{{ route("system-settings.toggle-registration") }}', {
+        method: 'POST',
+        headers: { 'Accept': 'application/json', 'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content },
+        body: JSON.stringify({ enabled: enabled })
+    }).then(function(r) { return r.json(); })
+      .then(function(data) { if (data.success) location.reload(); else alert('操作失败：' + (data.message || '未知错误')); })
+      .catch(function(err) { alert('操作失败：' + (err.message || '网络错误')); });
 }
 
 function editSetting(key, value, type) {
     document.getElementById('edit_key').value = key;
-    document.getElementById('edit_value').name = 'settings[' + key + ']';
-    
-    // 根据类型设置输入框类型
-    const valueInput = document.getElementById('edit_value');
-    if (type === 'boolean') {
-        // 为布尔类型创建下拉选择
-        valueInput.type = 'text';
-        valueInput.value = value;
-    } else {
-        valueInput.type = 'text';
-        valueInput.value = value;
-    }
-    
-    new bootstrap.Modal(document.getElementById('editSettingModal')).show();
+    var valueInput = document.getElementById('edit_value');
+    valueInput.name = 'settings[' + key + ']';
+    valueInput.value = value;
+    openModal('editSettingModal');
 }
 
 function initializeDefaults() {
-    if (confirm('确定要初始化默认设置吗？这可能会覆盖现有设置。')) {
-        axios.post('{{ route("system-settings.initialize-defaults") }}', {}, {
-            headers: {
-                'Accept': 'application/json',
-                'Content-Type': 'application/json'
-            }
-        })
-        .then(response => {
-            if (response.data.success) {
-                location.reload();
-            } else {
-                alert('初始化失败：' + (response.data.message || '未知错误'));
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('初始化失败：' + (error.response?.data?.message || error.message || '网络错误'));
-        });
-    }
+    if (!confirm('确定要初始化默认设置吗？这可能会覆盖现有设置。')) return;
+    fetch('{{ route("system-settings.initialize-defaults") }}', {
+        method: 'POST',
+        headers: { 'Accept': 'application/json', 'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content }
+    }).then(function(r) { return r.json(); })
+      .then(function(data) { if (data.success) location.reload(); else alert('初始化失败：' + (data.message || '未知错误')); })
+      .catch(function(err) { alert('初始化失败：' + (err.message || '网络错误')); });
 }
 
 function loadVersionHistory() {
-    const historyDiv = document.getElementById('versionHistory');
-    const historyList = document.getElementById('versionHistoryList');
-    
-    if (historyDiv.style.display === 'none') {
-        // 显示加载状态
-        historyList.innerHTML = '<div class="text-center"><i class="fas fa-spinner fa-spin"></i> 加载中...</div>';
-        historyDiv.style.display = 'block';
-        
-        // 加载版本历史
-        axios.get('{{ route("system-settings.version-history") }}')
-            .then(response => {
-                if (response.data && response.data.length > 0) {
-                    let html = '';
-                    response.data.forEach(item => {
-                        html += `
-                            <div class="card mb-2">
-                                <div class="card-body py-2">
-                                    <div class="d-flex justify-content-between align-items-center">
-                                        <h6 class="mb-0">
-                                            <i class="fas fa-tag text-primary"></i>
-                                            版本 ${item.version}
-                                        </h6>
-                                        <small class="text-muted">${item.created_at}</small>
-                                    </div>
-                                    <p class="mb-0 mt-2 text-muted">${item.notes}</p>
-                                </div>
-                            </div>
-                        `;
-                    });
-                    historyList.innerHTML = html;
-                } else {
-                    historyList.innerHTML = '<div class="text-muted">暂无版本历史记录</div>';
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                historyList.innerHTML = '<div class="text-danger">加载版本历史失败</div>';
-            });
-    } else {
-        historyDiv.style.display = 'none';
+    var historyDiv = document.getElementById('versionHistory');
+    var historyList = document.getElementById('versionHistoryList');
+    if (!historyDiv.classList.contains('hidden')) {
+        historyDiv.classList.add('hidden');
+        return;
     }
+    historyList.innerHTML = '<div class="text-center py-4 text-sm" style="color: var(--c-ink-muted);">加载中...</div>';
+    historyDiv.classList.remove('hidden');
+    fetch('{{ route("system-settings.version-history") }}', { headers: { 'Accept': 'application/json' } })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data && data.length > 0) {
+                var html = '';
+                data.forEach(function(item) {
+                    html += '<div class="p-3 rounded-lg border border-border">' +
+                        '<div class="flex items-center justify-between mb-1">' +
+                            '<span class="text-sm font-medium text-ink">版本 ' + item.version + '</span>' +
+                            '<span class="text-xs" style="color: var(--c-ink-subtle);">' + item.created_at + '</span>' +
+                        '</div>' +
+                        '<p class="text-xs" style="color: var(--c-ink-muted);">' + (item.notes || '') + '</p>' +
+                    '</div>';
+                });
+                historyList.innerHTML = html;
+            } else {
+                historyList.innerHTML = '<div class="text-center py-4 text-sm" style="color: var(--c-ink-muted);">暂无版本历史记录</div>';
+            }
+        })
+        .catch(function() { historyList.innerHTML = '<div class="text-sm text-red-500">加载版本历史失败</div>'; });
 }
 
-// 处理版本更新表单提交
 document.getElementById('versionUpdateForm').addEventListener('submit', function(e) {
     e.preventDefault();
-    
-    const formData = new FormData(this);
-    
-    axios.post('{{ route("system-settings.update-version") }}', formData, {
-        headers: {
-            'Accept': 'application/json',
-            'Content-Type': 'application/json',
-            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-        }
-    })
-    .then(response => {
-        if (response.data.success) {
-            // 关闭模态框
-            bootstrap.Modal.getInstance(document.getElementById('versionUpdateModal')).hide();
-            
-            // 显示成功消息
-            alert('版本更新成功！');
-            
-            // 刷新页面以显示新版本信息
-            location.reload();
-        } else {
-            alert('版本更新失败：' + (response.data.message || '未知错误'));
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        alert('版本更新失败：' + (error.response?.data?.message || error.message || '网络错误'));
-    });
+    var formData = new FormData(this);
+    var data = {};
+    formData.forEach(function(v, k) { data[k] = v; });
+    fetch('{{ route("system-settings.update-version") }}', {
+        method: 'POST',
+        headers: { 'Accept': 'application/json', 'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content },
+        body: JSON.stringify(data)
+    }).then(function(r) { return r.json(); })
+      .then(function(data) {
+          if (data.success) { closeModal('versionUpdateModal'); alert('版本更新成功！'); location.reload(); }
+          else alert('版本更新失败：' + (data.message || '未知错误'));
+      })
+      .catch(function(err) { alert('版本更新失败：' + (err.message || '网络错误')); });
 });
 </script>
 @endsection

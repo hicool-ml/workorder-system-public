@@ -3,456 +3,272 @@
 @section('title', '统计报表')
 
 @section('content')
-<div class="container-fluid">
-    <div class="row">
-        <div class="col-12">
-            <div class="card">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <h3 class="card-title mb-0">统计报表</h3>
-                    <div class="btn-group btn-group-sm">
-                        <a href="{{ route('reports.index', ['date_range' => '7days']) }}"
-                           class="btn {{ $dateRange == '7days' ? 'btn-primary' : 'btn-outline-primary' }}">
-                            7天
-                        </a>
-                        <a href="{{ route('reports.index', ['date_range' => '30days']) }}"
-                           class="btn {{ $dateRange == '30days' ? 'btn-primary' : 'btn-outline-primary' }}">
-                            30天
-                        </a>
-                        <a href="{{ route('reports.index', ['date_range' => '90days']) }}"
-                           class="btn {{ $dateRange == '90days' ? 'btn-primary' : 'btn-outline-primary' }}">
-                            90天
-                        </a>
-                    </div>
-                </div>
-                <div class="card-body">
-                    <!-- 概览统计 -->
-                    <div class="row mb-4">
-                        <div class="col-md-2">
-                            <div class="info-box">
-                                <span class="info-box-icon bg-info"><i class="fas fa-list"></i></span>
-                                <div class="info-box-content">
-                                    <span class="info-box-text">总工单数</span>
-                                    <span class="info-box-number">{{ $stats['total_workorders'] }}</span>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-2">
-                            <div class="info-box">
-                                <span class="info-box-icon bg-warning"><i class="fas fa-clock"></i></span>
-                                <div class="info-box-content">
-                                    <span class="info-box-text">待处理</span>
-                                    <span class="info-box-number">{{ $stats['pending_workorders'] }}</span>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-2">
-                            <div class="info-box">
-                                <span class="info-box-icon bg-success"><i class="fas fa-check"></i></span>
-                                <div class="info-box-content">
-                                    <span class="info-box-text">已完成</span>
-                                    <span class="info-box-number">{{ $stats['completed_workorders'] }}</span>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-2">
-                            <div class="info-box">
-                                <span class="info-box-icon bg-primary"><i class="fas fa-users"></i></span>
-                                <div class="info-box-content">
-                                    <span class="info-box-text">总用户数</span>
-                                    <span class="info-box-number">{{ $stats['total_users'] }}</span>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-2">
-                            <div class="info-box">
-                                <span class="info-box-icon bg-secondary"><i class="fas fa-building"></i></span>
-                                <div class="info-box-content">
-                                    <span class="info-box-text">部门数</span>
-                                    <span class="info-box-number">{{ $stats['total_departments'] }}</span>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-2">
-                            <div class="info-box">
-                                <span class="info-box-icon bg-danger"><i class="fas fa-tags"></i></span>
-                                <div class="info-box-content">
-                                    <span class="info-box-text">工单分类</span>
-                                    <span class="info-box-number">{{ $stats['total_categories'] }}</span>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-2">
-                            <div class="info-box">
-                                <span class="info-box-icon bg-danger"><i class="fas fa-exclamation-triangle"></i></span>
-                                <div class="info-box-content">
-                                    <span class="info-box-text">超时工单</span>
-                                    <span class="info-box-number">{{ $stats['overdue_workorders'] }}</span>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-2">
-                            <div class="info-box">
-                                <span class="info-box-icon bg-danger"><i class="fas fa-bolt"></i></span>
-                                <div class="info-box-content">
-                                    <span class="info-box-text">紧急工单</span>
-                                    <span class="info-box-number">{{ $stats['emergency_workorders'] }}</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+<div class="flex items-center justify-between mb-6 gap-3 flex-wrap">
+    <h1 class="text-xl font-semibold text-ink">统计报表</h1>
+    <div class="flex items-center gap-1 p-1 rounded-lg" style="background-color: var(--c-muted);">
+        @foreach(['7days' => '7天', '30days' => '30天', '90days' => '90天'] as $key => $label)
+        <a href="{{ route('reports.index', ['date_range' => $key]) }}" class="px-3 py-1.5 rounded-md text-sm font-medium transition-colors {{ $dateRange == $key ? 'text-white' : '' }}" {{ $dateRange == $key ? 'style="background-color: var(--c-brand);"' : 'style="color: var(--c-ink-muted);"' }}>{{ $label }}</a>
+        @endforeach
+    </div>
+</div>
 
-                    <!-- 导出功能 -->
-                    <div class="row mb-4">
-                        <div class="col-12">
-                            <div class="card">
-                                <div class="card-header">
-                                    <h5 class="card-title">数据导出</h5>
-                                </div>
-                                <div class="card-body">
-                                    <form method="GET" action="{{ route('reports.export') }}" class="form-inline">
-                                        @csrf
-                                        <div class="row">
-                                            <div class="col-md-3">
-                                                <div class="form-group">
-                                                    <label for="start_date">开始日期</label>
-                                                    <input type="date" id="start_date" name="start_date" class="form-control">
-                                                </div>
-                                            </div>
-                                            <div class="col-md-3">
-                                                <div class="form-group">
-                                                    <label for="end_date">结束日期</label>
-                                                    <input type="date" id="end_date" name="end_date" class="form-control">
-                                                </div>
-                                            </div>
-                                            <div class="col-md-2">
-                                                <div class="form-group">
-                                                    <label for="format">格式</label>
-                                                    <select id="format" name="format" class="form-control">
-                                                        <option value="csv">CSV</option>
-                                                        <option value="xlsx">Excel</option>
-                                                    </select>
-                                                </div>
-                                            </div>
-                                            <div class="col-md-2">
-                                                <div class="form-group">
-                                                    <label for="status">状态</label>
-                                                    <select id="status" name="status" class="form-control">
-                                                        <option value="">全部状态</option>
-                                                        <option value="pending">待处理</option>
-                                                        <option value="assigned">已分配</option>
-                                                        <option value="processing">处理中</option>
-                                                        <option value="resolved">已解决</option>
-                                                        <option value="closed">已关闭</option>
-                                                    </select>
-                                                </div>
-                                            </div>
-                                            <div class="col-md-2">
-                                                <div class="form-group">
-                                                    <label for="campus">校区</label>
-                                                    <select id="campus" name="campus" class="form-control">
-                                                        <option value="">全部校区</option>
-                                                        <option value="old_campus">老校区</option>
-                                                        <option value="new_campus">新校区</option>
-                                                        <option value="asean_campus">东盟校区</option>
-                                                    </select>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="row mt-3">
-                                            <div class="col-12 text-center">
-                                                <button type="submit" class="btn btn-primary">
-                                                    <i class="fas fa-download"></i> 导出数据
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </form>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+{{-- Overview stats --}}
+<div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-4 gap-4 mb-6">
+    <div class="card p-4">
+        <p class="text-2xl font-bold text-ink">{{ $stats['total_workorders'] }}</p>
+        <p class="text-xs mt-1" style="color: var(--c-ink-muted);">总工单数</p>
+    </div>
+    <div class="card p-4">
+        <p class="text-2xl font-bold text-amber-600">{{ $stats['pending_workorders'] }}</p>
+        <p class="text-xs mt-1" style="color: var(--c-ink-muted);">待处理</p>
+    </div>
+    <div class="card p-4">
+        <p class="text-2xl font-bold text-green-600">{{ $stats['completed_workorders'] }}</p>
+        <p class="text-xs mt-1" style="color: var(--c-ink-muted);">已完成</p>
+    </div>
+    <div class="card p-4">
+        <p class="text-2xl font-bold text-red-600">{{ $stats['overdue_workorders'] }}</p>
+        <p class="text-xs mt-1" style="color: var(--c-ink-muted);">超时工单</p>
+    </div>
+</div>
+<div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+    <div class="card p-4">
+        <p class="text-2xl font-bold text-ink">{{ $stats['total_users'] }}</p>
+        <p class="text-xs mt-1" style="color: var(--c-ink-muted);">总用户数</p>
+    </div>
+    <div class="card p-4">
+        <p class="text-2xl font-bold text-ink">{{ $stats['total_departments'] }}</p>
+        <p class="text-xs mt-1" style="color: var(--c-ink-muted);">部门数</p>
+    </div>
+    <div class="card p-4">
+        <p class="text-2xl font-bold text-ink">{{ $stats['total_categories'] }}</p>
+        <p class="text-xs mt-1" style="color: var(--c-ink-muted);">工单分类</p>
+    </div>
+    <div class="card p-4">
+        <p class="text-2xl font-bold text-orange-600">{{ $stats['emergency_workorders'] }}</p>
+        <p class="text-xs mt-1" style="color: var(--c-ink-muted);">紧急工单</p>
+    </div>
+</div>
 
-                    <!-- 最近N天统计 -->
-                    <div class="row mb-4">
-                        <div class="col-12">
-                            <div class="card">
-                                <div class="card-header">
-                                    <h5 class="card-title">最近{{ $dateRange == '90days' ? '90' : ($dateRange == '30days' ? '30' : '7') }}天工单统计</h5>
-                                </div>
-                                <div class="card-body">
-                                    <div class="table-responsive">
-                                        <table class="table table-sm">
-                                            <thead>
-                                                <tr>
-                                                    <th>日期</th>
-                                                    <th>总工单</th>
-                                                    <th>已完成</th>
-                                                    <th>待处理</th>
-                                                    <th>紧急工单</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                @foreach($recentStats as $stat)
-                                                <tr>
-                                                    <td>{{ $stat['display_date'] }}</td>
-                                                    <td>{{ $stat['total'] }}</td>
-                                                    <td>{{ $stat['completed'] }}</td>
-                                                    <td>{{ $stat['pending'] }}</td>
-                                                    <td>{{ $stat['emergency'] }}</td>
-                                                </tr>
-                                                @endforeach
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+{{-- Export --}}
+<div class="card p-5 mb-6">
+    <h3 class="text-sm font-semibold text-ink mb-4">数据导出</h3>
+    <form method="GET" action="{{ route('reports.export') }}" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
+        @csrf
+        <div>
+            <label class="label" for="start_date">开始日期</label>
+            <input type="date" id="start_date" name="start_date" class="input">
+        </div>
+        <div>
+            <label class="label" for="end_date">结束日期</label>
+            <input type="date" id="end_date" name="end_date" class="input">
+        </div>
+        <div>
+            <label class="label" for="format">格式</label>
+            <select id="format" name="format" class="input">
+                <option value="csv">CSV</option>
+                <option value="xlsx">Excel</option>
+            </select>
+        </div>
+        <div>
+            <label class="label" for="status">状态</label>
+            <select id="status" name="status" class="input">
+                <option value="">全部状态</option>
+                <option value="pending">待处理</option>
+                <option value="assigned">已分配</option>
+                <option value="processing">处理中</option>
+                <option value="resolved">已解决</option>
+                <option value="closed">已关闭</option>
+            </select>
+        </div>
+        <button type="submit" class="btn btn-primary">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4 M7 10l5 5 5-5 M12 15V3"/></svg>
+            <span>导出数据</span>
+        </button>
+    </form>
+</div>
 
-                    <div class="row">
-                        <!-- 工单状态分布 -->
-                        <div class="col-md-6">
-                            <div class="card">
-                                <div class="card-header">
-                                    <h5 class="card-title">工单状态分布</h5>
-                                </div>
-                                <div class="card-body">
-                                    <div class="chart-container">
-                                        <canvas id="statusChart" width="400" height="200"></canvas>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- 工单分类分布 -->
-                        <div class="col-md-6">
-                            <div class="card">
-                                <div class="card-header">
-                                    <h5 class="card-title">工单分类分布</h5>
-                                </div>
-                                <div class="card-body">
-                                    <div class="row">
-                                        <div class="col-md-6">
-                                            <div class="chart-container">
-                                                <canvas id="categoryChart" width="400" height="200"></canvas>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-6">
-                                            <div class="table-responsive">
-                                                <table class="table table-sm">
-                                                    <thead>
-                                                        <tr>
-                                                                <th>分类名称</th>
-                                                                <th>工单数量</th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody>
-                                                        @foreach($categoryDistribution as $category)
-                                                        <tr>
-                                                            <td>{{ $category->name }}</td>
-                                                            <td>{{ $category->workorders_count }}</td>
-                                                        </tr>
-                                                        @endforeach
-                                                    </tbody>
-                                                </table>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="row">
-                        <!-- 校区工单统计 -->
-                        <div class="col-md-6">
-                            <div class="card">
-                                <div class="card-header">
-                                    <h5 class="card-title">校区工单统计</h5>
-                                </div>
-                                <div class="card-body">
-                                    <div class="row">
-                                        <div class="col-md-6">
-                                            <div class="chart-container">
-                                                <canvas id="campusChart" width="400" height="200"></canvas>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-6">
-                                            <div class="table-responsive">
-                                                <table class="table table-sm">
-                                                    <thead>
-                                                        <tr>
-                                                            <th>校区</th>
-                                                            <th>总工单</th>
-                                                            <th>待处理</th>
-                                                            <th>已完成</th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody>
-                                                        @foreach($campusStats as $key => $stat)
-                                                        <tr>
-                                                            <td>{{ $stat['name'] }}</td>
-                                                            <td>{{ $stat['total'] }}</td>
-                                                            <td>{{ $stat['pending'] }}</td>
-                                                            <td>{{ $stat['completed'] }}</td>
-                                                        </tr>
-                                                        @endforeach
-                                                    </tbody>
-                                                </table>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        
-                        <!-- 处理时长统计 -->
-                        <div class="col-md-6">
-                            <div class="card">
-                                <div class="card-header">
-                                    <h5 class="card-title">处理时长统计</h5>
-                                </div>
-                                <div class="card-body">
-                                    <div class="row">
-                                        <div class="col-md-6">
-                                            <div class="info-box">
-                                                <span class="info-box-icon bg-info"><i class="fas fa-clock"></i></span>
-                                                <div class="info-box-content">
-                                                    <span class="info-box-text">平均处理时长</span>
-                                                    <span class="info-box-number">{{ $processingTimeStats['average_time'] }} 分钟</span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-6">
-                                            <div class="info-box">
-                                                <span class="info-box-icon bg-success"><i class="fas fa-check"></i></span>
-                                                <div class="info-box-content">
-                                                    <span class="info-box-text">已完成工单</span>
-                                                    <span class="info-box-number">{{ $processingTimeStats['total_completed'] }}</span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="row mt-3">
-                                            <div class="col-md-6">
-                                                <small class="text-muted">最短处理时长: {{ $processingTimeStats['min_time'] }} 分钟</small>
-                                            </div>
-                                            <div class="col-md-6">
-                                                <small class="text-muted">最长处理时长: {{ $processingTimeStats['max_time'] }} 分钟</small>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="row mt-4">
-                            <!-- 满意度统计 -->
-                            <div class="col-md-6">
-                                <div class="card">
-                                    <div class="card-header">
-                                        <h5 class="card-title">满意度统计</h5>
-                                    </div>
-                                    <div class="card-body">
-                                        @if($satisfactionStats['total_visits'] > 0)
-                                        <div class="row">
-                                            <div class="col-md-12">
-                                                <div class="info-box">
-                                                    <span class="info-box-icon bg-warning"><i class="fas fa-star"></i></span>
-                                                    <div class="info-box-content">
-                                                        <span class="info-box-text">平均满意度</span>
-                                                        <span class="info-box-number">{{ $satisfactionStats['average_score'] }} 分</span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div class="col-md-12 mt-3">
-                                                <h6>满意度分布</h6>
-                                                <div class="progress-container">
-                                                    @foreach($satisfactionStats['distribution'] as $score => $count)
-                                                    <div class="mb-2">
-                                                        <div class="d-flex justify-content-between align-items-center">
-                                                            <span>{{ $score }}分</span>
-                                                            <span>{{ $count }}人</span>
-                                                        </div>
-                                                        <div class="progress">
-                                                            <div class="progress-bar" style="width: {{ ($count / $satisfactionStats['total_visits']) * 100 }}%"></div>
-                                                        </div>
-                                                    </div>
-                                                    @endforeach
-                                                </div>
-                                            </div>
-                                        </div>
-                                        @else
-                                        <div class="text-center text-muted">
-                                            <i class="fas fa-star fa-2x mb-2"></i>
-                                            <p>暂无满意度数据</p>
-                                        </div>
-                                        @endif
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- 工程师处理统计 -->
-                        <div class="col-md-6">
-                            <div class="card">
-                                <div class="card-header">
-                                    <h5 class="card-title">工程师处理统计</h5>
-                                </div>
-                                <div class="card-body">
-                                    <div class="table-responsive">
-                                        <table class="table table-sm">
-                                            <thead>
-                                                <tr>
-                                                    <th>工程师</th>
-                                                    <th>总工单</th>
-                                                    <th>待处理</th>
-                                                    <th>已完成</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                @foreach($engineerStats as $engineer)
-                                                <tr>
-                                                    <td>{{ $engineer->name }}</td>
-                                                    <td>{{ $engineer->assigned_workorders_count }}</td>
-                                                    <td>{{ $engineer->pending_workorders_count }}</td>
-                                                    <td>{{ $engineer->completed_workorders_count }}</td>
-                                                </tr>
-                                                @endforeach
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+{{-- Charts row --}}
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+    <div class="card p-5">
+        <h3 class="text-sm font-semibold text-ink mb-4">工单状态分布</h3>
+        <div class="flex items-center justify-center"><canvas id="statusChart"></canvas></div>
+    </div>
+    <div class="card p-5">
+        <h3 class="text-sm font-semibold text-ink mb-4">工单分类分布</h3>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center">
+            <div class="flex items-center justify-center"><canvas id="categoryChart"></canvas></div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead><tr class="text-left border-b border-border">
+                        <th class="py-2 font-medium" style="color: var(--c-ink-muted);">分类</th>
+                        <th class="py-2 font-medium text-right" style="color: var(--c-ink-muted);">数量</th>
+                    </tr></thead>
+                    <tbody>
+                    @foreach($categoryDistribution as $category)
+                    <tr class="border-b border-border">
+                        <td class="py-2 text-ink">{{ $category->name }}</td>
+                        <td class="py-2 text-right text-ink">{{ $category->workorders_count }}</td>
+                    </tr>
+                    @endforeach
+                    </tbody>
+                </table>
             </div>
         </div>
     </div>
 </div>
 
+{{-- Campus + processing time --}}
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+    <div class="card p-5">
+        <h3 class="text-sm font-semibold text-ink mb-4">校区工单统计</h3>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center">
+            <div class="flex items-center justify-center"><canvas id="campusChart"></canvas></div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead><tr class="text-left border-b border-border">
+                        <th class="py-2 font-medium" style="color: var(--c-ink-muted);">校区</th>
+                        <th class="py-2 font-medium text-right" style="color: var(--c-ink-muted);">总数</th>
+                        <th class="py-2 font-medium text-right" style="color: var(--c-ink-muted);">待处理</th>
+                        <th class="py-2 font-medium text-right" style="color: var(--c-ink-muted);">完成</th>
+                    </tr></thead>
+                    <tbody>
+                    @foreach($campusStats as $key => $stat)
+                    <tr class="border-b border-border">
+                        <td class="py-2 text-ink">{{ $stat['name'] }}</td>
+                        <td class="py-2 text-right text-ink">{{ $stat['total'] }}</td>
+                        <td class="py-2 text-right text-amber-600">{{ $stat['pending'] }}</td>
+                        <td class="py-2 text-right text-green-600">{{ $stat['completed'] }}</td>
+                    </tr>
+                    @endforeach
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <div class="card p-5">
+        <h3 class="text-sm font-semibold text-ink mb-4">处理时长统计</h3>
+        <div class="grid grid-cols-2 gap-4 mb-4">
+            <div class="p-4 rounded-lg text-center" style="background-color: var(--c-muted);">
+                <p class="text-xl font-bold text-ink">{{ $processingTimeStats['average_time'] }}</p>
+                <p class="text-xs mt-1" style="color: var(--c-ink-muted);">平均处理时长（分钟）</p>
+            </div>
+            <div class="p-4 rounded-lg text-center" style="background-color: var(--c-muted);">
+                <p class="text-xl font-bold text-green-600">{{ $processingTimeStats['total_completed'] }}</p>
+                <p class="text-xs mt-1" style="color: var(--c-ink-muted);">已完成工单</p>
+            </div>
+        </div>
+        <div class="flex justify-between text-sm" style="color: var(--c-ink-muted);">
+            <span>最短：{{ $processingTimeStats['min_time'] }} 分钟</span>
+            <span>最长：{{ $processingTimeStats['max_time'] }} 分钟</span>
+        </div>
+    </div>
+</div>
+
+{{-- Satisfaction + engineers --}}
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+    <div class="card p-5">
+        <h3 class="text-sm font-semibold text-ink mb-4">满意度统计</h3>
+        @if($satisfactionStats['total_visits'] > 0)
+        <div class="mb-4">
+            <div class="flex items-center gap-3">
+                <svg class="w-8 h-8 text-amber-500" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                <div>
+                    <p class="text-2xl font-bold text-ink">{{ $satisfactionStats['average_score'] }}</p>
+                    <p class="text-xs" style="color: var(--c-ink-muted);">平均满意度（{{ $satisfactionStats['total_visits'] }} 人评价）</p>
+                </div>
+            </div>
+        </div>
+        <div class="space-y-3">
+            @foreach($satisfactionStats['distribution'] as $score => $count)
+            <div>
+                <div class="flex justify-between text-sm mb-1">
+                    <span class="text-ink">{{ $score }} 分</span>
+                    <span style="color: var(--c-ink-muted);">{{ $count }} 人</span>
+                </div>
+                <div class="h-2.5 rounded-full overflow-hidden" style="background-color: var(--c-muted);">
+                    <div class="h-full rounded-full transition-all" style="width: {{ ($count / max($satisfactionStats['total_visits'], 1)) * 100 }}%; background-color: var(--c-brand);"></div>
+                </div>
+            </div>
+            @endforeach
+        </div>
+        @else
+        <div class="py-8 text-center" style="color: var(--c-ink-muted);">
+            <p class="text-sm">暂无满意度数据</p>
+        </div>
+        @endif
+    </div>
+    <div class="card p-5">
+        <h3 class="text-sm font-semibold text-ink mb-4">工程师处理统计</h3>
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead><tr class="text-left border-b border-border">
+                    <th class="py-2 font-medium" style="color: var(--c-ink-muted);">工程师</th>
+                    <th class="py-2 font-medium text-right" style="color: var(--c-ink-muted);">总工单</th>
+                    <th class="py-2 font-medium text-right" style="color: var(--c-ink-muted);">待处理</th>
+                    <th class="py-2 font-medium text-right" style="color: var(--c-ink-muted);">已完成</th>
+                </tr></thead>
+                <tbody>
+                @foreach($engineerStats as $engineer)
+                <tr class="border-b border-border">
+                    <td class="py-2 text-ink">{{ $engineer->name }}</td>
+                    <td class="py-2 text-right text-ink">{{ $engineer->assigned_workorders_count }}</td>
+                    <td class="py-2 text-right text-amber-600">{{ $engineer->pending_workorders_count }}</td>
+                    <td class="py-2 text-right text-green-600">{{ $engineer->completed_workorders_count }}</td>
+                </tr>
+                @endforeach
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+{{-- Recent daily stats table --}}
+<div class="card p-5">
+    <h3 class="text-sm font-semibold text-ink mb-4">最近{{ $dateRange == '90days' ? '90' : ($dateRange == '30days' ? '30' : '7') }}天工单统计</h3>
+    <div class="md:hidden divide-y divide-border">
+        @foreach($recentStats as $stat)
+        <div class="py-3 flex items-center justify-between">
+            <span class="text-sm text-ink">{{ $stat['display_date'] }}</span>
+            <div class="flex items-center gap-3 text-xs">
+                <span class="text-ink">{{ $stat['total'] }} 总</span>
+                <span class="text-green-600">{{ $stat['completed'] }} 完成</span>
+                <span class="text-amber-600">{{ $stat['pending'] }} 待</span>
+            </div>
+        </div>
+        @endforeach
+    </div>
+    <div class="hidden md:block overflow-x-auto">
+        <table class="w-full text-sm">
+            <thead><tr class="text-left border-b border-border">
+                <th class="py-2 font-medium" style="color: var(--c-ink-muted);">日期</th>
+                <th class="py-2 font-medium text-right" style="color: var(--c-ink-muted);">总工单</th>
+                <th class="py-2 font-medium text-right" style="color: var(--c-ink-muted);">已完成</th>
+                <th class="py-2 font-medium text-right" style="color: var(--c-ink-muted);">待处理</th>
+                <th class="py-2 font-medium text-right" style="color: var(--c-ink-muted);">紧急工单</th>
+            </tr></thead>
+            <tbody>
+            @foreach($recentStats as $stat)
+            <tr class="border-b border-border">
+                <td class="py-2 text-ink">{{ $stat['display_date'] }}</td>
+                <td class="py-2 text-right text-ink">{{ $stat['total'] }}</td>
+                <td class="py-2 text-right text-green-600">{{ $stat['completed'] }}</td>
+                <td class="py-2 text-right text-amber-600">{{ $stat['pending'] }}</td>
+                <td class="py-2 text-right text-red-600">{{ $stat['emergency'] }}</td>
+            </tr>
+            @endforeach
+            </tbody>
+        </table>
+    </div>
+</div>
+@endsection
+
 @section('scripts')
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.min.js"></script>
-<style>
-.progress-container {
-    max-width: 300px;
-    margin: 0 auto;
-}
-.progress {
-    height: 20px;
-    background-color: #e9ecef;
-    border-radius: 10px;
-    overflow: hidden;
-}
-.progress-bar {
-    height: 100%;
-    background-color: #007bff;
-    transition: width 0.3s ease;
-}
-</style>
 <script>
-$(document).ready(function() {
-    // 工单状态分布图表
-    const statusCtx = document.getElementById('statusChart').getContext('2d');
-    const statusChart = new Chart(statusCtx, {
+(function() {
+    var statusCtx = document.getElementById('statusChart');
+    if (statusCtx) new Chart(statusCtx, {
         type: 'pie',
         data: {
             labels: ['待处理', '已分配', '处理中', '已解决', '待验证', '已关闭', '已拒绝'],
@@ -466,92 +282,38 @@ $(document).ready(function() {
                     {{ $statusDistribution['closed'] ?? 0 }},
                     {{ $statusDistribution['rejected'] ?? 0 }}
                 ],
-                backgroundColor: [
-                    '#FFC107', // 黄色 - 待处理
-                    '#17A2B8', // 蓝色 - 已分配
-                    '#36A2EB', // 浅蓝 - 处理中
-                    '#00C851', // 绿色 - 已解决
-                    '#FF9800', // 橙色 - 待验证
-                    '#6C757D', // 灰色 - 已关闭
-                    '#DC3545'  // 红色 - 已拒绝
-                ]
+                backgroundColor: ['#FFC107', '#17A2B8', '#36A2EB', '#00C851', '#FF9800', '#6C757D', '#DC3545']
             }]
         },
-        options: {
-            responsive: true,
-            plugins: {
-                legend: {
-                    position: 'bottom',
-                }
-            }
-        }
+        options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
     });
 
-    // 工单分类分布图表
-    const categoryCtx = document.getElementById('categoryChart')?.getContext('2d');
-    if (categoryCtx) {
-        const categoryChart = new Chart(categoryCtx, {
-            type: 'doughnut',
-            data: {
-                labels: [
-                    @foreach($categoryDistribution as $category)
-                    '{{ $category->name }}',
-                    @endforeach
-                ],
-                datasets: [{
-                    data: [
-                        @foreach($categoryDistribution as $category)
-                        {{ $category->workorders_count }},
-                        @endforeach
-                    ],
-                    backgroundColor: [
-                        '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40', '#FF6384', '#C9CBCF'
-                    ]
-                }]
-            },
-            options: {
-                responsive: true,
-                plugins: {
-                    legend: {
-                        position: 'bottom',
-                    }
-                }
-            }
-        });
-    }
+    var categoryCtx = document.getElementById('categoryChart');
+    if (categoryCtx) new Chart(categoryCtx, {
+        type: 'doughnut',
+        data: {
+            labels: [@foreach($categoryDistribution as $category)'{{ $category->name }}',@endforeach],
+            datasets: [{
+                data: [@foreach($categoryDistribution as $category){{ $category->workorders_count }},@endforeach],
+                backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40', '#FF6384', '#C9CBCF']
+            }]
+        },
+        options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+    });
 
-    // 校区分布图表
-    const campusCtx = document.getElementById('campusChart')?.getContext('2d');
-    if (campusCtx) {
-        const campusChart = new Chart(campusCtx, {
-            type: 'bar',
-            data: {
-                labels: [
-                    @foreach($campusStats as $key => $stat)
-                    '{{ $stat['name'] }}',
-                    @endforeach
-                ],
-                datasets: [{
-                    label: '工单数量',
-                    data: [
-                        @foreach($campusStats as $key => $stat)
-                        {{ $stat['total'] }},
-                        @endforeach
-                    ],
-                    backgroundColor: '#007bff'
-                }]
-            },
-            options: {
-                responsive: true,
-                scales: {
-                    y: {
-                        beginAtZero: true
-                    }
-                }
-            }
-        });
-    }
-});
+    var campusCtx = document.getElementById('campusChart');
+    if (campusCtx) new Chart(campusCtx, {
+        type: 'bar',
+        data: {
+            labels: [@foreach($campusStats as $key => $stat)'{{ $stat['name'] }}',@endforeach],
+            datasets: [{
+                label: '工单数量',
+                data: [@foreach($campusStats as $key => $stat){{ $stat['total'] }},@endforeach],
+                backgroundColor: '#2563eb'
+            }]
+        },
+        options: { responsive: true, scales: { y: { beginAtZero: true } } }
+    });
+})();
 </script>
-@endsection
 @endsection

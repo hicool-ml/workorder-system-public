@@ -5,254 +5,191 @@
 @include('workorders._permission_checks')
 
 @section('content')
-<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
-    <h1 class="h2">工单详情</h1>
-    <div class="btn-toolbar mb-2 mb-md-0">
-        <a href="{{ \App\Helpers\UrlHelper::relative_url('/workorders') }}" class="btn btn-secondary me-2">
-            <i class="fas fa-arrow-left"></i> 返回列表
+
+@php
+    $statusStyles = [
+        'pending' => 'bg-amber-100 text-amber-700',
+        'assigned' => 'bg-blue-100 text-blue-700',
+        'processing' => 'bg-indigo-100 text-indigo-700',
+        'resolved' => 'bg-green-100 text-green-700',
+        'completed' => 'bg-teal-100 text-teal-700',
+        'closed' => 'bg-slate-100 text-slate-600',
+    ];
+    $priorityStyles = ['high' => 'bg-red-100 text-red-700', 'medium' => 'bg-amber-100 text-amber-700', 'low' => 'bg-green-100 text-green-700'];
+@endphp
+
+{{-- Header with actions --}}
+<div class="flex items-center justify-between mb-6 gap-3 flex-wrap">
+    <div>
+        <h1 class="text-xl font-semibold text-ink">{{ $workorder->ticket_no }}</h1>
+        <div class="flex items-center gap-1.5 mt-1 flex-wrap">
+            @if($workorder->is_emergency)<span class="badge bg-red-100 text-red-700">紧急</span>@endif
+            @if($workorder->phone_assisted)<span class="badge bg-blue-100 text-blue-700">电话协助</span>@endif
+            @if($workorder->isOverdue())<span class="badge bg-orange-100 text-orange-700">超时</span>@endif
+            <span class="badge {{ $priorityStyles[$workorder->priority] ?? '' }}">{{ $workorder->priority_text }}</span>
+            <span class="badge {{ $statusStyles[$workorder->status] ?? '' }}">{{ $workorder->status_text }}</span>
+        </div>
+    </div>
+    <div class="flex items-center gap-2 flex-wrap">
+        <a href="{{ route('workorders.index') }}" class="btn btn-secondary btn-sm">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7 7-7M3 12h18"/></svg>
+            <span>列表</span>
         </a>
-        
         @if($workorder->creator_id == auth()->id() && $workorder->status == 'pending')
-        <a href="{{ route('workorders.edit', $workorder->id) }}" class="btn btn-warning me-2">
-            <i class="fas fa-edit"></i> 编辑
+        <a href="{{ route('workorders.edit', $workorder->id) }}" class="btn btn-secondary btn-sm">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7 M18.5 2.5a2.1 2.1 0 0 1 3 3L12 15l-4 1 1-4z"/></svg>
+            <span>编辑</span>
         </a>
         @endif
-        
         @if($workorder->canBeAssigned() && auth()->user()->canAssignWorkorders())
-        <button type="button" class="btn btn-success me-2" data-bs-toggle="modal" data-bs-target="#assignModal">
-            <i class="fas fa-user-plus"></i> 分配
+        <button type="button" onclick="openModal('assignModal')" class="btn btn-primary btn-sm">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2 M9 7a4 4 0 1 0 0-8 4 4 0 0 0 0 8z M19 8v6 M22 11h-6"/></svg>
+            <span>分配</span>
         </button>
         @elseif($workorder->canBeAssigned() && auth()->user()->isEngineer() && !$workorder->assignee_id)
-        <form method="POST" action="{{ route('workorders.claim', $workorder->id) }}" class="d-inline">
+        <form method="POST" action="{{ route('workorders.claim', $workorder->id) }}" class="inline-block">
             @csrf
-            <button type="submit" class="btn btn-success me-2"
-                    onclick="return confirm('确认接单吗？')">
-                <i class="fas fa-hand-paper"></i> 接单
+            <button type="submit" class="btn btn-primary btn-sm" onclick="return confirm('确认接单吗？')">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 11V6a2 2 0 0 1 4 0v5 M9 11V8a2 2 0 0 1 4 0v3 M13 11V9a2 2 0 0 1 4 0v6a6 6 0 0 1-6 6h-1a6 6 0 0 1-5-3l-1-2"/></svg>
+                <span>接单</span>
             </button>
         </form>
         @endif
-        
-        @if($workorder->canBeStarted() &&
-           ($workorder->assignee_id == auth()->id() || auth()->user()->isAdmin() || auth()->user()->isWorkorderManager()))
-        <form method="POST" action="{{ route('workorders.start', $workorder->id) }}" class="d-inline">
+        @if($workorder->canBeStarted() && ($workorder->assignee_id == auth()->id() || auth()->user()->isAdmin() || auth()->user()->isWorkorderManager()))
+        <form method="POST" action="{{ route('workorders.start', $workorder->id) }}" class="inline-block">
             @csrf
-            <button type="submit" class="btn btn-warning me-2" 
-                    onclick="return confirm('确认开始处理此工单吗？')">
-                <i class="fas fa-play"></i> 开始处理
+            <button type="submit" class="btn btn-secondary btn-sm" onclick="return confirm('确认开始处理？')">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 3l14 9-14 9V3z"/></svg>
+                <span>开始</span>
             </button>
         </form>
         @endif
-        
         @if(canResolveWorkorder($workorder))
-        <button type="button" class="btn btn-info me-2" data-bs-toggle="modal" data-bs-target="#resolveModal">
-            <i class="fas fa-check"></i> 解决
+        <button type="button" onclick="openModal('resolveModal')" class="btn btn-primary btn-sm">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4 M12 22a10 10 0 1 1 0-20 10 10 0 0 1 0 20z"/></svg>
+            <span>解决</span>
         </button>
         @endif
-        
         @if(canInviteCollaboration($workorder))
-        <button type="button" class="btn btn-info me-2" data-bs-toggle="modal" data-bs-target="#inviteModal">
-            <i class="fas fa-user-plus"></i> 邀请协作
+        <button type="button" onclick="openModal('inviteModal')" class="btn btn-secondary btn-sm">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2 M9 7a4 4 0 1 0 0-8 4 4 0 0 0 0 8z M19 8v6 M22 11h-6"/></svg>
+            <span>协作</span>
         </button>
         @endif
-        
-        @if($workorder->canBeCompleted() &&
-           ($workorder->assignee_id == auth()->id() || auth()->user()->isAdmin() || auth()->user()->isWorkorderManager()))
-        <button type="button" class="btn btn-success me-2" data-bs-toggle="modal" data-bs-target="#completeModal">
-            <i class="fas fa-check-circle"></i> 完结
+        @if($workorder->canBeCompleted() && ($workorder->assignee_id == auth()->id() || auth()->user()->isAdmin() || auth()->user()->isWorkorderManager()))
+        <button type="button" onclick="openModal('completeModal')" class="btn btn-primary btn-sm">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M22 11.08V12a10 10 0 1 1-5.93-9.14 M22 4L12 14.01l-3-3"/></svg>
+            <span>完结</span>
         </button>
         @endif
-        
         @if($workorder->canBeClosed() && auth()->user()->canCloseWorkorders())
-        <form method="POST" action="{{ route('workorders.close', $workorder->id) }}" class="d-inline">
+        <form method="POST" action="{{ route('workorders.close', $workorder->id) }}" class="inline-block">
             @csrf
-            <button type="submit" class="btn btn-danger"
-                    onclick="return confirm('确认关闭此工单吗？')">
-                <i class="fas fa-times"></i> 关闭
+            <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('确认关闭？')">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M18 6 6 18M6 6l12 12"/></svg>
+                <span>关闭</span>
             </button>
         </form>
         @endif
     </div>
 </div>
 
-<div class="row">
-    <!-- 工单基本信息 -->
-    <div class="col-md-8">
-        <div class="card mb-4">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="card-title mb-0">
-                    {{ $workorder->ticket_no }}
-                    @if($workorder->is_emergency)
-                    <span class="badge bg-danger ms-2">紧急</span>
-                    @endif
-                    @if($workorder->phone_assisted)
-                    <span class="badge bg-info ms-2">电话协助完成</span>
-                    @endif
-                    @if($workorder->isOverdue())
-                    <span class="badge bg-warning ms-2">已超时</span>
-                    @endif
-                </h5>
-                <div>
-                    <span class="badge priority-{{ $workorder->priority }}">
-                        {{ $workorder->priority_text }}
-                    </span>
-                    <span class="badge bg-{{ $workorder->status == 'closed' ? 'success' : ($workorder->status == 'pending' ? 'warning' : ($workorder->status == 'completed' ? 'primary' : 'info')) }}">
-                        {{ $workorder->status_text }}
-                    </span>
-                </div>
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    {{-- Main column --}}
+    <div class="lg:col-span-2 space-y-4">
+
+        {{-- Workorder info --}}
+        <div class="card p-5">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3 text-sm mb-4">
+                <div class="flex justify-between"><span style="color: var(--c-ink-subtle);">分类</span><span class="text-ink text-right">{{ $workorder->category?->name ?? '未设置' }}</span></div>
+                <div class="flex justify-between"><span style="color: var(--c-ink-subtle);">来源</span><span class="text-ink">{{ $workorder->source_text }}</span></div>
+                <div class="flex justify-between"><span style="color: var(--c-ink-subtle);">创建人</span><span class="text-ink">{{ $workorder->creator?->name ?? '--' }}</span></div>
+                <div class="flex justify-between"><span style="color: var(--c-ink-subtle);">创建时间</span><span class="text-ink">{{ $workorder->created_at->format('Y-m-d H:i') }}</span></div>
             </div>
-            <div class="card-body">
-                <div class="row mb-3">
-                    <div class="col-md-6">
-                        <strong>工单分类：</strong>
-                        @if($workorder->category)
-                        <span class="badge bg-secondary">{{ $workorder->category->name }}</span>
-                        @if($workorder->category->parent)
-                        <small class="text-muted">({{ $workorder->category->parent->name }})</small>
-                        @endif
-                        @else
-                        <span class="text-muted">未设置</span>
-                        @endif
-                    </div>
-                    <div class="col-md-6">
-                        <strong>工单编号：</strong>{{ $workorder->ticket_no }}
-                    </div>
-                </div>
-                
-                <div class="mb-3">
-                    <strong>问题描述：</strong>
-                    <div class="mt-2 p-3 bg-light rounded">
-                        {{ nl2br($workorder->description) }}
-                    </div>
-                </div>
-                
-                @if($workorder->failure_description)
-                <div class="mb-3">
-                    <strong>具体故障现象：</strong>
-                    <div class="mt-2 p-3 bg-warning bg-opacity-10 rounded">
-                        {{ nl2br($workorder->failure_description) }}
-                    </div>
-                </div>
-                @endif
-                
-                <div class="row mb-3">
-                    <div class="col-md-4">
-                        <strong>联系人：</strong>{{ $workorder->contact_name }}
-                    </div>
-                    <div class="col-md-4">
-                        <strong>联系电话：</strong>{{ $workorder->contact_phone }}
-                    </div>
-                    <div class="col-md-4">
-                        <strong>联系邮箱：</strong>{{ $workorder->contact_email ?: '无' }}
-                    </div>
-                </div>
-                
-                <div class="row mb-3">
-                    <div class="col-md-6">
-                        <strong>故障地点：</strong>
-                            @if($workorder->campus)
-                               {{ \App\Models\Location::CAMPUSES[$workorder->campus] ?? $workorder->campus }}
-                            @endif
-                            @if($workorder->building)
-                               @php
-                                   $building = \App\Models\Location::find($workorder->building);
-                                   if ($building) {
-                                       echo ' - ' . $building->name;
-                                       if ($workorder->location_detail) {
-                                           echo ' ' . $workorder->location_detail;
-                                       }
-                                   } else {
-                                       echo ' - ' . $workorder->building;
-                                   }
-                               @endphp
-                            @endif
-                    </div>
-                    <div class="col-md-6">
-                        <strong>详细地址：</strong>{{ $workorder->location_detail ?: '无' }}
-                    </div>
-                </div>
-                
-                <div class="row mb-3">
-                    <div class="col-md-3">
-                        <strong>工单来源：</strong>{{ $workorder->source_text }}
-                    </div>
-                    <div class="col-md-3">
-                        <strong>创建时间：</strong>{{ $workorder->created_at->format('Y-m-d H:i:s') }}
-                    </div>
-                    <div class="col-md-3">
-                        <strong>预计完成：</strong>{{ $workorder->expected_complete_at?->format('Y-m-d H:i') ?: '未设置' }}
-                    </div>
-                    <div class="col-md-3">
-                        <strong>创建人：</strong>{{ $workorder->creator->name }}
-                    </div>
-                </div>
-                
-                @if($workorder->solution)
-                <div class="mb-3">
-                    <strong>解决方案：</strong>
-                    <div class="mt-2 p-3 bg-success bg-opacity-10 rounded">
-                        {{ nl2br($workorder->solution) }}
-                    </div>
-                </div>
-                @endif
-                
-                @if($workorder->remarks)
-                <div class="mb-3">
-                    <strong>备注：</strong>
-                    <div class="mt-2 p-3 bg-info bg-opacity-10 rounded">
-                        {{ nl2br($workorder->remarks) }}
-                    </div>
-                </div>
-                @endif
-                
-                <div class="mb-3">
-                    <div class="d-flex justify-content-between align-items-center mb-2">
-                        <strong>备件耗材使用情况：</strong>
-                        @if(canEditMaterialsUsage($workorder))
-                        <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#materialsModal">
-                            <i class="fas fa-edit"></i> 编辑
-                        </button>
-                        @endif
-                    </div>
-                    @if($workorder->materials_usage)
-                    <div class="mt-2 p-3 bg-warning bg-opacity-10 rounded">
-                        {{ nl2br($workorder->materials_usage) }}
-                    </div>
-                    @else
-                    <div class="mt-2 p-3 bg-light rounded text-muted">
-                        暂无备件耗材使用记录
-                    </div>
+
+            <div>
+                <p class="label">问题描述</p>
+                <div class="p-3 rounded-lg text-sm" style="background-color: var(--c-muted); color: var(--c-ink);">{!! nl2br(e($workorder->description)) !!}</div>
+            </div>
+
+            @if($workorder->failure_description)
+            <div class="mt-3">
+                <p class="label">具体故障现象</p>
+                <div class="p-3 rounded-lg text-sm bg-amber-50 border border-amber-200" style="color: var(--c-ink);">{!! nl2br(e($workorder->failure_description)) !!}</div>
+            </div>
+            @endif
+
+            @if($workorder->solution)
+            <div class="mt-3">
+                <p class="label">解决方案</p>
+                <div class="p-3 rounded-lg text-sm bg-green-50 border border-green-200" style="color: var(--c-ink);">{!! nl2br(e($workorder->solution)) !!}</div>
+            </div>
+            @endif
+
+            @if($workorder->remarks)
+            <div class="mt-3">
+                <p class="label">备注</p>
+                <div class="p-3 rounded-lg text-sm bg-blue-50 border border-blue-200" style="color: var(--c-ink);">{!! nl2br(e($workorder->remarks)) !!}</div>
+            </div>
+            @endif
+
+            {{-- Materials --}}
+            <div class="mt-3">
+                <div class="flex items-center justify-between mb-1">
+                    <p class="label mb-0">备件耗材</p>
+                    @if(canEditMaterialsUsage($workorder))
+                    <button type="button" onclick="openModal('materialsModal')" class="btn btn-ghost btn-sm">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7 M18.5 2.5a2.1 2.1 0 0 1 3 3L12 15l-4 1 1-4z"/></svg>
+                        <span>编辑</span>
+                    </button>
                     @endif
                 </div>
+                @if($workorder->materials_usage)
+                <div class="p-3 rounded-lg text-sm bg-amber-50 border border-amber-200" style="color: var(--c-ink);">{!! nl2br(e($workorder->materials_usage)) !!}</div>
+                @else
+                <p class="text-sm" style="color: var(--c-ink-subtle);">暂无记录</p>
+                @endif
+            </div>
+
+            {{-- Contact + location --}}
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4 pt-4 border-t border-border text-sm">
+                <div><span class="block text-xs" style="color: var(--c-ink-subtle);">联系人</span><span class="text-ink font-medium">{{ $workorder->contact_name }}</span></div>
+                <div><span class="block text-xs" style="color: var(--c-ink-subtle);">电话</span><span class="text-ink font-medium">{{ $workorder->contact_phone }}</span></div>
+                <div><span class="block text-xs" style="color: var(--c-ink-subtle);">邮箱</span><span class="text-ink font-medium">{{ $workorder->contact_email ?: '--' }}</span></div>
+                <div><span class="block text-xs" style="color: var(--c-ink-subtle);">地点</span><span class="text-ink font-medium">
+                    @if($workorder->campus){{ \App\Models\Location::CAMPUSES[$workorder->campus] ?? $workorder->campus }}@endif
+                    @if($workorder->building)@php($b = \App\Models\Location::find($workorder->building)) {{ $b ? ' - ' . $b->name : ' - ' . $workorder->building }}@endif
+                </span></div>
             </div>
         </div>
-        
-        <!-- 处理记录 -->
-        <div class="card mb-4">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="card-title mb-0">处理记录</h5>
-                <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addLogModal">
-                    <i class="fas fa-plus"></i> 添加记录
+
+        {{-- Processing logs --}}
+        <div class="card">
+            <div class="flex items-center justify-between p-5 pb-3">
+                <h2 class="text-sm font-semibold text-ink">处理记录</h2>
+                <button type="button" onclick="openModal('addLogModal')" class="btn btn-secondary btn-sm">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 5v14M5 12h14"/></svg>
+                    <span>添加</span>
                 </button>
             </div>
-            <div class="card-body">
+            <div class="px-5 pb-5">
                 @if($workorder->logs->count() > 0)
-                <div class="timeline">
+                <div class="space-y-3">
                     @foreach($workorder->logs as $log)
-                    <div class="timeline-item">
-                        <div class="timeline-marker bg-{{ $log->is_system ? 'secondary' : 'primary' }}"></div>
-                        <div class="timeline-content">
-                            <div class="d-flex justify-content-between align-items-start">
-                                <div>
-                                    <strong>{{ $log->action_text }}</strong>
-                                    @if($log->content)
-                                    <div class="text-muted mt-1">{{ $log->content }}</div>
-                                    @endif
+                    <div class="flex gap-3">
+                        <div class="flex flex-col items-center shrink-0">
+                            <div class="w-2.5 h-2.5 rounded-full mt-1 {{ $log->is_system ? 'bg-slate-300' : 'bg-brand-600' }}"></div>
+                            @if(!$loop->last)<div class="w-0.5 flex-1 mt-1" style="background-color: var(--c-border);"></div>@endif
+                        </div>
+                        <div class="flex-1 pb-3">
+                            <div class="flex items-start justify-between gap-2">
+                                <div class="min-w-0">
+                                    <p class="text-sm font-medium text-ink">{{ $log->action_text }}</p>
+                                    @if($log->content)<p class="text-xs mt-0.5" style="color: var(--c-ink-muted);">{{ $log->content }}</p>@endif
                                 </div>
-                                <div class="text-end">
-                                    <small class="text-muted">
-                                        {{ $log->user ? $log->user->name : '系统' }}
-                                        <br>{{ $log->created_at->format('m-d H:i') }}
-                                    </small>
+                                <div class="text-right shrink-0">
+                                    <p class="text-xs text-ink">{{ $log->user ? $log->user->name : '系统' }}</p>
+                                    <p class="text-xs" style="color: var(--c-ink-subtle);">{{ $log->created_at->format('m-d H:i') }}</p>
                                 </div>
                             </div>
                         </div>
@@ -260,1099 +197,505 @@
                     @endforeach
                 </div>
                 @else
-                <div class="text-center py-4 text-muted">
-                    <i class="fas fa-history fa-2x mb-2"></i>
-                    <p>暂无处理记录</p>
+                <div class="text-center py-6">
+                    <svg class="w-10 h-10 mx-auto text-ink-subtle" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3 M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z"/></svg>
+                    <p class="text-sm mt-2" style="color: var(--c-ink-muted);">暂无处理记录</p>
                 </div>
                 @endif
             </div>
         </div>
     </div>
-    
-    <!-- 右侧信息栏 -->
-    <div class="col-md-4">
-        <!-- 处理人信息 -->
-        <div class="card mb-4">
-            <div class="card-header">
-                <h6 class="card-title mb-0">处理人信息</h6>
-            </div>
-            <div class="card-body">
-                @if($workorder->assignee)
-                <div class="text-center">
-                    <div class="mb-2">
-                        <i class="fas fa-user fa-3x text-primary"></i>
-                    </div>
-                    <h6>{{ $workorder->assignee->name }}</h6>
-                    <p class="text-muted">{{ $workorder->assignee->department?->name }}</p>
-                    <p class="text-muted">{{ $workorder->assignee->phone }}</p>
+
+    {{-- Sidebar --}}
+    <div class="lg:col-span-1 space-y-4">
+
+        {{-- Assignee --}}
+        <div class="card p-5">
+            <h3 class="text-sm font-semibold text-ink mb-3">处理人</h3>
+            @if($workorder->assignee)
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-full flex items-center justify-center shrink-0 bg-brand-600 text-white font-medium">{{ mb_substr($workorder->assignee->name, 0, 1) }}</div>
+                <div class="min-w-0">
+                    <p class="text-sm font-medium text-ink truncate">{{ $workorder->assignee->name }}</p>
+                    <p class="text-xs" style="color: var(--c-ink-subtle);">{{ $workorder->assignee->department?->name ?? '' }}</p>
                 </div>
-                @else
-                <div class="text-center text-muted">
-                    <i class="fas fa-user-slash fa-2x mb-2"></i>
-                    <p>未分配处理人</p>
-                </div>
-                @endif
             </div>
+            @else
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-full flex items-center justify-center shrink-0" style="background-color: var(--c-muted);">
+                    <svg class="w-5 h-5 text-ink-subtle" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2 M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z"/></svg>
+                </div>
+                <p class="text-sm" style="color: var(--c-ink-muted);">未分配</p>
+            </div>
+            @endif
         </div>
-        
-        <!-- 附件列表 -->
-        <div class="card mb-4">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h6 class="card-title mb-0">附件列表</h6>
+
+        {{-- Stats --}}
+        <div class="card p-5">
+            <h3 class="text-sm font-semibold text-ink mb-3">工单统计</h3>
+            <div class="grid grid-cols-2 gap-3">
+                <div class="text-center p-3 rounded-lg" style="background-color: var(--c-muted);">
+                    <p class="text-lg font-semibold text-ink">{{ $workorder->response_duration ?? '--' }}</p>
+                    <p class="text-xs" style="color: var(--c-ink-subtle);">响应(分)</p>
+                </div>
+                <div class="text-center p-3 rounded-lg" style="background-color: var(--c-muted);">
+                    <p class="text-lg font-semibold text-ink">{{ $workorder->processing_duration ?? '--' }}</p>
+                    <p class="text-xs" style="color: var(--c-ink-subtle);">处理(分)</p>
+                </div>
+            </div>
+            @if($workorder->visits->count() > 0)
+            <div class="text-center mt-3 pt-3 border-t border-border">
+                <p class="text-xs" style="color: var(--c-ink-subtle);">满意度评分</p>
+                <p class="text-xl font-semibold text-brand-600">{{ $workorder->visits->first()->average_score ?? '--' }}</p>
+            </div>
+            @endif
+        </div>
+
+        {{-- Attachments --}}
+        <div class="card p-5">
+            <div class="flex items-center justify-between mb-3">
+                <h3 class="text-sm font-semibold text-ink">附件</h3>
                 @if(canUploadAttachment($workorder))
-                <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#uploadAttachmentModal">
-                    <i class="fas fa-plus"></i> 上传附件
+                <button type="button" onclick="openModal('uploadAttachmentModal')" class="btn btn-secondary btn-sm">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 5v14M5 12h14"/></svg>
+                    <span>上传</span>
                 </button>
                 @endif
             </div>
-            <div class="card-body">
-                @if($workorder->attachments->count() > 0)
+            @if($workorder->attachments->count() > 0)
+            <div class="space-y-2">
                 @foreach($workorder->attachments as $attachment)
-                <div class="attachment-item mb-3 p-3 border rounded">
-                    <div class="d-flex">
-                        <!-- 左侧缩略图和按钮 -->
-                        <div class="d-flex flex-column align-items-center me-3">
-                            <!-- 缩略图 -->
-                            <div class="attachment-thumbnail mb-2">
-                                @if($attachment->isImage())
-                                    <img src="{{ route('attachments.preview', $attachment->id) }}"
-                                         class="img-thumbnail attachment-preview-img"
-                                         alt="{{ $attachment->description ?: $attachment->original_name }}"
-                                         data-attachment-id="{{ $attachment->id }}"
-                                         data-preview-type="{{ $attachment->preview_type }}"
-                                         data-preview-url="{{ route('attachments.preview', $attachment->id) }}"
-                                         data-filename="{{ $attachment->description ?: $attachment->original_name }}"
-                                         style="width: 60px; height: 60px; object-fit: cover; cursor: pointer;">
-                                @else
-                                    <div class="file-icon-wrapper attachment-preview-trigger"
-                                         data-attachment-id="{{ $attachment->id }}"
-                                         data-preview-type="{{ $attachment->preview_type }}"
-                                         data-preview-url="{{ route('attachments.preview', $attachment->id) }}"
-                                         data-filename="{{ $attachment->description ?: $attachment->original_name }}"
-                                         style="width: 60px; height: 60px; display: flex; align-items: center; justify-content: center; background-color: #f8f9fa; border-radius: 8px; cursor: pointer;">
-                                        <i class="{{ $attachment->getFileIcon() }} fa-2x" aria-hidden="true"></i>
-                                    </div>
-                                @endif
-                            </div>
-                            
-                            <!-- 操作按钮 -->
-                            <div class="d-flex flex-column gap-1">
-                                @if($attachment->canPreview())
-                                <a href="#" class="btn btn-sm btn-outline-primary attachment-action-btn"
-                                   data-bs-toggle="modal"
-                                   data-bs-target="#attachmentPreviewModal{{ $attachment->id }}"
-                                   title="预览">
-                                    预览
-                                </a>
-                                @endif
-                                <a href="{{ route('attachments.download', $attachment->id) }}"
-                                   class="btn btn-sm btn-outline-success attachment-action-btn"
-                                   title="下载">
-                                    下载
-                                </a>
-                                @if (Auth::user()->canDeleteWorkorders() || Auth::id() === $workorder->creator_id || Auth::id() === $workorder->assignee_id)
-                                <form action="{{ route('attachments.destroy', $attachment->id) }}"
-                                      method="POST" class="d-inline">
-                                    @csrf
-                                    @method('DELETE')
-                                    <button type="submit" class="btn btn-sm btn-outline-danger attachment-action-btn"
-                                            title="删除"
-                                            onclick="return confirm('确定要删除这个附件吗？')">
-                                        删除
-                                    </button>
-                                </form>
-                                @endif
-                            </div>
-                        </div>
-                        
-                        <!-- 右侧文件信息 -->
-                        <div class="attachment-info flex-grow-1">
-                            <h6 class="mb-1 attachment-filename">
-                                {{ \App\Helpers\FileHelper::truncateFilename($attachment->description ?: $attachment->original_name, 16) }}
-                            </h6>
-                            <div class="mb-2">
-                                <small class="text-muted">
-                                    <span class="badge bg-light text-dark me-1">{{ $attachment->file_type_description }}</span>
-                                    附件格式：{{ \App\Helpers\FileHelper::getFileExtension($attachment->original_name) }}
-                                </small>
-                            </div>
-                            <small class="text-muted d-block">
-                                附件大小：{{ $attachment->formatted_file_size }}
-                            </small>
-                            <small class="text-muted d-block">
-                                上传者：{{ $attachment->user ? $attachment->user->name : '未知' }}
-                            </small>
-                            <small class="text-muted d-block">
-                                上传日期：{{ $attachment->created_at->format('Y/m/d') }}
-                            </small>
-                            <small class="text-muted d-block">
-                                上传时间：{{ $attachment->created_at->format('H:i') }}
-                            </small>
-                            @if($attachment->description && $attachment->description !== $attachment->original_name)
-                            <small class="text-muted d-block">文件名：{{ $attachment->original_name }}</small>
-                            @endif
-                        </div>
-                    </div>
-                </div>
-                @endforeach
-                @else
-                <div class="text-center text-muted">
-                    <i class="fas fa-paperclip fa-2x mb-2"></i>
-                    <p>暂无附件</p>
-                </div>
-                @endif
-            </div>
-        </div>
-        
-        <!-- 工单统计 -->
-        <div class="card mb-4">
-            <div class="card-header">
-                <h6 class="card-title mb-0">工单统计</h6>
-            </div>
-            <div class="card-body">
-                <div class="row text-center">
-                    <div class="col-6 mb-3">
-                        <div class="border rounded p-2">
-                            <strong>{{ $workorder->response_duration ?? '--' }}</strong>
-                            <br><small class="text-muted">响应时长(分)</small>
-                        </div>
-                    </div>
-                    <div class="col-6 mb-3">
-                        <div class="border rounded p-2">
-                            <strong>{{ $workorder->processing_duration ?? '--' }}</strong>
-                            <br><small class="text-muted">处理时长(分)</small>
-                        </div>
-                    </div>
-                </div>
-                
-                @if($workorder->visits->count() > 0)
-                <div class="text-center">
-                    <small class="text-muted">满意度评分</small>
-                    <div class="h4 text-primary">
-                        {{ $workorder->visits->first()->average_score ?? '--' }}
-                    </div>
-                </div>
-                @endif
-            </div>
-        </div>
-        
-        <!-- 工单处理人员名单 -->
-        <div class="card mb-4">
-            <div class="card-header">
-                <h6 class="card-title mb-0">工单处理人员名单</h6>
-            </div>
-            <div class="card-body">
-                <!-- 工单负责人 -->
-                @if($workorder->assignee)
-                <div class="d-flex align-items-center mb-3 p-2 bg-primary bg-opacity-10 rounded">
-                    <div class="me-2">
-                        <i class="fas fa-user-tie fa-lg text-primary"></i>
-                    </div>
-                    <div class="flex-grow-1">
-                        <h6 class="mb-0">{{ $workorder->assignee->name }}</h6>
-                        <small class="text-muted">{{ $workorder->assignee->department?->name }}</small>
-                        <br><small class="text-primary">工单负责人</small>
-                    </div>
-                    <div class="ms-auto">
-                        <span class="badge bg-primary">负责人</span>
-                    </div>
-                </div>
-                @endif
-                
-                <!-- 协作工程师 -->
-                @if($workorder->collaborations()->count() > 0)
-                @foreach($workorder->collaborations as $collaboration)
-                <div class="d-flex align-items-center mb-2 p-2 bg-info bg-opacity-10 rounded">
-                    <div class="me-2">
-                        <i class="fas fa-user fa-lg text-info"></i>
-                    </div>
-                    <div class="flex-grow-1">
-                        <h6 class="mb-0">{{ $collaboration->collaborator->name }}</h6>
-                        <small class="text-muted">{{ $collaboration->collaborator->department?->name }}</small>
-                        @if($collaboration->accepted_at)
-                        <br><small class="text-success">接受时间：{{ $collaboration->accepted_at->format('m-d H:i') }}</small>
-                        @endif
-                        @if($collaboration->invitation_reason)
-                        <br><small class="text-info">邀请原因：{{ $collaboration->invitation_reason }}</small>
-                        @endif
-                    </div>
-                    <div class="ms-auto">
-                        @if($collaboration->status === 'pending' && $collaboration->collaborator_id === auth()->id())
-                        <div class="btn-group btn-group-sm">
-                            <form method="POST" action="{{ route('workorders.collaborations.accept', $collaboration->id) }}" class="d-inline">
-                                @csrf
-                                <button type="submit" class="btn btn-sm btn-success"
-                                        onclick="return confirm('确认接受协作邀请吗？')">
-                                    <i class="fas fa-check"></i> 接受
-                                </button>
-                            </form>
-                            <form method="POST" action="{{ route('workorders.collaborations.reject', $collaboration->id) }}" class="d-inline">
-                                @csrf
-                                <button type="submit" class="btn btn-sm btn-danger"
-                                        onclick="return confirm('确认拒绝协作邀请吗？')">
-                                    <i class="fas fa-times"></i> 拒绝
-                                </button>
-                            </form>
-                        </div>
+                <div class="flex items-center gap-3 p-2.5 rounded-lg border border-border">
+                    <div class="w-10 h-10 rounded-lg overflow-hidden shrink-0 flex items-center justify-center" style="background-color: var(--c-muted);">
+                        @if($attachment->isImage())
+                        <img src="{{ route('attachments.preview', $attachment->id) }}" alt="{{ $attachment->original_name }}" class="w-full h-full object-cover cursor-pointer" onclick="showFilePreview({{ $attachment->id }}, '{{ $attachment->preview_type }}', '{{ route('attachments.preview', $attachment->id) }}', '{{ $attachment->description ?: $attachment->original_name }}')">
                         @else
-                        <span class="badge bg-{{ $collaboration->status_color }}">{{ $collaboration->status_text }}</span>
+                        <button type="button" onclick="showFilePreview({{ $attachment->id }}, '{{ $attachment->preview_type }}', '{{ route('attachments.preview', $attachment->id) }}', '{{ $attachment->description ?: $attachment->original_name }}')" class="w-full h-full flex items-center justify-center">
+                            <svg class="w-5 h-5 text-ink-subtle" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z M14 2v6h6"/></svg>
+                        </button>
+                        @endif
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-sm font-medium text-ink truncate">{{ $attachment->description ?: $attachment->original_name }}</p>
+                        <p class="text-xs" style="color: var(--c-ink-subtle);">{{ $attachment->formatted_file_size }}</p>
+                    </div>
+                    <div class="flex items-center gap-1 shrink-0">
+                        <a href="{{ route('attachments.download', $attachment->id) }}" class="btn btn-ghost btn-icon btn-sm" title="下载">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4 M7 10l5 5 5-5 M12 15V3"/></svg>
+                        </a>
+                        @if(Auth::user()->canDeleteWorkorders() || Auth::id() === $workorder->creator_id || Auth::id() === $workorder->assignee_id)
+                        <form method="POST" action="{{ route('attachments.destroy', $attachment->id) }}" class="inline" onsubmit="return confirm('确定删除？')">
+                            @csrf @method('DELETE')
+                            <button type="submit" class="btn btn-ghost btn-icon btn-sm text-red-500" title="删除">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 6h18 M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                            </button>
+                        </form>
                         @endif
                     </div>
                 </div>
                 @endforeach
-                @else
-                @if($workorder->assignee)
-                <div class="text-center text-muted py-2">
-                    <small>暂无协作工程师</small>
+            </div>
+            @else
+            <div class="text-center py-4">
+                <svg class="w-8 h-8 mx-auto text-ink-subtle" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+                <p class="text-xs mt-1" style="color: var(--c-ink-muted);">暂无附件</p>
+            </div>
+            @endif
+        </div>
+
+        {{-- Personnel --}}
+        @if($workorder->assignee || $workorder->collaborations()->count() > 0)
+        <div class="card p-5">
+            <h3 class="text-sm font-semibold text-ink mb-3">处理人员</h3>
+            @if($workorder->assignee)
+            <div class="flex items-center gap-2 p-2 rounded-lg bg-blue-50 mb-2">
+                <div class="w-8 h-8 rounded-full flex items-center justify-center shrink-0 bg-brand-600 text-white text-xs font-medium">{{ mb_substr($workorder->assignee->name, 0, 1) }}</div>
+                <div class="flex-1 min-w-0">
+                    <p class="text-sm font-medium text-ink truncate">{{ $workorder->assignee->name }}</p>
                 </div>
-                @endif
+                <span class="badge bg-blue-100 text-blue-700">负责人</span>
+            </div>
+            @endif
+            @foreach($workorder->collaborations as $collaboration)
+            <div class="flex items-center gap-2 p-2 rounded-lg bg-slate-50 mb-2">
+                <div class="w-8 h-8 rounded-full flex items-center justify-center shrink-0" style="background-color: var(--c-muted); color: var(--c-ink-muted); font-size: 0.75rem; font-weight: 500;">{{ mb_substr($collaboration->collaborator->name, 0, 1) }}</div>
+                <div class="flex-1 min-w-0">
+                    <p class="text-sm font-medium text-ink truncate">{{ $collaboration->collaborator->name }}</p>
+                    @if($collaboration->accepted_at)<p class="text-xs text-green-600">已接受 {{ $collaboration->accepted_at->format('m-d H:i') }}</p>@endif
+                </div>
+                @if($collaboration->status === 'pending' && $collaboration->collaborator_id === auth()->id())
+                <div class="flex items-center gap-1">
+                    <form method="POST" action="{{ route('workorders.collaborations.accept', $collaboration->id) }}" class="inline">@csrf<button type="submit" class="btn btn-primary btn-sm" onclick="return confirm('确认接受？')"><span>接受</span></button></form>
+                    <form method="POST" action="{{ route('workorders.collaborations.reject', $collaboration->id) }}" class="inline">@csrf<button type="submit" class="btn btn-secondary btn-sm" onclick="return confirm('确认拒绝？')"><span>拒绝</span></button></form>
+                </div>
+                @else
+                <span class="badge bg-slate-100 text-slate-600">{{ $collaboration->status_text }}</span>
                 @endif
             </div>
+            @endforeach
         </div>
-        
-        <!-- 回访功能 -->
+        @endif
+
+        {{-- Visit --}}
         @if($workorder->status === 'resolved' && !$workorder->visits()->exists())
-        <div class="card mb-4">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="card-title mb-0">工单回访</h5>
-                <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#visitModal">
-                    <i class="fas fa-plus"></i> 添加回访
+        <div class="card p-5">
+            <div class="flex items-center justify-between mb-2">
+                <h3 class="text-sm font-semibold text-ink">工单回访</h3>
+                <button type="button" onclick="openModal('visitModal')" class="btn btn-secondary btn-sm">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 5v14M5 12h14"/></svg>
+                    <span>回访</span>
                 </button>
             </div>
-            <div class="card-body">
-                <div class="text-center text-muted">
-                    <i class="fas fa-phone fa-2x mb-2"></i>
-                    <p>该工单已完成，但尚未进行回访。请添加回访记录以了解用户满意度。</p>
-                </div>
-            </div>
+            <p class="text-sm" style="color: var(--c-ink-muted);">该工单已解决，请添加回访记录。</p>
         </div>
         @endif
-        
-        <!-- 回访记录列表 -->
+
+        {{-- Visit records --}}
         @if($workorder->visits()->count() > 0)
-        <div class="card mb-4">
-            <div class="card-header">
-                <h5 class="card-title">回访记录</h5>
-            </div>
-            <div class="card-body">
-                <div class="table-responsive">
-                    <table class="table table-sm">
-                        <thead>
-                            <tr>
-                                <th>回访时间</th>
-                                <th>回访方式</th>
-                                <th>回访人</th>
-                                <th>满意度</th>
-                                <th>回访状态</th>
-                                <th>回访内容</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach($workorder->visits as $visit)
-                            <tr>
-                                <td>{{ $visit->visit_time ? $visit->visit_time->format('Y-m-d H:i') : '--' }}</td>
-                                <td><span class="badge bg-info">{{ $visit->visit_method_text }}</span></td>
-                                <td>{{ $visit->visitor ? $visit->visitor->name : '--' }}</td>
-                                <td>
-                                    @if($visit->satisfaction_score)
-                                        <span class="badge bg-{{ $visit->satisfaction_color }}">{{ $visit->average_score }}分</span>
-                                    @else
-                                        <span class="text-muted">--</span>
-                                    @endif
-                                </td>
-                                <td><span class="badge bg-{{ $visit->status == 'completed' ? 'success' : ($visit->status == 'failed' ? 'danger' : 'warning') }}">{{ $visit->status_text }}</span></td>
-                                <td>{{ $visit->feedback ?: '--' }}</td>
-                            </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
+        <div class="card p-5">
+            <h3 class="text-sm font-semibold text-ink mb-3">回访记录</h3>
+            <div class="space-y-3">
+                @foreach($workorder->visits as $visit)
+                <div class="p-3 rounded-lg border border-border text-sm">
+                    <div class="flex items-center justify-between mb-1">
+                        <span class="font-medium text-ink">{{ $visit->visit_time ? $visit->visit_time->format('Y-m-d H:i') : '--' }}</span>
+                        <span class="badge bg-slate-100 text-slate-600">{{ $visit->status_text }}</span>
+                    </div>
+                    <p class="text-xs" style="color: var(--c-ink-muted);">{{ $visit->visitor?->name ?? '--' }} · {{ $visit->visit_method_text }}</p>
+                    @if($visit->satisfaction_score)<p class="text-xs text-brand-600 mt-1">满意度 {{ $visit->average_score }} 分</p>@endif
+                    @if($visit->feedback)<p class="text-xs mt-1" style="color: var(--c-ink-muted);">{{ $visit->feedback }}</p>@endif
                 </div>
+                @endforeach
             </div>
         </div>
         @endif
     </div>
 </div>
 
-<!-- 分配工单模态框 -->
-<div class="modal fade" id="assignModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">分配工单</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="关闭分配工单对话框"></button>
-            </div>
-            <form method="POST" action="{{ route('workorders.assign', $workorder->id) }}">
-                @csrf
-                <div class="modal-body">
-                    <div class="mb-3">
-                        <label for="modal_assignee_id" class="form-label">选择处理人</label>
-                        <select class="form-select" id="modal_assignee_id" name="assignee_id" required>
-                            <option value="">请选择处理人</option>
-                            @foreach(\App\Models\User::getAssignableEngineers() as $engineer)
-                            <option value="{{ $engineer->id }}">{{ $engineer->name }} - {{ $engineer->department?->name }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
-                    <button type="submit" class="btn btn-primary">确认分配</button>
-                </div>
-            </form>
+{{-- ============ MODALS ============ --}}
+
+{{-- Assign modal --}}
+<div id="assignModal" class="hidden fixed inset-0 z-50 items-center justify-center p-4 bg-black/50" data-modal>
+    <div class="card w-full max-w-md p-5">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="text-sm font-semibold text-ink">分配工单</h3>
+            <button type="button" onclick="closeModal('assignModal')" class="btn btn-ghost btn-icon btn-sm"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M18 6 6 18M6 6l12 12"/></svg></button>
         </div>
+        <form method="POST" action="{{ route('workorders.assign', $workorder->id) }}">
+            @csrf
+            <label class="label" for="modal_assignee_id">处理人</label>
+            <select class="input mb-4" id="modal_assignee_id" name="assignee_id" required>
+                <option value="">请选择</option>
+                @foreach(\App\Models\User::getAssignableEngineers() as $engineer)
+                <option value="{{ $engineer->id }}">{{ $engineer->name }} - {{ $engineer->department?->name }}</option>
+                @endforeach
+            </select>
+            <div class="flex items-center justify-end gap-2">
+                <button type="button" onclick="closeModal('assignModal')" class="btn btn-secondary">取消</button>
+                <button type="submit" class="btn btn-primary">确认分配</button>
+            </div>
+        </form>
     </div>
 </div>
 
-<!-- 解决工单模态框 -->
-<div class="modal fade" id="resolveModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">解决工单</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="关闭解决工单对话框"></button>
-            </div>
-            <form method="POST" action="{{ route('workorders.resolve', $workorder->id) }}" id="resolveForm">
-                @csrf
-                <div class="modal-body">
-                    <div class="mb-3">
-                        <label for="solution" class="form-label">解决方案 <span class="text-danger">*</span></label>
-                        <textarea class="form-control" id="solution" name="solution" rows="5" required
-                                  placeholder="请详细描述解决方案..." autocomplete="off"></textarea>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label for="resolve_materials_usage" class="form-label">备件耗材使用情况 <span class="text-danger">*</span></label>
-                        <div class="form-check mb-2">
-                            <input class="form-check-input" type="checkbox" id="no_materials" name="no_materials" value="1" autocomplete="off">
-                            <label class="form-check-label" for="no_materials">
-                                无备件耗材使用
-                            </label>
-                        </div>
-                        <div id="materials_usage_div">
-                            <label for="resolve_materials_usage" class="form-label">请填写备件耗材使用情况</label>
-                            <textarea class="form-control" id="resolve_materials_usage" name="materials_usage" rows="4"
-                                      placeholder="请详细描述使用的备件和耗材情况..." autocomplete="off"></textarea>
-                            <div class="form-text">
-                                请记录使用的备件名称、规格、数量等信息
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
-                    <button type="submit" class="btn btn-primary">确认解决</button>
-                </div>
-            </form>
+{{-- Resolve modal --}}
+<div id="resolveModal" class="hidden fixed inset-0 z-50 items-center justify-center p-4 bg-black/50" data-modal>
+    <div class="card w-full max-w-md p-5 max-h-[90vh] overflow-y-auto">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="text-sm font-semibold text-ink">解决工单</h3>
+            <button type="button" onclick="closeModal('resolveModal')" class="btn btn-ghost btn-icon btn-sm"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M18 6 6 18M6 6l12 12"/></svg></button>
         </div>
+        <form method="POST" action="{{ route('workorders.resolve', $workorder->id) }}" id="resolveForm">
+            @csrf
+            <label class="label" for="solution">解决方案 <span class="text-red-500">*</span></label>
+            <textarea class="input mb-4" id="solution" name="solution" rows="4" required placeholder="请描述解决方案"></textarea>
+            <label class="label" for="resolve_materials_usage">备件耗材使用</label>
+            <label class="flex items-center gap-2 mb-2 cursor-pointer">
+                <input type="checkbox" id="no_materials" name="no_materials" value="1" class="rounded border-border-strong w-4 h-4">
+                <span class="text-sm" style="color: var(--c-ink-muted);">无备件耗材</span>
+            </label>
+            <div id="materials_usage_div">
+                <textarea class="input" id="resolve_materials_usage" name="materials_usage" rows="3" placeholder="名称、规格、数量等"></textarea>
+            </div>
+            <div class="flex items-center justify-end gap-2 mt-4">
+                <button type="button" onclick="closeModal('resolveModal')" class="btn btn-secondary">取消</button>
+                <button type="submit" class="btn btn-primary">确认解决</button>
+            </div>
+        </form>
     </div>
 </div>
 
-<!-- 完结工单模态框 -->
-<div class="modal fade" id="completeModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">完结工单</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="关闭完结工单对话框"></button>
-            </div>
-            <form method="POST" action="{{ route('workorders.complete', $workorder->id) }}">
-                @csrf
-                <div class="modal-body">
-                    <div class="mb-3">
-                        <label for="completion_note" class="form-label">完结说明</label>
-                        <textarea class="form-control" id="completion_note" name="completion_note" rows="5" required
-                                  placeholder="请输入工单完结说明..." autocomplete="off"></textarea>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
-                    <button type="submit" class="btn btn-success">确认完结</button>
-                </div>
-            </form>
+{{-- Complete modal --}}
+<div id="completeModal" class="hidden fixed inset-0 z-50 items-center justify-center p-4 bg-black/50" data-modal>
+    <div class="card w-full max-w-md p-5">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="text-sm font-semibold text-ink">完结工单</h3>
+            <button type="button" onclick="closeModal('completeModal')" class="btn btn-ghost btn-icon btn-sm"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M18 6 6 18M6 6l12 12"/></svg></button>
         </div>
+        <form method="POST" action="{{ route('workorders.complete', $workorder->id) }}">
+            @csrf
+            <label class="label" for="completion_note">完结说明 <span class="text-red-500">*</span></label>
+            <textarea class="input mb-4" id="completion_note" name="completion_note" rows="4" required placeholder="请输入完结说明"></textarea>
+            <div class="flex items-center justify-end gap-2">
+                <button type="button" onclick="closeModal('completeModal')" class="btn btn-secondary">取消</button>
+                <button type="submit" class="btn btn-primary">确认完结</button>
+            </div>
+        </form>
     </div>
 </div>
 
-<!-- 添加处理记录模态框 -->
-<div class="modal fade" id="addLogModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">添加处理记录</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="关闭添加处理记录对话框"></button>
-            </div>
-            <form method="POST" action="{{ route('workorders.logs.add', $workorder->id) }}">
-                @csrf
-                <div class="modal-body">
-                    <div class="mb-3">
-                        <label for="content" class="form-label">记录内容</label>
-                        <textarea class="form-control" id="content" name="content" rows="4" required
-                                  placeholder="请输入处理记录..." autocomplete="off"></textarea>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
-                    <button type="submit" class="btn btn-primary">添加记录</button>
-                </div>
-            </form>
+{{-- Add log modal --}}
+<div id="addLogModal" class="hidden fixed inset-0 z-50 items-center justify-center p-4 bg-black/50" data-modal>
+    <div class="card w-full max-w-md p-5">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="text-sm font-semibold text-ink">添加处理记录</h3>
+            <button type="button" onclick="closeModal('addLogModal')" class="btn btn-ghost btn-icon btn-sm"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M18 6 6 18M6 6l12 12"/></svg></button>
         </div>
+        <form method="POST" action="{{ route('workorders.logs.add', $workorder->id) }}">
+            @csrf
+            <label class="label" for="log_content">记录内容 <span class="text-red-500">*</span></label>
+            <textarea class="input mb-4" id="log_content" name="content" rows="4" required placeholder="请输入处理记录"></textarea>
+            <div class="flex items-center justify-end gap-2">
+                <button type="button" onclick="closeModal('addLogModal')" class="btn btn-secondary">取消</button>
+                <button type="submit" class="btn btn-primary">添加记录</button>
+            </div>
+        </form>
     </div>
 </div>
 
-<!-- 上传附件模态框 -->
-@if((auth()->user()->isAdmin() || auth()->user()->isWorkorderManager() || $workorder->assignee_id == auth()->id() || $workorder->collaborators()->where('collaborator_id', auth()->id())->exists()) && in_array($workorder->status, ['pending', 'processing', 'assigned']))
-<div class="modal fade" id="uploadAttachmentModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">上传附件</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="关闭上传附件对话框"></button>
-            </div>
-            <form method="POST" action="{{ route('workorders.attachments.upload', $workorder->id) }}" enctype="multipart/form-data">
-                @csrf
-                <div class="modal-body">
-                    <div class="mb-3">
-                        <label for="new_attachments" class="form-label">选择文件</label>
-                        <input type="file" class="form-control" id="new_attachments" name="attachments[]"
-                               multiple accept=".jpg,.jpeg,.png,.gif,.pdf,.doc,.docx,.txt" required autocomplete="off">
-                        <div class="form-text">
-                            支持上传图片、文档等文件，单个文件最大10MB，最多5个文件<br>
-                            <small class="text-info">大图片将自动压缩以减少文件大小，提高上传成功率</small>
-                        </div>
-                        <div id="newAttachmentPreview" class="mt-2"></div>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
-                    <button type="submit" class="btn btn-primary">上传</button>
-                </div>
-            </form>
+{{-- Upload attachment modal --}}
+@if(canUploadAttachment($workorder))
+<div id="uploadAttachmentModal" class="hidden fixed inset-0 z-50 items-center justify-center p-4 bg-black/50" data-modal>
+    <div class="card w-full max-w-md p-5">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="text-sm font-semibold text-ink">上传附件</h3>
+            <button type="button" onclick="closeModal('uploadAttachmentModal')" class="btn btn-ghost btn-icon btn-sm"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M18 6 6 18M6 6l12 12"/></svg></button>
         </div>
+        <form method="POST" action="{{ route('workorders.attachments.upload', $workorder->id) }}" enctype="multipart/form-data">
+            @csrf
+            <label class="label" for="new_attachments">选择文件</label>
+            <input type="file" class="input mb-1" id="new_attachments" name="attachments[]" multiple accept=".jpg,.jpeg,.png,.gif,.pdf,.doc,.docx,.txt" required>
+            <p class="text-xs" style="color: var(--c-ink-subtle);">单个最大 10MB，最多 5 个</p>
+            <div id="newAttachmentPreview" class="mt-3 space-y-2"></div>
+            <div class="flex items-center justify-end gap-2 mt-4">
+                <button type="button" onclick="closeModal('uploadAttachmentModal')" class="btn btn-secondary">取消</button>
+                <button type="submit" class="btn btn-primary">上传</button>
+            </div>
+        </form>
     </div>
 </div>
 @endif
 
-<!-- 备件耗材编辑模态框 -->
+{{-- Materials edit modal --}}
 @if(canEditMaterialsUsage($workorder))
-<div class="modal fade" id="materialsModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">编辑备件耗材使用情况</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="关闭编辑备件耗材对话框"></button>
-            </div>
-            <form method="POST" action="{{ route('workorders.materials.update', $workorder->id) }}">
-                @csrf
-                <div class="modal-body">
-                    <div class="mb-3">
-                        <label for="edit_materials_usage" class="form-label">备件耗材使用情况</label>
-                        <textarea class="form-control" id="edit_materials_usage" name="materials_usage" rows="6" required
-                                  placeholder="请详细描述使用的备件和耗材情况..." autocomplete="off">{{ $workorder->materials_usage ?? '' }}</textarea>
-                        <div class="form-text">
-                            请记录使用的备件名称、规格、数量等信息
-                        </div>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
-                    <button type="submit" class="btn btn-primary">保存</button>
-                </div>
-            </form>
+<div id="materialsModal" class="hidden fixed inset-0 z-50 items-center justify-center p-4 bg-black/50" data-modal>
+    <div class="card w-full max-w-md p-5">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="text-sm font-semibold text-ink">编辑备件耗材</h3>
+            <button type="button" onclick="closeModal('materialsModal')" class="btn btn-ghost btn-icon btn-sm"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M18 6 6 18M6 6l12 12"/></svg></button>
         </div>
+        <form method="POST" action="{{ route('workorders.materials.update', $workorder->id) }}">
+            @csrf
+            <label class="label" for="edit_materials_usage">备件耗材使用 <span class="text-red-500">*</span></label>
+            <textarea class="input mb-4" id="edit_materials_usage" name="materials_usage" rows="5" required placeholder="名称、规格、数量等">{{ $workorder->materials_usage ?? '' }}</textarea>
+            <div class="flex items-center justify-end gap-2">
+                <button type="button" onclick="closeModal('materialsModal')" class="btn btn-secondary">取消</button>
+                <button type="submit" class="btn btn-primary">保存</button>
+            </div>
+        </form>
     </div>
 </div>
 @endif
 
-<!-- 邀请协作模态框 -->
+{{-- Invite collaboration modal --}}
 @if(canInviteCollaboration($workorder))
-<div class="modal fade" id="inviteModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">邀请协作工程师</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="关闭邀请协作对话框"></button>
-            </div>
-            <form method="POST" action="{{ route('workorders.invite.collaborator', $workorder->id) }}">
-                @csrf
-                <div class="modal-body">
-                    <div class="mb-3">
-                        <label for="collaborator_id" class="form-label">选择工程师</label>
-                        <select class="form-select" id="collaborator_id" name="collaborator_id" required>
-                            <option value="">请选择工程师</option>
-                            @foreach(\App\Models\User::getAssignableEngineers() as $engineer)
-                            @if($engineer->id != auth()->id() && $engineer->id != $workorder->assignee_id)
-                            <option value="{{ $engineer->id }}">{{ $engineer->name }} - {{ $engineer->department?->name }}</option>
-                            @endif
-                            @endforeach
-                        </select>
-                    </div>
-                    <div class="mb-3">
-                        <label for="invitation_reason" class="form-label">邀请原因</label>
-                        <textarea class="form-control" id="invitation_reason" name="invitation_reason" rows="3"
-                                  placeholder="请说明邀请协作的原因..." autocomplete="off"></textarea>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
-                    <button type="submit" class="btn btn-primary">发送邀请</button>
-                </div>
-            </form>
+<div id="inviteModal" class="hidden fixed inset-0 z-50 items-center justify-center p-4 bg-black/50" data-modal>
+    <div class="card w-full max-w-md p-5">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="text-sm font-semibold text-ink">邀请协作工程师</h3>
+            <button type="button" onclick="closeModal('inviteModal')" class="btn btn-ghost btn-icon btn-sm"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M18 6 6 18M6 6l12 12"/></svg></button>
         </div>
+        <form method="POST" action="{{ route('workorders.invite.collaborator', $workorder->id) }}">
+            @csrf
+            <label class="label" for="collaborator_id">选择工程师 <span class="text-red-500">*</span></label>
+            <select class="input mb-4" id="collaborator_id" name="collaborator_id" required>
+                <option value="">请选择</option>
+                @foreach(\App\Models\User::getAssignableEngineers() as $engineer)
+                @if($engineer->id != auth()->id() && $engineer->id != $workorder->assignee_id)
+                <option value="{{ $engineer->id }}">{{ $engineer->name }} - {{ $engineer->department?->name }}</option>
+                @endif
+                @endforeach
+            </select>
+            <label class="label" for="invitation_reason">邀请原因</label>
+            <textarea class="input mb-4" id="invitation_reason" name="invitation_reason" rows="3" placeholder="请说明邀请原因"></textarea>
+            <div class="flex items-center justify-end gap-2">
+                <button type="button" onclick="closeModal('inviteModal')" class="btn btn-secondary">取消</button>
+                <button type="submit" class="btn btn-primary">发送邀请</button>
+            </div>
+        </form>
     </div>
 </div>
 @endif
 
-<!-- 回访模态框 -->
+{{-- Visit modal --}}
 @if($workorder->status === 'resolved' && !$workorder->visits()->exists())
-<div class="modal fade" id="visitModal" tabindex="-1">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">工单回访</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="关闭工单回访对话框"></button>
-            </div>
-            <form method="POST" action="{{ route('workorders.visit.store', $workorder->id) }}">
-                @csrf
-                <div class="modal-body">
-                    <div class="row mb-3">
-                        <div class="col-md-6">
-                            <label for="visit_method" class="form-label">回访方式</label>
-                            <select class="form-select" id="visit_method" name="visit_method" required>
-                                <option value="">请选择回访方式</option>
-                                @foreach(\App\Models\WorkorderVisit::getVisitMethodOptions() as $value => $label)
-                                <option value="{{ $value }}">{{ $label }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-                        <div class="col-md-6">
-                            <label for="visit_time" class="form-label">回访时间</label>
-                            <input type="datetime-local" class="form-control" id="visit_time" name="visit_time" required autocomplete="off">
-                        </div>
-                    </div>
-                    <div class="mb-3">
-                        <label for="visit_content" class="form-label">回访内容</label>
-                        <textarea class="form-control" id="visit_content" name="visit_content" rows="4" required
-                                  placeholder="请记录回访内容，如用户反馈、问题解决情况等" autocomplete="off"></textarea>
-                    </div>
-                    <div class="row mb-3">
-                        <div class="col-md-3">
-                            <label for="satisfaction_score" class="form-label">响应速度评分 (1-5分)</label>
-                            <select class="form-select" id="satisfaction_score" name="satisfaction_score">
-                                <option value="">请评分</option>
-                                @foreach(\App\Models\WorkorderVisit::getScoreOptions() as $score => $text)
-                                <option value="{{ $score }}">{{ $text }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-                        <div class="col-md-3">
-                            <label for="service_quality_score" class="form-label">服务质量评分 (1-5分)</label>
-                            <select class="form-select" id="service_quality_score" name="service_quality_score">
-                                <option value="">请评分</option>
-                                @foreach(\App\Models\WorkorderVisit::getScoreOptions() as $score => $text)
-                                <option value="{{ $score }}">{{ $text }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-                        <div class="col-md-3">
-                            <label for="professional_score" class="form-label">专业水平评分 (1-5分)</label>
-                            <select class="form-select" id="professional_score" name="professional_score">
-                                <option value="">请评分</option>
-                                @foreach(\App\Models\WorkorderVisit::getScoreOptions() as $score => $text)
-                                <option value="{{ $score }}">{{ $text }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-                        <div class="col-md-3">
-                            <label for="overall_score" class="form-label">总体满意度评分 (1-5分)</label>
-                            <select class="form-select" id="overall_score" name="overall_score">
-                                <option value="">请评分</option>
-                                @foreach(\App\Models\WorkorderVisit::getScoreOptions() as $score => $text)
-                                <option value="{{ $score }}">{{ $text }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-                    </div>
-                    <div class="mb-3">
-                        <label for="feedback" class="form-label">用户反馈</label>
-                        <textarea class="form-control" id="feedback" name="feedback" rows="3"
-                                  placeholder="请记录用户反馈意见" autocomplete="off"></textarea>
-                    </div>
-                    <div class="row mb-3">
-                        <div class="col-md-6">
-                            <div class="form-check">
-                                <input type="checkbox" id="need_follow_up" name="need_follow_up" value="1" autocomplete="off">
-                                <label class="form-check-label" for="need_follow_up">
-                                    需要跟进
-                                </label>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <label for="follow_up_note" class="form-label">跟进说明</label>
-                            <textarea class="form-control" id="follow_up_note" name="follow_up_note" rows="2"
-                                      placeholder="如需跟进，请说明跟进内容" autocomplete="off"></textarea>
-                        </div>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="submit" class="btn btn-primary">提交回访记录</button>
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
-                </div>
-            </form>
+<div id="visitModal" class="hidden fixed inset-0 z-50 items-center justify-center p-4 bg-black/50" data-modal>
+    <div class="card w-full max-w-2xl p-5 max-h-[90vh] overflow-y-auto">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="text-sm font-semibold text-ink">工单回访</h3>
+            <button type="button" onclick="closeModal('visitModal')" class="btn btn-ghost btn-icon btn-sm"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M18 6 6 18M6 6l12 12"/></svg></button>
         </div>
+        <form method="POST" action="{{ route('workorders.visit.store', $workorder->id) }}">
+            @csrf
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                <div>
+                    <label class="label" for="visit_method">回访方式 <span class="text-red-500">*</span></label>
+                    <select class="input" id="visit_method" name="visit_method" required>
+                        <option value="">请选择</option>
+                        @foreach(\App\Models\WorkorderVisit::getVisitMethodOptions() as $value => $label)<option value="{{ $value }}">{{ $label }}</option>@endforeach
+                    </select>
+                </div>
+                <div>
+                    <label class="label" for="visit_time">回访时间 <span class="text-red-500">*</span></label>
+                    <input type="datetime-local" class="input" id="visit_time" name="visit_time" required>
+                </div>
+            </div>
+            <label class="label" for="visit_content">回访内容 <span class="text-red-500">*</span></label>
+            <textarea class="input mb-4" id="visit_content" name="visit_content" rows="3" required placeholder="请记录回访内容"></textarea>
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+                @foreach(['satisfaction_score' => '响应速度', 'service_quality_score' => '服务质量', 'professional_score' => '专业水平', 'overall_score' => '总体满意度'] as $field => $labelText)
+                <div>
+                    <label class="label" for="{{ $field }}">{{ $labelText }}</label>
+                    <select class="input" id="{{ $field }}" name="{{ $field }}">
+                        <option value="">评分</option>
+                        @foreach(\App\Models\WorkorderVisit::getScoreOptions() as $score => $text)<option value="{{ $score }}">{{ $text }}</option>@endforeach
+                    </select>
+                </div>
+                @endforeach
+            </div>
+            <label class="label" for="feedback">用户反馈</label>
+            <textarea class="input mb-4" id="feedback" name="feedback" rows="2" placeholder="请记录用户反馈"></textarea>
+            <label class="flex items-center gap-2 mb-2 cursor-pointer">
+                <input type="checkbox" id="need_follow_up" name="need_follow_up" value="1" class="rounded border-border-strong w-4 h-4">
+                <span class="text-sm" style="color: var(--c-ink-muted);">需要跟进</span>
+            </label>
+            <label class="label" for="follow_up_note">跟进说明</label>
+            <textarea class="input mb-4" id="follow_up_note" name="follow_up_note" rows="2" placeholder="如需跟进，请说明"></textarea>
+            <div class="flex items-center justify-end gap-2">
+                <button type="button" onclick="closeModal('visitModal')" class="btn btn-secondary">取消</button>
+                <button type="submit" class="btn btn-primary">提交回访</button>
+            </div>
+        </form>
     </div>
 </div>
 @endif
+
+{{-- File preview modal --}}
+<div id="filePreviewModal" class="hidden fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/70" onclick="if(event.target===this)closeFilePreview()">
+    <div class="card max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+        <div class="flex items-center justify-between px-5 py-3 border-b border-border shrink-0">
+            <span id="filePreviewTitle" class="text-sm font-medium text-ink truncate"></span>
+            <button type="button" onclick="closeFilePreview()" class="btn btn-ghost btn-icon btn-sm">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M18 6 6 18M6 6l12 12"/></svg>
+            </button>
+        </div>
+        <div id="filePreviewBody" class="flex-1 overflow-auto" style="background-color: var(--c-muted);"></div>
+        <div class="flex items-center justify-end gap-2 px-5 py-3 border-t border-border shrink-0">
+            <a id="filePreviewDownload" href="#" class="btn btn-primary btn-sm" download>
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4 M7 10l5 5 5-5 M12 15V3"/></svg>
+                <span>下载</span>
+            </a>
+            <button type="button" onclick="closeFilePreview()" class="btn btn-secondary btn-sm">关闭</button>
+        </div>
+    </div>
+</div>
+
+{{-- End modals --}}
 @endsection
 
 @section('scripts')
-<!-- 引入共享的解决工单模态框脚本 -->
-<script src="{{ asset('js/workorder-resolve.js') }}"></script>
 <script>
-// 新附件预览
-$('#new_attachments').change(function() {
-    var preview = $('#newAttachmentPreview');
-    preview.empty();
-    
-    var files = this.files;
-    for (var i = 0; i < files.length; i++) {
-        var file = files[i];
-        var fileSize = (file.size / 1024 / 1024).toFixed(2) + ' MB';
-        var fileIndex = i;
-        var willBeCompressed = false;
-        
-        // 检查是否为大图片
-        if (file.type.startsWith('image/') && file.size > 2 * 1024 * 1024) {
-            willBeCompressed = true;
-        }
-        
-        var fileDiv = $('<div class="alert alert-info mb-2">');
-        var fileInfoHtml = '<span><i class="fas fa-file"></i> ' + file.name + ' (' + fileSize + ')';
-        
-        // 如果是大图片，添加压缩提示
-        if (willBeCompressed) {
-            fileInfoHtml += ' <span class="badge bg-info ms-1">将自动压缩</span>';
-        }
-        
-        fileInfoHtml += '</span>';
-        
-        fileDiv.html(
-            '<div class="d-flex justify-content-between align-items-center">' +
-                fileInfoHtml +
-            '</div>' +
-            '<div class="mt-2">' +
-                '<label class="form-label small">附件描述（选填）</label>' +
-                '<input type="text" class="form-control form-control-sm new-attachment-desc-input" ' +
-                       'data-file-index="' + fileIndex + '" ' +
-                       'name="attachment_descriptions[' + fileIndex + ']" ' +
-                       'placeholder="请输入附件描述，如不填写将显示文件名"' +
-                       'maxlength="200" autocomplete="off">' +
-            '</div>'
-        );
-        
-        preview.append(fileDiv);
+// Modal helpers
+function openModal(id) {
+    var m = document.getElementById(id);
+    if (m) { m.classList.remove('hidden'); m.classList.add('flex'); document.body.classList.add('overflow-hidden'); }
+}
+function closeModal(id) {
+    var m = document.getElementById(id);
+    if (m) { m.classList.add('hidden'); m.classList.remove('flex'); document.body.classList.remove('overflow-hidden'); }
+}
+// Close on backdrop click
+document.querySelectorAll('[data-modal]').forEach(function(modal) {
+    modal.addEventListener('click', function(e) { if (e.target === this) closeModal(this.id); });
+});
+// ESC to close any modal
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        document.querySelectorAll('[data-modal]').forEach(function(m) { if (!m.classList.contains('hidden')) closeModal(m.id); });
+        closeFilePreview();
     }
 });
 
-// 附件预览事件委托
-$(document).on('click', '.attachment-preview-img, .attachment-preview-trigger, .attachment-preview-btn', function(e) {
-    e.preventDefault();
-    
-    var $element = $(this);
-    var attachmentId = $element.data('attachment-id');
-    var previewType = $element.data('preview-type');
-    var previewUrl = $element.data('preview-url');
-    var fileName = $element.data('filename');
-    
-    showFilePreview(attachmentId, previewType, previewUrl, fileName);
+// No materials checkbox
+document.getElementById('no_materials')?.addEventListener('change', function() {
+    var div = document.getElementById('materials_usage_div');
+    if (div) div.style.display = this.checked ? 'none' : 'block';
 });
 
-// 显示文件预览模态框
+// New attachment preview in upload modal
+document.getElementById('new_attachments')?.addEventListener('change', function() {
+    var preview = document.getElementById('newAttachmentPreview');
+    preview.innerHTML = '';
+    for (var i = 0; i < this.files.length; i++) {
+        (function(file, idx) {
+            var sizeMB = (file.size / 1024 / 1024).toFixed(2);
+            var compress = file.type.startsWith('image/') && file.size > 2 * 1024 * 1024;
+            var item = document.createElement('div');
+            item.className = 'p-2.5 rounded-lg border border-border text-sm';
+            item.innerHTML = '<div class="flex items-center gap-2"><span class="text-ink">' + file.name + '</span><span class="text-xs text-ink-subtle">' + sizeMB + ' MB</span>' + (compress ? '<span class="badge bg-blue-100 text-blue-700">压缩</span>' : '') + '</div>' +
+                '<input type="text" class="input mt-2" name="attachment_descriptions[' + idx + ']" placeholder="附件描述（选填）" maxlength="200">';
+            preview.appendChild(item);
+        })(this.files[i], i);
+    }
+});
+
+// File preview
 function showFilePreview(fileId, previewType, previewUrl, fileName) {
-    // 移除已存在的模态框
-    $('#filePreviewModal').remove();
-    
-    var modalHtml = '<div class="modal fade" id="filePreviewModal" tabindex="-1">' +
-        '<div class="modal-dialog modal-xl modal-dialog-centered">' +
-            '<div class="modal-content">' +
-                '<div class="modal-header">' +
-                    '<h5 class="modal-title">文件预览 - ' + fileName + '</h5>' +
-                    '<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="关闭"></button>' +
-                '</div>' +
-                '<div class="modal-body p-0" style="max-height: 80vh; overflow: auto;">';
-    
+    var body = document.getElementById('filePreviewBody');
+    var title = document.getElementById('filePreviewTitle');
+    var dl = document.getElementById('filePreviewDownload');
+    title.textContent = fileName || '文件预览';
+    dl.href = '/attachments/' + fileId + '/download';
+
     if (previewType === 'image') {
-        // 确保使用正确的预览路由
-        var imagePreviewUrl = '/attachments/' + fileId + '/preview';
-        modalHtml += '<div class="text-center p-3">' +
-            '<img src="' + imagePreviewUrl + '" class="img-fluid" alt="' + fileName + '" style="max-height: 70vh; object-fit: contain;" onerror="this.onerror=null; this.src=\'/images/file-icon.png\'; this.alt=\'图片加载失败\';">' +
-        '</div>';
+        body.innerHTML = '<div class="flex items-center justify-center p-4"><img src="/attachments/' + fileId + '/preview" alt="' + fileName + '" class="max-h-[75vh] rounded-lg" onerror="this.style.display=\'none\'"></div>';
     } else if (previewType === 'pdf') {
-        // 对于PDF，使用预览路由，增大显示尺寸，特别针对Safari优化
-        var pdfPreviewUrl = '/attachments/' + fileId + '/preview';
-        modalHtml += '<div class="pdf-preview-container" style="width: 100%; height: 85vh; overflow: hidden;">' +
-            '<iframe src="' + pdfPreviewUrl + '" class="pdf-preview-iframe" style="width: 100%; height: 100%; border: none; min-height: 85vh;" title="PDF预览"></iframe>' +
-        '</div>';
+        body.innerHTML = '<iframe src="/attachments/' + fileId + '/preview" class="w-full border-none" style="height: 75vh;" title="PDF预览"></iframe>';
     } else if (previewType === 'text') {
-        modalHtml += '<div class="p-3">' +
-            '<div id="textLoadingSpinner" class="spinner-border text-primary" role="status">' +
-                '<span class="visually-hidden">加载中...</span>' +
-            '</div>' +
-            '<div id="textPreviewContent" class="mt-3" style="display: none;"></div>' +
-        '</div>';
-    } else {
-        modalHtml += '<div class="text-center p-5">' +
-            '<i class="fas fa-file fa-4x text-muted mb-3" aria-hidden="true"></i>' +
-            '<h5>无法预览此文件类型</h5>' +
-            '<p class="text-muted">请下载文件后查看</p>' +
-        '</div>';
-    }
-    
-    modalHtml += '</div>' +
-        '<div class="modal-footer">' +
-            '<a href="/attachments/' + fileId + '/download" class="btn btn-primary" download>' +
-                '<i class="fas fa-download" aria-hidden="true"></i> 下载' +
-            '</a>' +
-            '<button type="button" class="btn btn-info safari-pdf-btn" style="display: none;" onclick="window.open(\'/attachments/' + fileId + '/preview\', \'_blank\')">' +
-                '<i class="fas fa-external-link-alt" aria-hidden="true"></i> 在新窗口中打开' +
-            '</button>' +
-            '<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>' +
-        '</div>' +
-            '</div>' +
-        '</div>' +
-    '</div>';
-    
-    $('body').append(modalHtml);
-    
-    // 显示模态框
-    var modal = new bootstrap.Modal(document.getElementById('filePreviewModal'));
-    modal.show();
-    
-    // 如果是文本文件，加载内容
-    if (previewType === 'text') {
-        $.get('/attachments/' + fileId + '/info', function(data) {
-            // 隐藏加载指示器
-            $('#textLoadingSpinner').hide();
-            // 显示文本内容
-            $('#textPreviewContent').show().html('<pre class="bg-light p-3 rounded" style="max-height: 60vh; overflow-y: auto;">' +
-                data.content + '</pre>');
-        }).fail(function() {
-            // 隐藏加载指示器
-            $('#textLoadingSpinner').hide();
-            // 显示错误信息
-            $('#textPreviewContent').show().html('<div class="alert alert-warning">无法加载文件内容</div>');
+        body.innerHTML = '<div class="p-4"><div id="textLoading" class="text-center text-ink-muted">加载中...</div><pre id="textContent" class="hidden p-3 rounded-lg overflow-auto text-sm" style="background-color: var(--c-card); color: var(--c-ink); max-height: 70vh;"></pre></div>';
+        fetch('/attachments/' + fileId + '/info').then(function(r) { return r.json(); }).then(function(data) {
+            document.getElementById('textLoading').classList.add('hidden');
+            var pre = document.getElementById('textContent');
+            pre.classList.remove('hidden');
+            pre.textContent = data.content || '(空文件)';
+        }).catch(function() {
+            document.getElementById('textLoading').textContent = '加载失败';
         });
+    } else {
+        body.innerHTML = '<div class="flex flex-col items-center justify-center p-12"><svg class="w-12 h-12 text-ink-subtle mb-3" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z M14 2v6h6"/></svg><p class="text-sm text-ink-muted">无法预览此文件类型</p><p class="text-xs text-ink-subtle mt-1">请下载后查看</p></div>';
     }
-    
-    // 模态框关闭时移除DOM
-    $('#filePreviewModal').on('hidden.bs.modal', function () {
-        $(this).remove();
-    });
-    
-    // 模态框显示前处理aria-hidden问题
-    $('#filePreviewModal').on('show.bs.modal', function () {
-        // 确保模态框没有aria-hidden属性，避免与焦点元素冲突
-        $(this).removeAttr('aria-hidden');
-        
-        // 检测 Safari 浏览器并优化 PDF 显示
-        const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
-        if (isSafari) {
-            const pdfIframe = $(this).find('.pdf-preview-iframe');
-            if (pdfIframe.length) {
-                // 为 Safari 添加特定样式
-                pdfIframe.css({
-                    'min-height': '90vh',
-                    'height': '90vh',
-                    '-webkit-transform': 'scale(1.0)',
-                    'transform': 'scale(1.0)',
-                    '-webkit-transform-origin': '0 0',
-                    'transform-origin': '0 0'
-                });
-                
-                // 调整容器
-                const container = $(this).find('.pdf-preview-container');
-                if (container.length) {
-                    container.css({
-                        'min-height': '650px',
-                        'height': '90vh'
-                    });
-                }
-                
-                console.log('检测到 Safari 浏览器，已应用 PDF 显示优化');
-                
-                // 显示 Safari 专用的"在新窗口中打开"按钮
-                const safariBtn = $(this).find('.safari-pdf-btn');
-                if (safariBtn.length) {
-                    safariBtn.show();
-                }
-            }
-        }
-    });
-    
-    // 模态框隐藏前处理焦点问题
-    $('#filePreviewModal').on('hide.bs.modal', function () {
-        // 在隐藏前移除焦点，避免aria-hidden与焦点冲突
-        $(this).find(':focus').blur();
-    });
-    
-    // ESC键关闭模态框
-    $(document).on('keydown', function(e) {
-        if (e.keyCode === 27) { // ESC key
-            var modalElement = document.getElementById('filePreviewModal');
-            if (modalElement) {
-                var modalInstance = bootstrap.Modal.getInstance(modalElement);
-                if (modalInstance) {
-                    // 在隐藏前先移除焦点
-                    $(modalElement).find(':focus').blur();
-                    modalInstance.hide();
-                }
-            }
-        }
-    });
-}
 
-// 保持向后兼容的图片预览函数
-function showImagePreview(imageSrc, fileName) {
-    showFilePreview('', 'image', imageSrc, fileName);
+    var modal = document.getElementById('filePreviewModal');
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+    document.body.classList.add('overflow-hidden');
 }
-
-// 解决工单模态框显示时初始化
-$('#resolveModal').on('show.bs.modal', function (e) {
-    // 调用共享的初始化函数
-    window.initResolveModal({{ $workorder->id }});
-});
+function closeFilePreview() {
+    var modal = document.getElementById('filePreviewModal');
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+    document.body.classList.remove('overflow-hidden');
+    document.getElementById('filePreviewBody').innerHTML = '';
+}
 </script>
-@endsection
-
-@section('styles')
-<style>
-.timeline {
-    position: relative;
-    padding-left: 30px;
-}
-
-.timeline::before {
-    content: '';
-    position: absolute;
-    left: 15px;
-    top: 0;
-    bottom: 0;
-    width: 2px;
-    background-color: #e9ecef;
-}
-
-.timeline-item {
-    position: relative;
-    margin-bottom: 20px;
-}
-
-.timeline-marker {
-    position: absolute;
-    left: -23px;
-    top: 5px;
-    width: 12px;
-    height: 12px;
-    border-radius: 50%;
-    border: 2px solid #fff;
-}
-
-.timeline-content {
-    background-color: #f8f9fa;
-    padding: 10px 15px;
-    border-radius: 5px;
-    border-left: 3px solid #007bff;
-}
-
-.attachment-preview-img {
-    width: 60px;
-    height: 60px;
-    object-fit: cover;
-    cursor: pointer;
-    transition: transform 0.2s ease;
-}
-
-.attachment-preview-img:hover {
-    transform: scale(1.05);
-}
-
-.attachment-preview-trigger {
-    width: 60px;
-    height: 60px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    background-color: #f8f9fa;
-    border-radius: 8px;
-    transition: background-color 0.2s ease;
-}
-
-.attachment-preview-trigger:hover {
-    background-color: #e9ecef;
-}
-
-.attachment-preview-btn {
-    margin-top: 0.5rem;
-}
-
-/* 改善文件名显示 - 智能截断保留扩展名 */
-.attachment-info h6 {
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    max-width: 150px;
-    line-height: 1.4;
-}
-
-.attachment-info small.text-muted {
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    max-width: 150px;
-    line-height: 1.3;
-    display: inline-block;
-}
-
-/* 文件名智能截断显示 - 保留开头和扩展名 */
-.attachment-filename {
-    max-width: 150px;
-    white-space: nowrap;
-    overflow: hidden;
-    line-height: 1.4;
-    padding: 0.25rem 0;
-    position: relative;
-}
-
-.attachment-filename::after {
-    content: attr(data-fullname);
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 100%;
-    height: 100%;
-    background: inherit;
-    color: transparent;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    padding: inherit;
-}
-
-.attachment-filename .filename-short {
-    display: inline-block;
-    max-width: 100%;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-/* 附件按钮组样式修复 */
-.attachment-actions {
-    display: flex;
-    align-items: flex-start;
-}
-
-.attachment-action-btn {
-    width: 60px;
-    text-align: center;
-    font-size: 0.75rem;
-    padding: 0.25rem 0.5rem;
-    line-height: 1.2;
-    min-height: 28px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin: 0;
-    box-sizing: border-box;
-}
-
-/* 确保表单内的按钮也有相同的样式 */
-form.d-inline {
-    margin: 0;
-    padding: 0;
-    display: block;
-}
-
-form.d-inline .attachment-action-btn {
-    width: 60px;
-    margin: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-/* 附件缩略图样式 */
-.attachment-thumbnail {
-    flex-shrink: 0;
-}
-
-.attachment-preview-img:hover {
-    transform: scale(1.05);
-}
-
-.attachment-preview-trigger:hover {
-    background-color: #e9ecef;
-}
-
-/* 附件信息区域 */
-.attachment-info {
-    min-width: 0; /* 允许文本截断 */
-}
-
-.attachment-filename {
-    max-width: 200px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    line-height: 1.4;
-}
-
-/* PDF 预览优化 - 特别是针对 Safari 浏览器 */
-.pdf-preview-container {
-    position: relative;
-    width: 100%;
-    height: 85vh;
-    min-height: 600px;
-    overflow: hidden;
-    background-color: #f8f9fa;
-    border-radius: 0.375rem;
-}
-
-.pdf-preview-iframe {
-    width: 100%;
-    height: 100%;
-    border: none;
-    min-height: 85vh;
-    /* Safari 特定优化 */
-    -webkit-transform: scale(1.0);
-    transform: scale(1.0);
-    -webkit-transform-origin: 0 0;
-    transform-origin: 0 0;
-    /* 确保在 Safari 中正确显示 */
-    display: block;
-    margin: 0;
-    padding: 0;
-}
-
-/* Safari 特定媒体查询 */
-@supports (-webkit-appearance: none) {
-    .pdf-preview-iframe {
-        /* Safari 特定缩放 */
-        -webkit-transform: scale(1.0);
-        transform: scale(1.0);
-        min-height: 90vh;
-        height: 90vh;
-    }
-    
-    .pdf-preview-container {
-        min-height: 650px;
-        height: 90vh;
-    }
-}
-
-/* 检测 Safari 浏览器 */
-_::-webkit-full-page-media, _:future, :root .pdf-preview-iframe {
-    min-height: 90vh;
-    height: 90vh;
-}
-</style>
 @endsection

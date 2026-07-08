@@ -1,819 +1,407 @@
-<!DOCTYPE html>
-<html lang="zh-CN">
+﻿<!DOCTYPE html>
+<html lang="zh-CN" class="">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>@yield('title', '校园网工单系统') - 校园网工单系统</title>
-    
-    <!-- Bootstrap CSS -->
-    <link href="{{ asset('assets/css/bootstrap.min.css') }}" rel="stylesheet">
-    <!-- Font Awesome -->
-    <link href="{{ asset('assets/css/fontawesome.min.css') }}" rel="stylesheet">
-    <!-- Custom CSS -->
-    <style>
-        .sidebar {
-            min-height: 100vh;
-            background-color: #343a40;
-        }
-        .sidebar .nav-link {
-            color: #fff;
-            padding: 0.75rem 1rem;
-        }
-        .sidebar .nav-link:hover,
-        .sidebar .nav-link.active {
-            background-color: #495057;
-            color: #fff;
-        }
-        .sidebar .nav-link i {
-            margin-right: 0.5rem;
-        }
-        .main-content {
-            padding: 2rem;
-        }
-        .status-badge {
-            font-size: 0.875rem;
-        }
-        .priority-high {
-            color: #dc3545;
-        }
-        .priority-medium {
-            color: #ffc107;
-        }
-        .priority-low {
-            color: #28a745;
-        }
-        .card {
-            box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
-            border: 1px solid rgba(0, 0, 0, 0.125);
-        }
-        .table th {
-            border-top: none;
-            font-weight: 600;
-        }
-        .btn-sm {
-            padding: 0.25rem 0.5rem;
-            font-size: 0.875rem;
-        }
-        .navbar-brand {
-            font-weight: 600;
-        }
-        .footer {
-            background-color: #f8f9fa;
-            padding: 1rem 0;
-            margin-top: auto;
-        }
-        
-        /* 移动端优化样式 */
-        @media (max-width: 768px) {
-            .main-content {
-                padding: 1rem;
-            }
-            
-            .sidebar {
-                position: fixed;
-                top: 0;
-                left: -250px;
-                width: 250px;
-                height: 100vh;
-                z-index: 1050;
-                transition: left 0.3s ease;
-            }
-            
-            .sidebar.show {
-                left: 0;
-            }
-            
-            .sidebar-overlay {
-                position: fixed;
-                top: 0;
-                left: 0;
-                width: 100%;
-                height: 100%;
-                background-color: rgba(0, 0, 0, 0.5);
-                z-index: 1040;
-                display: none;
-            }
-            
-            .sidebar-overlay.show {
-                display: block;
-            }
-            
-            .mobile-sidebar-toggle {
-                display: block;
-                position: fixed;
-                top: 70px;
-                left: 10px;
-                z-index: 1030;
-                background-color: #343a40;
-                color: white;
-                border: none;
-                border-radius: 0.25rem;
-                padding: 0.5rem;
-                font-size: 1rem;
-            }
-            
-            .table-responsive {
-                font-size: 0.875rem;
-            }
-            
-            .btn-group .btn {
-                padding: 0.25rem 0.4rem;
-                font-size: 0.75rem;
-            }
-            
-            .card-body {
-                padding: 1rem;
-            }
-            
-            .modal-dialog {
-                margin: 0.5rem;
-                max-width: calc(100% - 1rem);
-            }
-            
-            .navbar-brand {
-                font-size: 1rem;
-            }
-            
-            .breadcrumb {
-                font-size: 0.875rem;
-                margin-bottom: 1rem;
-            }
-            
-            .d-flex.justify-content-between {
-                flex-direction: column;
-                gap: 1rem;
-            }
-            
-            .btn-toolbar {
-                width: 100%;
-                justify-content: flex-end;
-            }
-        }
-        
-        @media (min-width: 769px) {
-            .mobile-sidebar-toggle {
-                display: none;
-            }
-            
-            .sidebar-overlay {
-                display: none !important;
-            }
-        }
-        
-        /* 表格移动端优化 */
-        @media (max-width: 576px) {
-            .table-responsive {
-                border: none;
-            }
-            
-            .table {
-                font-size: 0.8rem;
-            }
-            
-            .table th,
-            .table td {
-                padding: 0.5rem;
-                vertical-align: middle;
-            }
-            
-            .btn-group-sm .btn {
-                padding: 0.2rem 0.3rem;
-                font-size: 0.7rem;
-            }
-            
-            .badge {
-                font-size: 0.7rem;
-            }
-        }
-        
-        /* 表单移动端优化 */
-        @media (max-width: 768px) {
-            .form-row {
-                margin-bottom: 1rem;
-            }
-            
-            .form-label {
-                font-size: 0.875rem;
-                margin-bottom: 0.25rem;
-            }
-            
-            .form-control,
-            .form-select {
-                font-size: 0.875rem;
-            }
-            
-            .modal-body {
-                padding: 1rem;
-            }
-            
-            .modal-footer {
-                padding: 0.75rem 1rem;
-            }
-            
-            .btn {
-                font-size: 0.875rem;
-            }
-        }
-        
-        /* 附件预览样式 */
-        .attachment-item {
-            display: flex;
-            align-items: center;
-            background-color: #f8f9fa;
-            border: 1px solid #dee2e6;
-            border-radius: 0.375rem;
-        }
-        
-        .attachment-thumbnail {
-            width: 60px;
-            height: 60px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background-color: #e9ecef;
-            border-radius: 0.25rem;
-            overflow: hidden;
-        }
-        
-        .img-thumbnail {
-            max-width: 100%;
-            max-height: 100%;
-            object-fit: cover;
-        }
-        
-        .attachment-info {
-            padding: 0 0.5rem;
-        }
-        
-        .attachment-name {
-            font-weight: 500;
-            margin-bottom: 0.25rem;
-            word-break: break-all;
-        }
-        
-        .attachment-size {
-            font-size: 0.875rem;
-            color: #6c757d;
-        }
-        
-        .attachment-actions {
-            margin-left: auto;
-        }
-        
-        .remove-attachment {
-            font-size: 0.75rem;
-            padding: 0.25rem 0.5rem;
-        }
-    </style>
-    @yield('styles')
+    <meta name="theme-color" content="#2563eb">
+    <title>@yield('title', '工单系统')</title>
+
+    {{-- Dark mode: apply before paint to prevent flash --}}
+    <script>
+        (function() {
+            var stored = localStorage.getItem('theme') || 'system';
+            var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            var isDark = stored === 'dark' || (stored === 'system' && prefersDark);
+            if (isDark) document.documentElement.classList.add('dark');
+        })();
+    </script>
+
+    @vite(['resources/css/app.css', 'resources/js/app.js'])
+
+
+    @yield('head')
 </head>
-<body class="d-flex flex-column min-vh-100">
-    <!-- Navigation -->
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-        <div class="container-fluid">
-            <a class="navbar-brand" href="{{ \App\Helpers\UrlHelper::relative_url('/workorders') }}">
-                <i class="fas fa-tools"></i> 校园网工单系统
-            </a>
-            
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            
-            <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav me-auto">
-                    <li class="nav-item">
-                        <a class="nav-link {{ request()->routeIs('workorders.*') ? 'active' : '' }}"
-                           href="{{ \App\Helpers\UrlHelper::relative_url('/workorders') }}">
-                            <i class="fas fa-list"></i> 工单管理
-                        </a>
-                    </li>
-                    
-                    @if(auth()->user()->canManageDepartments())
-                    <li class="nav-item">
-                        <a class="nav-link {{ request()->routeIs('locations.*') ? 'active' : '' }}"
-                           href="{{ route('locations.index') }}">
-                            <i class="fas fa-map-marker-alt"></i> 地址管理
-                        </a>
-                    </li>
-                    @endif
-                    
-                    @if(auth()->user()->canManageWorkorderTypes())
-                    <li class="nav-item">
-                        <a class="nav-link {{ request()->routeIs('workorder-categories.*') ? 'active' : '' }}"
-                           href="{{ route('workorder-categories.index') }}">
-                            <i class="fas fa-sitemap"></i> 工单分类
-                        </a>
-                    </li>
-                    @endif
-                    
-                    @if(auth()->user()->isAdmin())
-                    <li class="nav-item">
-                        <a class="nav-link {{ request()->routeIs('users.*') ? 'active' : '' }}" 
-                           href="{{ route('users.index') }}">
-                            <i class="fas fa-users"></i> 用户管理
-                        </a>
-                    </li>
-                    @endif
-                </ul>
-                
-                <ul class="navbar-nav">
-                    <!-- Notifications Dropdown Menu -->
-                    <li class="nav-item dropdown">
-                        <a class="nav-link" href="#" role="button" data-bs-toggle="dropdown" id="notificationDropdown">
-                            <i class="far fa-bell"></i>
-                            <span class="badge bg-danger" id="notificationCount">0</span>
-                        </a>
-                        <ul class="dropdown-menu dropdown-menu-lg dropdown-menu-end" id="notificationDropdownMenu">
-                            <li><h6 class="dropdown-header">通知中心</h6></li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li id="notificationList">
-                                <div class="dropdown-item text-center text-muted">
-                                    <i class="fas fa-spinner fa-spin"></i> 加载中...
-                                </div>
-                            </li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li><a class="dropdown-item" href="{{ route('notifications.index') }}">
-                                <i class="fas fa-eye"></i> 查看所有通知
-                            </a></li>
-                        </ul>
-                    </li>
-                    
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
-                            <i class="fas fa-user"></i> {{ auth()->user()->name }}
-                        </a>
-                        <ul class="dropdown-menu">
-                            <li><a class="dropdown-item" href="{{ route('notifications.index') }}">
-                                <i class="fas fa-bell"></i> 通知中心
-                            </a></li>
-                            <li><a class="dropdown-item" href="{{ route('profile') }}">
-                                <i class="fas fa-user-circle"></i> 个人资料
-                            </a></li>
-                            <li><a class="dropdown-item" href="{{ route('dashboard') }}">
-                                <i class="fas fa-tachometer-alt"></i> 仪表板
-                            </a></li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li><a class="dropdown-item" href="{{ route('logout.get') }}"
-                                   data-method="post"
-                                   onclick="event.preventDefault(); document.getElementById('logout-form').submit();">
-                                <i class="fas fa-sign-out-alt"></i> 退出登录
-                            </a></li>
-                        </ul>
-                    </li>
-                </ul>
+<body class="min-h-screen antialiased" style="background-color: var(--c-bg); color: var(--c-ink);">
+    @if(auth()->check())
+
+    {{-- Mobile top bar --}}
+    <header class="lg:hidden sticky top-0 z-40 bg-brand-600 text-white shadow-sm" style="padding-top: env(safe-area-inset-top);">
+        <div class="flex items-center justify-between px-4 h-14">
+            <div class="flex items-center gap-3">
+                <button type="button" onclick="toggleDrawer()" class="p-2 -ml-2 rounded-lg hover:bg-brand-700 transition-colors" aria-label="菜单">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/></svg>
+                </button>
+                <a href="{{ route('workorders.index') }}" class="flex items-center gap-2 font-semibold">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+                    <span class="text-sm">工单系统</span>
+                </a>
+            </div>
+            <div class="flex items-center gap-1">
+    <a href="{{ route('notifications.index') }}" class="relative p-2 rounded-lg hover:bg-brand-700 transition-colors" aria-label="通知">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.4-1.4A2 2 0 0 1 18 14.2V11a6 6 0 0 0-4-5.7V5a2 2 0 0 0-4 0v.3A6 6 0 0 0 6 11v3.2c0 .5-.2 1-.6 1.4L4 17h5m6 0v1a3 3 0 0 1-6 0v-1m6 0H9"/></svg>
+                    <span id="notif-badge-mobile" class="hidden absolute top-1 right-1 min-w-4 h-4 px-1 text-[10px] font-bold leading-4 text-center text-white bg-red-500 rounded-full">{{ '' }}</span>
+                </a>
             </div>
         </div>
-    </nav>
+    </header>
 
-    <!-- 移动端侧边栏遮罩层 -->
-    <div class="sidebar-overlay" id="sidebarOverlay"></div>
-    
-    <!-- 移动端侧边栏切换按钮 -->
-    @if(auth()->check())
-    <button class="mobile-sidebar-toggle" id="mobileSidebarToggle">
-        <i class="fas fa-bars"></i>
-    </button>
-    @endif
+    {{-- Mobile drawer + desktop sidebar --}}
+    <div id="drawer-overlay" onclick="toggleDrawer()" class="hidden lg:hidden fixed inset-0 bg-black/40 z-40"></div>
+    <aside id="sidebar" class="fixed top-0 left-0 z-50 lg:z-40 h-full lg:h-screen w-64 shrink-0 bg-brand-800 text-white flex flex-col transition-transform duration-200 -translate-x-full lg:translate-x-0" style="padding-top: env(safe-area-inset-top);">
+        {{-- Logo --}}
+        <div class="flex items-center justify-between px-5 h-14 border-b border-brand-700 shrink-0">
+            <a href="{{ route('workorders.index') }}" class="flex items-center gap-2 font-semibold">
+                <svg class="w-5 h-5 text-brand-300" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+                <span>工单管理系统</span>
+            </a>
+            <button type="button" onclick="toggleDrawer()" class="lg:hidden p-1.5 rounded-lg hover:bg-brand-700">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12"/></svg>
+            </button>
+        </div>
 
-    <!-- Main Content -->
-    <div class="d-flex flex-grow-1">
-        <!-- Sidebar -->
-        @if(auth()->check())
-        <nav class="sidebar col-md-3 col-lg-2 d-md-block" id="sidebar">
-            <div class="position-sticky pt-3">
-                <ul class="nav flex-column">
-                    <li class="nav-item">
-                        <a class="nav-link {{ request()->routeIs('workorders.index') ? 'active' : '' }}"
-                           href="{{ \App\Helpers\UrlHelper::relative_url('/workorders') }}">
-                            <i class="fas fa-list"></i> 工单列表
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {{ request()->routeIs('workorders.create') ? 'active' : '' }}"
-                           href="{{ \App\Helpers\UrlHelper::relative_url('/workorders/create') }}">
-                            <i class="fas fa-plus"></i> 创建工单
-                        </a>
-                    </li>
-                    
-                    @if(auth()->user()->canManageWorkorderTypes())
-                    <li class="nav-item">
-                        <a class="nav-link {{ request()->routeIs('workorder-templates.*') ? 'active' : '' }}"
-                           href="{{ route('workorder-templates.index') }}">
-                            <i class="fas fa-file-alt"></i> 工单模板
-                        </a>
-                    </li>
-                    @endif
-                    
-                    @if(auth()->user()->canViewReports())
-                    <li class="nav-item">
-                        <a class="nav-link {{ request()->routeIs('reports.*') ? 'active' : '' }}"
-                           href="{{ route('reports.index') }}">
-                            <i class="fas fa-chart-bar"></i> 统计报表
-                        </a>
-                    </li>
-                    @endif
-                </ul>
-                
-                @if(auth()->user()->isAdmin())
-                <hr class="text-white">
-                <h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1 text-muted">
-                    <span>系统管理</span>
-                </h6>
-                <ul class="nav flex-column mb-2">
-                    <li class="nav-item">
-                        <a class="nav-link {{ request()->routeIs('locations.*') ? 'active' : '' }}"
-                           href="{{ route('locations.index') }}">
-                            <i class="fas fa-map-marker-alt"></i> 地址管理
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {{ request()->routeIs('workorder-categories.*') ? 'active' : '' }}"
-                           href="{{ route('workorder-categories.index') }}">
-                            <i class="fas fa-sitemap"></i> 工单分类
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {{ request()->routeIs('departments.*') ? 'active' : '' }}"
-                           href="{{ route('departments.index') }}">
-                            <i class="fas fa-building"></i> 部门管理
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {{ request()->routeIs('users.*') ? 'active' : '' }}"
-                           href="{{ route('users.index') }}">
-                            <i class="fas fa-users"></i> 用户管理
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {{ request()->routeIs('system-settings.*') ? 'active' : '' }}"
-                           href="{{ route('system-settings.index') }}">
-                            <i class="fas fa-cogs"></i> 系统设置
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ route('logout.get') }}"
-                           data-method="post"
-                           onclick="event.preventDefault(); document.getElementById('logout-form').submit();">
-                            <i class="fas fa-sign-out-alt"></i> 退出登录
-                        </a>
-                    </li>
-                </ul>
-                @endif
+        {{-- Nav --}}
+        <nav class="flex-1 overflow-y-auto px-3 py-4 space-y-1 text-sm" id="nav-scroll">
+            <p class="px-3 pt-2 pb-1 text-xs font-medium text-brand-300 uppercase tracking-wide">工单</p>
+            <a href="{{ route('workorders.index') }}" class="nav-item {{ request()->routeIs('workorders.index') ? 'nav-active' : 'text-brand-100 hover:bg-brand-700' }}">
+                <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/></svg>
+                <span>工单列表</span>
+            </a>
+            <a href="{{ route('workorders.create') }}" class="nav-item {{ request()->routeIs('workorders.create') ? 'nav-active' : 'text-brand-100 hover:bg-brand-700' }}">
+                <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 5v14M5 12h14"/></svg>
+                <span>创建工单</span>
+            </a>
+
+            @if(auth()->user()->canManageWorkorderTypes())
+            <a href="{{ route('workorder-templates.index') }}" class="nav-item {{ request()->routeIs('workorder-templates.*') ? 'nav-active' : 'text-brand-100 hover:bg-brand-700' }}">
+                <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z M14 2v6h6 M16 13H8 M16 17H8 M10 9H8"/></svg>
+                <span>工单模板</span>
+            </a>
+            @endif
+
+            @if(auth()->user()->canViewReports())
+            <a href="{{ route('reports.index') }}" class="nav-item {{ request()->routeIs('reports.*') ? 'nav-active' : 'text-brand-100 hover:bg-brand-700' }}">
+                <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 3v18h18 M7 14l4-4 4 4 5-5"/></svg>
+                <span>统计报表</span>
+            </a>
+            @endif
+
+            <a href="{{ route('notifications.index') }}" class="nav-item {{ request()->routeIs('notifications.*') ? 'nav-active' : 'text-brand-100 hover:bg-brand-700' }}">
+                <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.4-1.4A2 2 0 0 1 18 14.2V11a6 6 0 0 0-4-5.7V5a2 2 0 0 0-4 0v.3A6 6 0 0 0 6 11v3.2c0 .5-.2 1-.6 1.4L4 17h5m6 0v1a3 3 0 0 1-6 0v-1m6 0H9"/></svg>
+                <span>通知中心</span>
+            </a>
+
+            @if(auth()->user()->isAdmin() || auth()->user()->isWorkorderManager())
+            <p class="px-3 pt-4 pb-1 text-xs font-medium text-brand-300 uppercase tracking-wide">系统管理</p>
+            @endif
+
+            <a href="{{ route('locations.index') }}" class="nav-item {{ request()->routeIs('locations.*') ? 'nav-active' : 'text-brand-100 hover:bg-brand-700' }}">
+                <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z M12 13a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/></svg>
+                <span>地址管理</span>
+            </a>
+
+            @if(auth()->user()->canManageWorkorderTypes())
+            <a href="{{ route('workorder-categories.index') }}" class="nav-item {{ request()->routeIs('workorder-categories.*') ? 'nav-active' : 'text-brand-100 hover:bg-brand-700' }}">
+                <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 6h18 M3 12h12 M3 18h6"/></svg>
+                <span>工单分类</span>
+            </a>
+            @endif
+
+            <a href="{{ route('departments.index') }}" class="nav-item {{ request()->routeIs('departments.*') ? 'nav-active' : 'text-brand-100 hover:bg-brand-700' }}">
+                <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 21h18 M5 21V7l8-4v18 M19 21V11l-6-4"/></svg>
+                <span>部门管理</span>
+            </a>
+
+            @if(auth()->user()->isAdmin())
+            <a href="{{ route('users.index') }}" class="nav-item {{ request()->routeIs('users.*') ? 'nav-active' : 'text-brand-100 hover:bg-brand-700' }}">
+                <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a4 4 0 0 0-3-3.87 M9 20H4v-2a4 4 0 0 1 3-3.87 M16 3.13a4 4 0 0 1 0 7.75 M12 11a4 4 0 1 1 0-8 4 4 0 0 1 0 8z"/></svg>
+                <span>用户管理</span>
+            </a>
+            <a href="{{ route('system-settings.index') }}" class="nav-item {{ request()->routeIs('system-settings.*') ? 'nav-active' : 'text-brand-100 hover:bg-brand-700' }}">
+                <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                <span>系统设置</span>
+            </a>
+            @endif
+
+            {{-- User section --}}
+            <div class="!mt-auto pt-4 border-t border-brand-700 space-y-1">
+                <p class="px-3 py-1 text-xs text-brand-300 truncate">{{ auth()->user()->name }}</p>
+                <a href="{{ route('profile') }}" class="nav-item {{ request()->routeIs('profile') ? 'nav-active' : 'text-brand-100 hover:bg-brand-700' }}">
+                    <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2 M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z"/></svg>
+                    <span>个人资料</span>
+                </a>
+                <form method="POST" action="{{ route('logout.get') }}" class="inline-block w-full">
+                    @csrf
+                    <button type="submit" class="nav-item w-full text-left text-brand-100 hover:bg-brand-700">
+                        <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4 M16 17l5-5-5-5 M21 12H9"/></svg>
+                        <span>退出登录</span>
+                    </button>
+                </form>
             </div>
         </nav>
-        @endif
+    </aside>
 
-        <!-- Main Content Area -->
-        <main class="main-content col-md-9 ms-sm-auto col-lg-10 px-md-4">
-            <!-- Breadcrumb -->
-            @if(isset($breadcrumbs))
-            <nav aria-label="breadcrumb" class="mb-3">
-                <ol class="breadcrumb">
-                    <li class="breadcrumb-item"><a href="{{ \App\Helpers\UrlHelper::relative_url('/workorders') }}">首页</a></li>
-                    @foreach($breadcrumbs as $breadcrumb)
-                        @if($loop->last)
-                            <li class="breadcrumb-item active">{{ $breadcrumb['title'] }}</li>
+    {{-- Desktop top bar --}}
+    <header class="hidden lg:flex sticky top-0 z-30 h-14 items-center justify-between px-6 lg:ml-64 lg:ml-64 bg-white border-b border-border">
+        <div class="flex items-center gap-3">
+            @isset($breadcrumbs)
+                <nav class="flex items-center gap-2 text-sm text-ink-muted">
+                    @foreach($breadcrumbs as $crumb)
+                        @if(!$loop->last)
+                            <a href="{{ $crumb['url'] ?? '#' }}" class="hover:text-brand-600">{{ $crumb['title'] }}</a>
+                            <span class="text-ink-subtle">/</span>
                         @else
-                            <li class="breadcrumb-item">
-                                <a href="{{ $breadcrumb['url'] ?? '#' }}">{{ $breadcrumb['title'] }}</a>
-                            </li>
+                            <span class="text-ink font-medium">{{ $crumb['title'] }}</span>
                         @endif
                     @endforeach
-                </ol>
-            </nav>
-            @endif
-
-            <!-- Flash Messages -->
-            @if(session('success'))
-            <div class="alert alert-success alert-dismissible fade show" role="alert">
-                <i class="fas fa-check-circle"></i> {{ session('success') }}
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            </div>
-            @endif
-
-            @if(session('error'))
-            <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                <i class="fas fa-exclamation-circle"></i> {{ session('error') }}
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            </div>
-            @endif
-
-            @if(session('warning'))
-            <div class="alert alert-warning alert-dismissible fade show" role="alert">
-                <i class="fas fa-exclamation-triangle"></i> {{ session('warning') }}
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            </div>
-            @endif
-
-            @if(isset($errors) && $errors->any())
-                <div class="alert alert-danger">
-                    <ul class="mb-0">
-                        @foreach($errors->all() as $error)
-                            <li>{{ $error }}</li>
-                        @endforeach
-                    </ul>
+                </nav>
+            @endisset
+        </div>
+        <div class="flex items-center gap-3">
+    <a href="{{ route('notifications.index') }}" class="relative p-2 rounded-lg hover:bg-surface-muted transition-colors" aria-label="通知">
+                <svg class="w-5 h-5 text-ink-muted" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.4-1.4A2 2 0 0 1 18 14.2V11a6 6 0 0 0-4-5.7V5a2 2 0 0 0-4 0v.3A6 6 0 0 0 6 11v3.2c0 .5-.2 1-.6 1.4L4 17h5m6 0v1a3 3 0 0 1-6 0v-1m6 0H9"/></svg>
+                <span id="notif-badge-desktop" class="hidden absolute top-0.5 right-0.5 min-w-4 h-4 px-1 text-[10px] font-bold leading-4 text-center text-white bg-red-500 rounded-full"></span>
+            </a>
+            {{-- Theme switcher --}}
+            <div class="relative">
+                <button id="theme-toggle" class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors" aria-label="主题切换" style="color: var(--c-ink-muted);">
+                    <svg class="w-5 h-5 theme-icon-light" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+                    <svg class="w-5 h-5 theme-icon-dark hidden" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+                    <svg class="w-5 h-5 theme-icon-system hidden" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><path stroke-linecap="round" stroke-linejoin="round" d="M8 21h8M12 17v4"/></svg>
+                </button>
+                <div id="theme-menu" class="hidden absolute right-0 mt-2 w-36 card shadow-lg py-1 z-50">
+                    <button data-theme="light" class="theme-option flex items-center gap-2 w-full px-3 py-2 text-sm text-left hover:bg-slate-100 dark:hover:bg-slate-700" style="color: var(--c-ink);">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+                        <span>浅色</span>
+                    </button>
+                    <button data-theme="dark" class="theme-option flex items-center gap-2 w-full px-3 py-2 text-sm text-left hover:bg-slate-100 dark:hover:bg-slate-700" style="color: var(--c-ink);">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+                        <span>深色</span>
+                    </button>
+                    <button data-theme="system" class="theme-option flex items-center gap-2 w-full px-3 py-2 text-sm text-left hover:bg-slate-100 dark:hover:bg-slate-700" style="color: var(--c-ink);">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><path stroke-linecap="round" stroke-linejoin="round" d="M8 21h8M12 17v4"/></svg>
+                        <span>跟随系统</span>
+                    </button>
                 </div>
-            @endif
+            </div>
+        </div>
+    </header>
 
-            <!-- Page Content -->
-            @yield('content')
+    {{-- Main content --}}
+    <div class="lg:ml-64">
+        <main class="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full pb-24 lg:pb-8" style="padding-bottom: calc(5rem + env(safe-area-inset-bottom));">
+
+    @else
+    {{-- Guest layout (login/register) --}}
+    <div class="min-h-screen flex items-center justify-center p-4">
+        <div class="w-full max-w-md">
+    @endif
+
+    {{-- Flash messages --}}
+    @if(session('success'))
+    <div class="flash-msg flex items-center gap-3 px-4 py-3 mb-4 rounded-xl bg-green-50 border border-green-200 text-green-800 text-sm" role="alert">
+        <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4 M12 22a10 10 0 1 1 0-20 10 10 0 0 1 0 20z"/></svg>
+        <span class="flex-1">{{ session('success') }}</span>
+    </div>
+    @endif
+    @if(session('error'))
+    <div class="flash-msg flex items-center gap-3 px-4 py-3 mb-4 rounded-xl bg-red-50 border border-red-200 text-red-800 text-sm" role="alert">
+        <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4 M12 16h.01 M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z"/></svg>
+        <span class="flex-1">{{ session('error') }}</span>
+    </div>
+    @endif
+    @if(session('warning'))
+    <div class="flash-msg flex items-center gap-3 px-4 py-3 mb-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-sm" role="alert">
+        <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v4 M12 17h.01 M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>
+        <span class="flex-1">{{ session('warning') }}</span>
+    </div>
+    @endif
+    @if(isset($errors) && $errors->any())
+    <div class="flash-msg px-4 py-3 mb-4 rounded-xl bg-red-50 border border-red-200 text-red-800 text-sm">
+        <ul class="list-disc list-inside space-y-1">
+            @foreach($errors->all() as $error)
+                <li>{{ $error }}</li>
+            @endforeach
+        </ul>
+    </div>
+    @endif
+
+    @yield('content')
+
+    @if(!auth()->check())
+        </div>
+    </div>
+    @else
+
         </main>
     </div>
 
-    <!-- Footer -->
-    <footer class="footer mt-auto py-3 bg-light">
-        <div class="container">
-            <div class="text-center">
-                <span class="text-muted">© {{ date('Y') }} 校园网工单系统 - 版本 1.1.0</span>
-            </div>
-        </div>
-    </footer>
+    {{-- Mobile bottom action bar (for workorder list quick actions) --}}
+    {{-- This is controlled by JS, shown only when workorders are selected --}}
+    <div id="mobile-action-bar" class="hidden lg:hidden fixed bottom-0 left-0 right-0 z-30 bg-white border-t border-border shadow-lg" style="padding-bottom: env(safe-area-inset-bottom);">
+        <div class="flex items-center justify-around px-4 py-2" id="mobile-action-content"></div>
+    </div>
 
-    <!-- Logout Form -->
-    <form id="logout-form" action="/logout" method="POST" style="display: none;">
-        @csrf
-    </form>
-    
-    <!-- Fallback logout script for mobile compatibility -->
+    @endif
+
+    @yield('scripts')
+
+
+    @if(!auth()->check())
     <script>
-        // 处理退出登录的兼容性问题
-        document.addEventListener('DOMContentLoaded', function() {
-            // 为所有退出登录链接添加点击事件监听
-            const logoutLinks = document.querySelectorAll('a[href*="logout"]');
-            
-            logoutLinks.forEach(function(link) {
-                link.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    
-                    // 尝试提交表单
-                    try {
-                        const logoutForm = document.getElementById('logout-form');
-                        if (logoutForm) {
-                            logoutForm.submit();
-                        } else {
-                            // 使用相对URL，让浏览器自动处理协议
-                            window.location.href = "/logout";
-                        }
-                    } catch (error) {
-                        console.error('退出登录错误:', error);
-                        // 使用相对URL，让浏览器自动处理协议
-                        window.location.href = "/logout";
-                    }
-                });
+    {{-- Theme switcher (works for guest pages too) --}}
+    (function() {
+        var toggle = document.getElementById('theme-toggle');
+        var menu = document.getElementById('theme-menu');
+        if (!toggle) return;
+        toggle.addEventListener('click', function(e) {
+            e.stopPropagation();
+            menu.classList.toggle('hidden');
+        });
+        document.addEventListener('click', function() { menu.classList.add('hidden'); });
+        document.querySelectorAll('.theme-option').forEach(function(opt) {
+            opt.addEventListener('click', function() {
+                var theme = this.getAttribute('data-theme');
+                localStorage.setItem('theme', theme);
+                applyTheme(theme);
+                menu.classList.add('hidden');
             });
         });
+        function applyTheme(theme) {
+            var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            var isDark = theme === 'dark' || (theme === 'system' && prefersDark);
+            document.documentElement.classList.toggle('dark', isDark);
+            ['light','dark','system'].forEach(function(t) {
+                var icon = document.querySelector('.theme-icon-' + t);
+                if (icon) icon.classList.toggle('hidden', t !== theme);
+            });
+        }
+        applyTheme(localStorage.getItem('theme') || 'system');
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function() {
+            if ((localStorage.getItem('theme') || 'system') === 'system') applyTheme('system');
+        });
+    })();
     </script>
+    @endif
 
-    <!-- Bootstrap JS -->
-    <script src="{{ asset('assets/js/bootstrap.bundle.min.js') }}"></script>
-    <!-- jQuery -->
-    <script src="{{ asset('assets/js/jquery.min.js') }}"></script>
-    <!-- Axios -->
-    <script src="{{ asset('assets/js/axios.min.js') }}"></script>
-    <!-- Microsoft Edge兼容性修复 -->
-    <script src="{{ asset('js/edge-compatibility-fix.js') }}"></script>
-    
-    @yield('scripts')
-    
+    @if(auth()->check())
     <script>
-        // 设置axios默认配置
-        @if(auth()->check())
-        axios.defaults.headers.common['X-CSRF-TOKEN'] = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-        axios.defaults.withCredentials = true;
-        @endif
-        
-        // Auto-hide flash messages
-        setTimeout(function() {
-            $('.alert-dismissible').fadeOut('slow');
-        }, 5000);
-        
-        // 移除强制协议转换，让浏览器自动处理协议
-        // 这样可以支持HTTP和HTTPS两种环境
-        
-        // 移动端侧边栏切换
-        $(document).ready(function() {
-            $('#mobileSidebarToggle').click(function() {
-                $('#sidebar').toggleClass('show');
-                $('#sidebarOverlay').toggleClass('show');
-                $('body').toggleClass('sidebar-open');
-            });
-            
-            $('#sidebarOverlay').click(function() {
-                $('#sidebar').removeClass('show');
-                $('#sidebarOverlay').removeClass('show');
-                $('body').removeClass('sidebar-open');
-            });
-            
-            // 点击侧边栏链接后自动关闭侧边栏（仅在移动端）
-            if (window.innerWidth <= 768) {
-                $('.sidebar .nav-link').click(function() {
-                    $('#sidebar').removeClass('show');
-                    $('#sidebarOverlay').removeClass('show');
-                    $('body').removeClass('sidebar-open');
-                });
+        function toggleDrawer() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('drawer-overlay');
+            const isOpen = !sidebar.classList.contains('-translate-x-full');
+            if (isOpen) {
+                sidebar.classList.add('-translate-x-full');
+                overlay.classList.add('hidden');
+                document.body.classList.remove('drawer-open');
+            } else {
+                sidebar.classList.remove('-translate-x-full');
+                overlay.classList.remove('hidden');
+                document.body.classList.add('drawer-open');
             }
-            
-            // 窗口大小改变时重置侧边栏状态
-            $(window).resize(function() {
-                if (window.innerWidth > 768) {
-                    $('#sidebar').removeClass('show');
-                    $('#sidebarOverlay').removeClass('show');
-                    $('body').removeClass('sidebar-open');
+        }
+
+        // Auto-close drawer when clicking a nav link on mobile
+        document.querySelectorAll('#sidebar .nav-item').forEach(function(link) {
+            link.addEventListener('click', function() {
+                if (window.innerWidth < 1024 && this.tagName !== 'BUTTON') {
+                    setTimeout(toggleDrawer, 50);
                 }
             });
-            
-            // 通知功能 - 延迟初始化以确保页面完全加载
-            setTimeout(function() {
-                loadNotificationCount();
-                loadLatestNotifications();
-            }, 100);
-            
-            // 定期刷新通知数量
-            setInterval(loadNotificationCount, 30000);
-            
-            // 点击通知下拉菜单时加载最新通知
-            $('#notificationDropdown').click(function() {
-                loadLatestNotifications();
-            });
         });
-        
-        // 加载未读通知数量
-        function loadNotificationCount() {
-            @if(auth()->check())
-            axios.get('/notifications/unread-count')
-                .then(response => {
-                    const count = response.data.count;
-                    $('#notificationCount').text(count);
-                    
-                    if (count > 0) {
-                        $('#notificationCount').show();
-                    } else {
-                        $('#notificationCount').hide();
-                    }
-                })
-                .catch(error => {
-                    console.error('Error loading notification count:', error);
-                    // 修复：显示错误信息但不要隐藏通知数量
-                    $('#notificationCount').text('!');
-                    $('#notificationCount').show();
-                });
-            @else
-                $('#notificationCount').hide();
-            @endif
+
+        // Auto-hide flash messages
+        setTimeout(function() {
+            document.querySelectorAll('.flash-msg').forEach(function(el) {
+                el.style.transition = 'opacity 0.3s';
+                el.style.opacity = '0';
+                setTimeout(function() { el.style.display = 'none'; }, 300);
+            });
+        }, 5000);
+
+        // Notification badge
+        function loadNotifBadge() {
+            fetch('{{ route("notifications.unread-count") }}', {
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            }).then(function(r) { return r.json(); })
+              .then(function(data) {
+                  var count = data.count || 0;
+                  ['notif-badge-mobile', 'notif-badge-desktop'].forEach(function(id) {
+                      var el = document.getElementById(id);
+                      if (el) {
+                          if (count > 0) {
+                              el.textContent = count > 99 ? '99+' : count;
+                              el.classList.remove('hidden');
+                          } else {
+                              el.classList.add('hidden');
+                          }
+                      }
+                  });
+              }).catch(function() {});
         }
-        
-        // 加载最新通知
-        function loadLatestNotifications() {
-            @if(auth()->check())
-            $('#notificationList').html('<div class="dropdown-item text-center text-muted"><i class="fas fa-spinner fa-spin"></i> 加载中...</div>');
-            
-            axios.get('/notifications/latest?limit=5')
-                .then(response => {
-                    // 检查响应数据是否存在
-                    if (!response || !response.data) {
-                        $('#notificationList').html('<div class="dropdown-item text-center text-muted">无响应数据</div>');
-                        return;
-                    }
-                    
-                    const notifications = response.data;
-                    let html = '';
-                    
-                    // 检查响应是否为错误对象
-                    if (notifications && typeof notifications === 'object' && notifications.error) {
-                        html = `<div class="dropdown-item text-center text-danger">${notifications.error}</div>`;
-                    } else if (!Array.isArray(notifications)) {
-                        // 如果不是数组，可能是字符串或其他格式
-                        if (typeof notifications === 'string') {
-                            html = `<div class="dropdown-item text-center text-danger">服务器错误: ${notifications}</div>`;
-                        } else {
-                            html = '<div class="dropdown-item text-center text-muted">数据格式错误</div>';
-                        }
-                    } else if (notifications.length === 0) {
-                        html = '<div class="dropdown-item text-center text-muted">暂无通知</div>';
-                    } else {
-                        notifications.forEach(notification => {
-                            const importantClass = notification.is_important ? 'text-warning' : '';
-                            const unreadClass = !notification.is_read ? 'bg-light' : '';
-                            
-                            // 生成通知标题和内容
-                            let title = notification.title || '系统通知';
-                            let content = notification.content || '';
-                            
-                            // 如果标题或内容为空，尝试从data字段生成
-                            if (!notification.title && notification.data) {
-                                if (notification.data.ticket_no) {
-                                    title = `工单 #${notification.data.ticket_no}`;
-                                } else if (notification.data.workorder_id) {
-                                    title = `工单 #${notification.data.workorder_id}`;
-                                }
-                                
-                                if (notification.data.description) {
-                                    content = notification.data.description;
-                                } else if (notification.data.assignee_name) {
-                                    content = `分配给: ${notification.data.assignee_name}`;
-                                }
-                            }
-                            
-                            html += `
-                                <li>
-                                    <a href="#"
-                                       class="dropdown-item ${unreadClass}"
-                                       onclick="markNotificationAsRead(${notification.id}, event)">
-                                        <div class="d-flex">
-                                            <div class="flex-shrink-0">
-                                                ${notification.data && notification.data.avatar ?
-                                                    `<img src="${notification.data.avatar}" class="img-circle img-sm" alt="Avatar">` :
-                                                    '<i class="fas fa-bell fa-lg text-muted"></i>'
-                                                }
-                                            </div>
-                                            <div class="flex-grow-1 ms-2">
-                                                <div class="small ${importantClass}">
-                                                    <strong>${title}</strong>
-                                                    ${notification.is_important ? '<i class="fas fa-star ms-1"></i>' : ''}
-                                                    ${notification.data && notification.data.priority ? `<span class="badge bg-secondary ms-1">${notification.data.priority}</span>` : ''}
-                                                </div>
-                                                <div class="small text-muted">${content}</div>
-                                                <div class="small text-muted">${notification.created_at}</div>
-                                            </div>
-                                            ${!notification.is_read ? '<div class="flex-shrink-0"><span class="badge bg-primary">新</span></div>' : ''}
-                                        </div>
-                                    </a>
-                                </li>
-                            `;
-                            
-                            if (notifications.indexOf(notification) < notifications.length - 1) {
-                                html += '<li><hr class="dropdown-divider"></li>';
-                            }
-                        });
-                    }
-                    
-                    $('#notificationList').html(html);
-                })
-                .catch(error => {
-                    console.error('Error loading notifications:', error);
-                    let errorMsg = '加载失败';
-                    
-                    // 详细错误分析
-                    if (error.response) {
-                        // 服务器响应了错误状态码
-                        if (error.response.data) {
-                            if (typeof error.response.data === 'string') {
-                                errorMsg = `服务器错误: ${error.response.data}`;
-                            } else if (error.response.data.message) {
-                                errorMsg = error.response.data.message;
-                            } else if (error.response.data.error) {
-                                errorMsg = error.response.data.error;
-                            }
-                        } else {
-                            errorMsg = `HTTP错误 ${error.response.status}`;
-                        }
-                    } else if (error.request) {
-                        // 请求已发出但没有收到响应
-                        errorMsg = '网络连接失败，请检查网络连接';
-                    } else if (error.message) {
-                        // 其他错误
-                        if (error.message.includes('Unexpected token')) {
-                            errorMsg = '服务器返回了无效的数据格式';
-                        } else {
-                            errorMsg = error.message;
-                        }
-                    }
-                    
-                    $('#notificationList').html(`<div class="dropdown-item text-center text-danger">${errorMsg}</div>`);
+        loadNotifBadge();
+        setInterval(loadNotifBadge, 30000);
+
+        // Theme switcher
+        var themeToggle = document.getElementById('theme-toggle');
+        var themeMenu = document.getElementById('theme-menu');
+        if (themeToggle) {
+            themeToggle.addEventListener('click', function(e) {
+                e.stopPropagation();
+                themeMenu.classList.toggle('hidden');
+            });
+            document.addEventListener('click', function() { if (themeMenu) themeMenu.classList.add('hidden'); });
+            document.querySelectorAll('.theme-option').forEach(function(opt) {
+                opt.addEventListener('click', function() {
+                    var theme = this.getAttribute('data-theme');
+                    localStorage.setItem('theme', theme);
+                    applyTheme(theme);
+                    themeMenu.classList.add('hidden');
                 });
-            @else
-            $('#notificationList').html('<div class="dropdown-item text-center text-muted">请先登录</div>');
-            @endif
-        }
-        
-        // 标记通知为已读
-        function markNotificationAsRead(notificationId, event) {
-            @if(auth()->check())
-            if (event) {
-                event.preventDefault();
+            });
+            function applyTheme(theme) {
+                var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                var isDark = theme === 'dark' || (theme === 'system' && prefersDark);
+                document.documentElement.classList.toggle('dark', isDark);
+                ['light','dark','system'].forEach(function(t) {
+                    var icon = document.querySelector('.theme-icon-' + t);
+                    if (icon) icon.classList.toggle('hidden', t !== theme);
+                });
+                // Update theme-color meta
+                var meta = document.querySelector('meta[name="theme-color"]');
+                if (meta) meta.setAttribute('content', isDark ? '#1e293b' : '#2563eb');
             }
-            
-            axios.post(`/notifications/${notificationId}/read`, {})
-                .then(response => {
-                    if (response.data.success) {
-                        loadNotificationCount();
-                        loadLatestNotifications();
-                        
-                        // 如果通知有跳转链接，则跳转
-                        const notification = response.data.notification;
-                        if (notification && notification.data && notification.data.action_url) {
-                            window.location.href = notification.data.action_url;
-                        }
-                    }
-                })
-                .catch(error => {
-                    console.error('Error marking notification as read:', error);
-                });
-            @else
-            console.log('User not authenticated');
-            @endif
+            applyTheme(localStorage.getItem('theme') || 'system');
+            window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function() {
+                if ((localStorage.getItem('theme') || 'system') === 'system') applyTheme('system');
+            });
         }
+
+        // View mode preference (table/card on workorder list)
+        // Read on page load, stored as localStorage 'viewMode'
+        window.getViewMode = function() {
+            return localStorage.getItem('viewMode') || 'auto';
+        };
+        window.setViewMode = function(mode) {
+            localStorage.setItem('viewMode', mode);
+        };
     </script>
+    <style>
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 0.625rem;
+            padding: 0.5rem 0.75rem;
+            border-radius: 0.5rem;
+            font-size: 0.875rem;
+            transition: background-color 0.15s;
+        }
+        .nav-active {
+            background-color: rgba(255,255,255,0.12);
+            color: white;
+            font-weight: 500;
+        }
+    </style>
+    @endif
 </body>
 </html>

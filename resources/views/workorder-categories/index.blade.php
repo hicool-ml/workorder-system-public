@@ -1,155 +1,40 @@
 @extends('layouts.app')
-
 @section('title', '工单分类管理')
-
 @section('content')
-<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
-    <h1 class="h2">工单分类管理</h1>
-    <div class="btn-toolbar mb-2 mb-md-0">
-        <a href="{{ route('workorder-categories.create') }}" class="btn btn-primary">
-            <i class="fas fa-plus"></i> 新建分类
-        </a>
-    </div>
+<div class="flex items-center justify-between mb-6 gap-3 flex-wrap">
+    <h1 class="text-xl font-semibold text-ink">工单分类管理</h1>
+    <a href="{{ route('workorder-categories.create') }}" class="btn btn-primary"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 5v14M5 12h14"/></svg><span>新建分类</span></a>
 </div>
-
-<!-- 搜索筛选 -->
-<div class="card mb-4">
-    <div class="card-body">
-        <form method="GET" action="{{ route('workorder-categories.index') }}">
-            <div class="row g-3">
-                <div class="col-md-3">
-                    <label for="keyword" class="form-label">关键词</label>
-                    <input type="text" class="form-control" id="keyword" name="keyword" 
-                           value="{{ request('keyword') }}" placeholder="分类名称、编码">
-                </div>
-                <div class="col-md-2">
-                    <label for="level" class="form-label">层级</label>
-                    <select class="form-select" id="level" name="level">
-                        <option value="">全部层级</option>
-                        <option value="1" {{ request('level') == '1' ? 'selected' : '' }}>一级分类</option>
-                        <option value="2" {{ request('level') == '2' ? 'selected' : '' }}>二级分类</option>
-                        <option value="3" {{ request('level') == '3' ? 'selected' : '' }}>三级分类</option>
-                    </select>
-                </div>
-                <div class="col-md-2">
-                    <label for="status" class="form-label">状态</label>
-                    <select class="form-select" id="status" name="status">
-                        <option value="">全部状态</option>
-                        <option value="active" {{ request('status') == 'active' ? 'selected' : '' }}>启用</option>
-                        <option value="inactive" {{ request('status') == 'inactive' ? 'selected' : '' }}>禁用</option>
-                    </select>
-                </div>
-                <div class="col-md-2 d-flex align-items-end">
-                    <button type="submit" class="btn btn-primary me-2">
-                        <i class="fas fa-search"></i> 搜索
-                    </button>
-                    <a href="{{ route('workorder-categories.index') }}" class="btn btn-secondary">
-                        <i class="fas fa-redo"></i> 重置
-                    </a>
-                </div>
-            </div>
-        </form>
-    </div>
+<div class="card p-4 mb-4">
+    <form method="GET" action="{{ route('workorder-categories.index') }}" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <div><label class="label">关键词</label><input type="text" name="keyword" class="input" value="{{ request('keyword') }}" placeholder="名称、编码"></div>
+        <div><label class="label">层级</label><select name="level" class="input"><option value="">全部</option><option value="1" {{ request('level') == '1' ? 'selected' : '' }}>一级</option><option value="2" {{ request('level') == '2' ? 'selected' : '' }}>二级</option><option value="3" {{ request('level') == '3' ? 'selected' : '' }}>三级</option></select></div>
+        <div><label class="label">状态</label><select name="status" class="input"><option value="">全部</option><option value="active" {{ request('status') == 'active' ? 'selected' : '' }}>启用</option><option value="inactive" {{ request('status') == 'inactive' ? 'selected' : '' }}>禁用</option></select></div>
+        <div class="flex items-end gap-2"><button type="submit" class="btn btn-primary btn-sm"><span>搜索</span></button><a href="{{ route('workorder-categories.index') }}" class="btn btn-secondary btn-sm">重置</a></div>
+    </form>
 </div>
-
-<!-- 分类列表 -->
 <div class="card">
-    <div class="card-body">
-        <div class="table-responsive">
-            <table class="table table-striped table-hover">
-                <thead>
-                    <tr>
-                        <th>分类名称</th>
-                        <th>编码</th>
-                        <th>层级</th>
-                        <th>父分类</th>
-                        <th>状态</th>
-                        <th>排序</th>
-                        <th>创建时间</th>
-                        <th>操作</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @forelse($categories as $category)
-                    <tr>
-                        <td>
-                            <span style="padding-left: {{ ($category->level - 1) * 20 }}px;">
-                                {{ $category->name }}
-                            </span>
-                            @if($category->isLeaf())
-                            <i class="fas fa-leaf text-success ms-1" title="叶子节点"></i>
-                            @endif
-                        </td>
-                        <td>{{ $category->code }}</td>
-                        <td>
-                            <span class="badge bg-{{ $category->level == 1 ? 'primary' : ($category->level == 2 ? 'info' : 'secondary') }}">
-                                {{ $category->level_text }}
-                            </span>
-                        </td>
-                        <td>
-                            @if($category->parent)
-                                {{ $category->parent->name }}
-                            @else
-                                <span class="text-muted">无</span>
-                            @endif
-                        </td>
-                        <td>
-                            <span class="badge bg-{{ $category->status ? 'success' : 'danger' }}">
-                                {{ $category->status_text }}
-                            </span>
-                        </td>
-                        <td>{{ $category->sort_order }}</td>
-                        <td>{{ $category->created_at ? $category->created_at->format('Y-m-d H:i') : 'N/A' }}</td>
-                        <td>
-                            <div class="btn-group btn-group-sm">
-                                <a href="{{ route('workorder-categories.show', $category->id) }}" 
-                                   class="btn btn-outline-primary" title="查看">
-                                    <i class="fas fa-eye"></i>
-                                </a>
-                                <a href="{{ route('workorder-categories.edit', $category->id) }}" 
-                                   class="btn btn-outline-warning" title="编辑">
-                                    <i class="fas fa-edit"></i>
-                                </a>
-                                
-                                @if($category->children()->count() == 0 && $category->workorders()->count() == 0)
-                                <form method="POST" action="{{ route('workorder-categories.destroy', $category->id) }}" 
-                                      class="d-inline" onsubmit="return confirm('确认删除此分类吗？')">
-                                    @csrf
-                                    @method('DELETE')
-                                    <button type="submit" class="btn btn-outline-danger" title="删除">
-                                        <i class="fas fa-trash"></i>
-                                    </button>
-                                </form>
-                                @endif
-                            </div>
-                        </td>
-                    </tr>
-                    @empty
-                    <tr>
-                        <td colspan="8" class="text-center py-4">
-                            <i class="fas fa-folder-open fa-3x text-muted mb-3"></i>
-                            <h5 class="text-muted">暂无分类</h5>
-                            <p class="text-muted">
-                                <a href="{{ route('workorder-categories.create') }}" class="btn btn-primary">
-                                    创建第一个分类
-                                </a>
-                            </p>
-                        </td>
-                    </tr>
-                    @endforelse
-                </tbody>
-            </table>
-        </div>
-        
-        <!-- 分页 -->
-        <div class="d-flex justify-content-between align-items-center mt-3">
-            <div class="text-muted">
-                显示 {{ $categories->firstItem() }} - {{ $categories->lastItem() }} 
-                共 {{ $categories->total() }} 条记录
-            </div>
-            {{ $categories->appends(request()->query())->links() }}
-        </div>
+    <div class="md:hidden divide-y divide-border">
+        @forelse($categories as $cat)
+        <div class="p-4"><div class="flex items-center justify-between gap-2 mb-1"><p class="font-medium text-ink" style="padding-left: {{ ($cat->level - 1) * 16 }}px;">{{ $cat->name }}</p>@if($cat->status)<span class="badge bg-green-100 text-green-700">{{ $cat->status_text }}</span>@else<span class="badge bg-red-100 text-red-700">{{ $cat->status_text }}</span>@endif</div><div class="flex items-center gap-2"><span class="text-xs" style="color: var(--c-ink-subtle);">{{ $cat->code }}</span><span class="badge bg-slate-100 text-slate-600">{{ $cat->level_text }}</span>@if($cat->parent)<span class="text-xs" style="color: var(--c-ink-muted);">父: {{ $cat->parent->name }}</span>@endif</div><div class="flex items-center gap-1 mt-2"><a href="{{ route('workorder-categories.show', $cat->id) }}" class="btn btn-ghost btn-sm">查看</a><a href="{{ route('workorder-categories.edit', $cat->id) }}" class="btn btn-ghost btn-sm">编辑</a></div></div>
+        @empty<div class="p-8 text-center text-ink-muted">暂无分类</div>@endforelse
+    </div>
+    <div class="hidden md:block overflow-x-auto">
+        <table class="w-full text-sm"><thead><tr class="border-b border-border text-left">
+            <th class="px-4 py-3 font-medium" style="color: var(--c-ink-muted);">名称</th><th class="px-4 py-3 font-medium" style="color: var(--c-ink-muted);">编码</th><th class="px-4 py-3 font-medium" style="color: var(--c-ink-muted);">层级</th><th class="px-4 py-3 font-medium" style="color: var(--c-ink-muted);">父分类</th><th class="px-4 py-3 font-medium" style="color: var(--c-ink-muted);">状态</th><th class="px-4 py-3 font-medium text-right" style="color: var(--c-ink-muted);">操作</th>
+        </tr></thead><tbody>
+        @forelse($categories as $cat)
+        <tr class="border-b border-border hover:bg-surface-muted">
+            <td class="px-4 py-3 font-medium text-ink" style="padding-left: {{ 16 + ($cat->level - 1) * 24 }}px;">{{ $cat->name }}</td>
+            <td class="px-4 py-3 text-ink">{{ $cat->code }}</td>
+            <td class="px-4 py-3"><span class="badge bg-slate-100 text-slate-600">{{ $cat->level_text }}</span></td>
+            <td class="px-4 py-3 text-ink">{{ $cat->parent?->name ?? '-' }}</td>
+            <td class="px-4 py-3">@if($cat->status)<span class="badge bg-green-100 text-green-700">{{ $cat->status_text }}</span>@else<span class="badge bg-red-100 text-red-700">{{ $cat->status_text }}</span>@endif</td>
+            <td class="px-4 py-3 text-right"><div class="flex items-center justify-end gap-1"><a href="{{ route('workorder-categories.show', $cat->id) }}" class="btn btn-ghost btn-icon btn-sm" title="查看"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z M12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6z"/></svg></a><a href="{{ route('workorder-categories.edit', $cat->id) }}" class="btn btn-ghost btn-icon btn-sm" title="编辑"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7 M18.5 2.5a2.1 2.1 0 0 1 3 3L12 15l-4 1 1-4z"/></svg></a>@if($cat->children()->count() == 0 && $cat->workorders()->count() == 0)<form method="POST" action="{{ route('workorder-categories.destroy', $cat->id) }}" class="inline" onsubmit="return confirm('确认删除？')">@csrf @method('DELETE')<button type="submit" class="btn btn-ghost btn-icon btn-sm text-red-500" title="删除"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 6h18 M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button></form>@endif</div></td>
+        </tr>
+        @empty<tr><td colspan="6" class="px-4 py-12 text-center text-ink-muted">暂无分类</td></tr>@endforelse
+        </tbody></table>
     </div>
 </div>
-
+@if($categories->hasPages())<div class="flex items-center justify-between mt-4 gap-3"><p class="text-sm text-ink-muted">{{ $categories->firstItem() ?? 0 }} - {{ $categories->lastItem() ?? 0 }} / {{ $categories->total() }}</p><div>{{ $categories->appends(request()->query())->links() }}</div></div>@endif
 @endsection

@@ -1,192 +1,113 @@
 @extends('layouts.app')
 
-@section('title', '部门详情')
+@section('title', '部门详情 - ' . $department->name)
 
 @section('content')
-<div class="container-fluid">
-    <div class="row">
-        <div class="col-md-4">
-            <div class="card">
-                <div class="card-header">
-                    <h3 class="card-title">部门信息</h3>
-                </div>
-                <div class="card-body">
-                    <table class="table table-borderless">
-                        <tr>
-                            <td><strong>ID:</strong></td>
-                            <td>{{ $department->id }}</td>
-                        </tr>
-                        <tr>
-                            <td><strong>部门名称:</strong></td>
-                            <td>{{ $department->name }}</td>
-                        </tr>
-                        <tr>
-                            <td><strong>部门编码:</strong></td>
-                            <td>{{ $department->code }}</td>
-                        </tr>
-                        <tr>
-                            <td><strong>负责人:</strong></td>
-                            <td>{{ $department->manager ?? '-' }}</td>
-                        </tr>
-                        <tr>
-                            <td><strong>联系电话:</strong></td>
-                            <td>{{ $department->phone ?? '-' }}</td>
-                        </tr>
-                        <tr>
-                            <td><strong>邮箱:</strong></td>
-                            <td>{{ $department->email ?? '-' }}</td>
-                        </tr>
-                        <tr>
-                            <td><strong>排序:</strong></td>
-                            <td>{{ $department->sort_order }}</td>
-                        </tr>
-                        <tr>
-                            <td><strong>状态:</strong></td>
-                            <td>
-                                @if($department->is_active)
-                                    <span class="badge badge-success">启用</span>
-                                @else
-                                    <span class="badge badge-danger">禁用</span>
-                                @endif
-                            </td>
-                        </tr>
-                        <tr>
-                            <td><strong>创建时间:</strong></td>
-                            <td>{{ $department->created_at->format('Y-m-d H:i:s') }}</td>
-                        </tr>
-                    </table>
-                    @if($department->description)
-                    <div class="mt-3">
-                        <strong>部门描述:</strong>
-                        <p>{{ $department->description }}</p>
-                    </div>
-                    @endif
-                </div>
-                <div class="card-footer">
-                    @if(auth()->user()->hasRole('admin'))
-                    <a href="{{ route('departments.edit', $department->id) }}" class="btn btn-warning btn-sm">
-                        <i class="fas fa-edit"></i> 编辑
-                    </a>
-                    <form method="POST" action="{{ route('departments.destroy', $department->id) }}" style="display: inline;">
-                        @csrf
-                        @method('DELETE')
-                        <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('确定要删除该部门吗？')">
-                            <i class="fas fa-trash"></i> 删除
-                        </button>
-                    </form>
-                    @endif
-                    <a href="{{ route('departments.index') }}" class="btn btn-secondary btn-sm">
-                        <i class="fas fa-arrow-left"></i> 返回
-                    </a>
-                </div>
+<div class="flex items-center justify-between mb-6 gap-3 flex-wrap">
+    <h1 class="text-xl font-semibold text-ink">部门详情</h1>
+    <div class="flex items-center gap-2">
+        @if(auth()->user()->hasRole('admin'))
+        <a href="{{ route('departments.edit', $department->id) }}" class="btn btn-primary">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7 M18.5 2.5a2.1 2.1 0 0 1 3 3L12 15l-4 1 1-4z"/></svg>
+            <span>编辑</span>
+        </a>
+        @endif
+        <a href="{{ route('departments.index') }}" class="btn btn-secondary">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7 7-7M3 12h18"/></svg>
+            <span>返回列表</span>
+        </a>
+    </div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    {{-- Info card --}}
+    <div class="lg:col-span-1">
+        <div class="card p-5">
+            <h3 class="text-sm font-semibold text-ink mb-4">部门信息</h3>
+            <dl class="space-y-3 text-sm">
+                <div class="flex justify-between gap-2"><dt style="color: var(--c-ink-muted);">部门名称</dt><dd class="font-medium text-ink text-right">{{ $department->name }}</dd></div>
+                <div class="flex justify-between gap-2"><dt style="color: var(--c-ink-muted);">部门编码</dt><dd class="text-ink text-right">{{ $department->code }}</dd></div>
+                <div class="flex justify-between gap-2"><dt style="color: var(--c-ink-muted);">负责人</dt><dd class="text-ink text-right">{{ $department->manager ?? '-' }}</dd></div>
+                <div class="flex justify-between gap-2"><dt style="color: var(--c-ink-muted);">联系电话</dt><dd class="text-ink text-right">{{ $department->phone ?? '-' }}</dd></div>
+                <div class="flex justify-between gap-2"><dt style="color: var(--c-ink-muted);">邮箱</dt><dd class="text-ink text-right">{{ $department->email ?? '-' }}</dd></div>
+                <div class="flex justify-between gap-2"><dt style="color: var(--c-ink-muted);">排序</dt><dd class="text-ink text-right">{{ $department->sort_order }}</dd></div>
+                <div class="flex justify-between gap-2"><dt style="color: var(--c-ink-muted);">状态</dt><dd class="text-right">@if($department->is_active)<span class="badge bg-green-100 text-green-700">启用</span>@else<span class="badge bg-red-100 text-red-700">禁用</span>@endif</dd></div>
+                <div class="flex justify-between gap-2"><dt style="color: var(--c-ink-muted);">创建时间</dt><dd class="text-ink text-right">{{ $department->created_at->format('Y-m-d H:i') }}</dd></div>
+            </dl>
+            @if($department->description)
+            <div class="mt-4 pt-4 border-t border-border">
+                <p class="text-xs font-medium mb-1" style="color: var(--c-ink-muted);">部门描述</p>
+                <p class="text-sm text-ink">{{ $department->description }}</p>
+            </div>
+            @endif
+            @if(auth()->user()->hasRole('admin'))
+            <form method="POST" action="{{ route('departments.destroy', $department->id) }}" class="mt-4" onsubmit="return confirm('确定要删除该部门吗？')">
+                @csrf @method('DELETE')
+                <button type="submit" class="btn btn-danger w-full">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 6h18 M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                    <span>删除部门</span>
+                </button>
+            </form>
+            @endif
+        </div>
+    </div>
+
+    {{-- Stats + members --}}
+    <div class="lg:col-span-2 space-y-6">
+        <div class="grid grid-cols-2 sm:grid-cols-3 gap-4">
+            <div class="card p-4 text-center">
+                <p class="text-2xl font-bold text-ink">{{ $department->users()->count() }}</p>
+                <p class="text-xs mt-1" style="color: var(--c-ink-muted);">部门人员</p>
+            </div>
+            <div class="card p-4 text-center">
+                <p class="text-2xl font-bold text-ink">{{ $department->workorders()->count() }}</p>
+                <p class="text-xs mt-1" style="color: var(--c-ink-muted);">相关工单</p>
+            </div>
+            <div class="card p-4 text-center">
+                <p class="text-2xl font-bold text-green-600">{{ $department->workorders()->where('status', 'resolved')->count() }}</p>
+                <p class="text-xs mt-1" style="color: var(--c-ink-muted);">已解决工单</p>
             </div>
         </div>
-        
-        <div class="col-md-8">
-            <div class="card">
-                <div class="card-header">
-                    <h3 class="card-title">部门统计</h3>
-                </div>
-                <div class="card-body">
-                    <div class="row">
-                        <div class="col-md-3">
-                            <div class="info-box">
-                                <span class="info-box-icon bg-info"><i class="fas fa-users"></i></span>
-                                <div class="info-box-content">
-                                    <span class="info-box-text">部门人员</span>
-                                    <span class="info-box-number">{{ $department->users()->count() }}</span>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-3">
-                            <div class="info-box">
-                                <span class="info-box-icon bg-success"><i class="fas fa-ticket-alt"></i></span>
-                                <div class="info-box-content">
-                                    <span class="info-box-text">相关工单</span>
-                                    <span class="info-box-number">{{ $department->workorders()->count() }}</span>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-3">
-                            <div class="info-box">
-                                <span class="info-box-icon bg-primary"><i class="fas fa-check"></i></span>
-                                <div class="info-box-content">
-                                    <span class="info-box-text">已解决工单</span>
-                                    <span class="info-box-number">{{ $department->workorders()->where('status', 'resolved')->count() }}</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+
+        <div class="card">
+            <div class="px-5 py-4 border-b border-border">
+                <h3 class="text-sm font-semibold text-ink">部门人员</h3>
             </div>
-            
-            <div class="card">
-                <div class="card-header">
-                    <h3 class="card-title">部门人员</h3>
-                </div>
-                <div class="card-body">
-                    @if($department->users->count() > 0)
-                    <div class="table-responsive">
-                        <table class="table table-bordered table-striped">
-                            <thead>
-                                <tr>
-                                    <th>姓名</th>
-                                    <th>邮箱</th>
-                                    <th>角色</th>
-                                    <th>联系电话</th>
-                                    <th>状态</th>
-                                    <th>操作</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @foreach($department->users as $user)
-                                <tr>
-                                    <td>{{ $user->name }}</td>
-                                    <td>{{ $user->email }}</td>
-                                    <td>
-                                        @switch($user->role)
-                                            @case('admin')
-                                                <span class="badge bg-danger text-white">管理员</span>
-                                                @break
-                                            @case('workorder_manager')
-                                                <span class="badge bg-primary text-white">工单管理员</span>
-                                                @break
-                                            @case('engineer')
-                                                <span class="badge bg-warning text-dark">工程师</span>
-                                                @break
-                                            @case('user')
-                                                <span class="badge bg-info text-white">普通用户</span>
-                                                @break
-                                            @default
-                                                <span class="badge bg-secondary text-white">{{ $user->role }}</span>
-                                        @endswitch
-                                    </td>
-                                    <td>{{ $user->phone ?? '-' }}</td>
-                                    <td>
-                                        @if($user->is_active)
-                                            <span class="badge badge-success">启用</span>
-                                        @else
-                                            <span class="badge badge-danger">禁用</span>
-                                        @endif
-                                    </td>
-                                    <td>
-                                        <a href="{{ route('users.show', $user->id) }}" class="btn btn-info btn-sm">
-                                            <i class="fas fa-eye"></i> 查看
-                                        </a>
-                                    </td>
-                                </tr>
-                                @endforeach
-                            </tbody>
-                        </table>
+            @if($department->users->count() > 0)
+            <div class="md:hidden divide-y divide-border">
+                @foreach($department->users as $user)
+                <div class="p-4">
+                    <div class="flex items-center justify-between gap-2 mb-1">
+                        <a href="{{ route('users.show', $user->id) }}" class="font-medium text-ink hover:text-brand-600">{{ $user->name }}</a>
+                        @if($user->is_active)<span class="badge bg-green-100 text-green-700">启用</span>@else<span class="badge bg-red-100 text-red-700">禁用</span>@endif
                     </div>
-                    @else
-                    <div class="alert alert-info">
-                        <i class="fas fa-info-circle"></i> 该部门暂无人员
-                    </div>
-                    @endif
+                    <p class="text-xs" style="color: var(--c-ink-subtle);">{{ $user->email }} · {{ $user->phone ?? '-' }}</p>
                 </div>
+                @endforeach
             </div>
-            
+            <div class="hidden md:block overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead><tr class="border-b border-border text-left">
+                        <th class="px-5 py-3 font-medium" style="color: var(--c-ink-muted);">姓名</th>
+                        <th class="px-5 py-3 font-medium" style="color: var(--c-ink-muted);">邮箱</th>
+                        <th class="px-5 py-3 font-medium" style="color: var(--c-ink-muted);">电话</th>
+                        <th class="px-5 py-3 font-medium" style="color: var(--c-ink-muted);">状态</th>
+                    </tr></thead>
+                    <tbody>
+                    @foreach($department->users as $user)
+                    <tr class="border-b border-border">
+                        <td class="px-5 py-3"><a href="{{ route('users.show', $user->id) }}" class="font-medium text-ink hover:text-brand-600">{{ $user->name }}</a></td>
+                        <td class="px-5 py-3 text-ink">{{ $user->email }}</td>
+                        <td class="px-5 py-3 text-ink">{{ $user->phone ?? '-' }}</td>
+                        <td class="px-5 py-3">@if($user->is_active)<span class="badge bg-green-100 text-green-700">启用</span>@else<span class="badge bg-red-100 text-red-700">禁用</span>@endif</td>
+                    </tr>
+                    @endforeach
+                    </tbody>
+                </table>
+            </div>
+            @else
+            <div class="p-8 text-center text-sm" style="color: var(--c-ink-muted);">该部门暂无人员</div>
+            @endif
         </div>
     </div>
 </div>
