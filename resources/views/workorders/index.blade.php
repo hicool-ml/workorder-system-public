@@ -204,7 +204,7 @@
                 </thead>
                 <tbody>
                     @forelse($workorders as $workorder)
-                    <tr class="border-b border-border hover:bg-surface-muted transition-colors {{ ->isOverdue() ? 'overdue-row' : '' }}">
+                    <tr class="border-b border-border hover:bg-surface-muted transition-colors {{ $workorder->isOverdue() ? 'overdue-row' : '' }}">
                         <td class="px-4 py-3">
                             <input type="checkbox" class="workorder-checkbox rounded border-border-strong" value="{{ $workorder->id }}" autocomplete="off">
                         </td>
@@ -292,7 +292,7 @@
         {{-- Mobile card list --}}
         <div class="md:hidden divide-y divide-border">
             @forelse($workorders as $workorder)
-            <div class="p-4 {{ ->isOverdue() ? 'overdue-row' : '' }}">
+            <div class="p-4 {{ $workorder->isOverdue() ? 'overdue-row' : '' }}">
                 <div class="flex items-start justify-between gap-3 mb-2">
                     <div class="flex-1 min-w-0">
                         <a href="{{ route('workorders.show', $workorder->id) }}" class="font-medium text-ink hover:text-brand-600">
