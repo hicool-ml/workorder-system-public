@@ -1,4 +1,4 @@
-@extends('layouts.app')
+﻿@extends('layouts.app')
 
 @section('title', '工单列表')
 
@@ -151,9 +151,9 @@
 
 {{-- Batch operations bar --}}
 @if(auth()->user()->canHandleWorkorders())
-<div id="batchBar" class="hidden mb-4 card bg-brand-50 border-brand-200">
+<div id="batchBar" class="hidden mb-4 card" style="background-color: var(--c-brand-light); border-color: rgba(59,130,246,0.3);">
     <div class="flex items-center justify-between p-3">
-        <span class="text-sm text-brand-800 font-medium">已选择 <span id="selectedCount">0</span> 个工单</span>
+        <span class="text-sm font-medium" style="color: var(--c-brand);">已选择 <span id="selectedCount">0</span> 个工单</span>
         <div class="flex items-center gap-2 flex-wrap">
             <button type="button" class="btn btn-secondary btn-sm" id="batchAssignBtn">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2 M9 7a4 4 0 1 0 0-8 4 4 0 0 0 0 8z M19 8v6 M22 11h-6"/></svg>
@@ -192,19 +192,19 @@
                         <th class="px-4 py-3 w-10">
                             <input type="checkbox" id="selectAll" class="rounded border-border-strong" autocomplete="off">
                         </th>
-                        <th class="px-4 py-3 font-medium">地址</th>
-                        <th class="px-4 py-3 font-medium">描述</th>
-                        <th class="px-4 py-3 font-medium">报修</th>
-                        <th class="px-4 py-3 font-medium">优先级</th>
-                        <th class="px-4 py-3 font-medium">状态</th>
-                        <th class="px-4 py-3 font-medium">处理</th>
-                        <th class="px-4 py-3 font-medium">历时</th>
-                        <th class="px-4 py-3 font-medium text-right">操作</th>
+                        <th class="px-4 py-3 font-medium text-ink-muted">地址</th>
+                        <th class="px-4 py-3 font-medium text-ink-muted">描述</th>
+                        <th class="px-4 py-3 font-medium text-ink-muted">报修</th>
+                        <th class="px-4 py-3 font-medium text-ink-muted">优先级</th>
+                        <th class="px-4 py-3 font-medium text-ink-muted">状态</th>
+                        <th class="px-4 py-3 font-medium text-ink-muted">处理</th>
+                        <th class="px-4 py-3 font-medium text-ink-muted">历时</th>
+                        <th class="px-4 py-3 font-medium text-ink-muted text-right">操作</th>
                     </tr>
                 </thead>
                 <tbody>
                     @forelse($workorders as $workorder)
-                    <tr class="border-b border-border hover:bg-surface-muted transition-colors {{ $workorder->isOverdue() ? 'bg-red-50/50' : '' }}">
+                    <tr class="border-b border-border hover:bg-surface-muted transition-colors {{ ->isOverdue() ? 'overdue-row' : '' }}">
                         <td class="px-4 py-3">
                             <input type="checkbox" class="workorder-checkbox rounded border-border-strong" value="{{ $workorder->id }}" autocomplete="off">
                         </td>
@@ -232,11 +232,11 @@
                                 </span>
                             @endif
                             @if($workorder->category)
-                                <div class="mt-0.5"><span class="badge bg-slate-100 text-slate-600">{{ $workorder->category->name }}</span></div>
+                                <div class="mt-0.5"><span class="badge bg-gray-100 text-gray-600">{{ $workorder->category->name }}</span></div>
                             @endif
                         </td>
                         <td class="px-4 py-3 whitespace-nowrap">
-                            <div class="font-medium">{{ $workorder->contact_name }}</div>
+                            <div class="font-medium text-ink">{{ $workorder->contact_name }}</div>
                             <div class="text-xs text-ink-muted">{{ $workorder->contact_phone }}</div>
                         </td>
                         <td class="px-4 py-3">
@@ -256,9 +256,9 @@
                                     'processing' => 'bg-indigo-100 text-indigo-700',
                                     'resolved' => 'bg-green-100 text-green-700',
                                     'completed' => 'bg-teal-100 text-teal-700',
-                                    'closed' => 'bg-slate-100 text-slate-600',
+                                    'closed' => 'bg-gray-100 text-gray-600',
                                 ];
-                                $style = $statusStyles[$workorder->status] ?? 'bg-slate-100 text-slate-600';
+                                $style = $statusStyles[$workorder->status] ?? 'bg-gray-100 text-gray-600';
                             @endphp
                             <span class="badge {{ $style }}">{{ $workorder->status_text }}</span>
                             @if($workorder->isOverdue())
@@ -292,7 +292,7 @@
         {{-- Mobile card list --}}
         <div class="md:hidden divide-y divide-border">
             @forelse($workorders as $workorder)
-            <div class="p-4 {{ $workorder->isOverdue() ? 'bg-red-50/40' : '' }}">
+            <div class="p-4 {{ ->isOverdue() ? 'overdue-row' : '' }}">
                 <div class="flex items-start justify-between gap-3 mb-2">
                     <div class="flex-1 min-w-0">
                         <a href="{{ route('workorders.show', $workorder->id) }}" class="font-medium text-ink hover:text-brand-600">
@@ -332,12 +332,12 @@
                             'processing' => 'bg-indigo-100 text-indigo-700',
                             'resolved' => 'bg-green-100 text-green-700',
                             'completed' => 'bg-teal-100 text-teal-700',
-                            'closed' => 'bg-slate-100 text-slate-600',
+                            'closed' => 'bg-gray-100 text-gray-600',
                         ];
-                        $style = $statusStyles[$workorder->status] ?? 'bg-slate-100 text-slate-600';
+                        $style = $statusStyles[$workorder->status] ?? 'bg-gray-100 text-gray-600';
                     @endphp
                     <span class="badge {{ $style }}">{{ $workorder->status_text }}</span>
-                    @if($workorder->category)<span class="badge bg-slate-100 text-slate-600">{{ $workorder->category->name }}</span>@endif
+                    @if($workorder->category)<span class="badge bg-gray-100 text-gray-600">{{ $workorder->category->name }}</span>@endif
                     @if($workorder->isOverdue())<span class="badge bg-red-100 text-red-700">超时</span>@endif
                 </div>
 

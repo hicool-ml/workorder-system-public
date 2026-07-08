@@ -1,4 +1,4 @@
-@import "tailwindcss";
+﻿@import "tailwindcss";
 
 @source "../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php";
 @source "../../storage/framework/views/*.php";
@@ -156,3 +156,5 @@
 ::-webkit-scrollbar-thumb:hover { background: var(--c-ink-subtle); }
 
 body.drawer-open { overflow: hidden; }
+
+.overdue-row { background-color: rgba(239,68,68,0.08); }
