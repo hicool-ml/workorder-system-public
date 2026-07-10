@@ -1581,21 +1581,16 @@ class Notification extends Model
      */
     private static function getCampusMapping(): array
     {
-        // 尝试从系统设置中获取校区映射
+        // Dynamically load campus mapping from the campuses table
         try {
-            $mappingSetting = \App\Models\SystemSetting::where('key', 'campus_mapping')->first();
-            if ($mappingSetting && $mappingSetting->value) {
-                return json_decode($mappingSetting->value, true) ?: [];
-            }
+            return \App\Models\Campus::orderBy('sort_order')
+                ->orderBy('name')
+                ->pluck('name', 'name')
+                ->toArray();
         } catch (\Exception $e) {
-            \Log::warning('获取校区映射配置失败', ['error' => $e->getMessage()]);
+            \Log::warning('获取校区列表失败', ['error' => $e->getMessage()]);
         }
-        
-        // 默认映射配置
-        return [
-            'old_campus' => '老校区',
-            'new_campus' => '新校区',
-            'asean_campus' => '东盟校区',
-        ];
+
+        return [];
     }
 }

@@ -18,6 +18,7 @@ class WorkorderTemplate extends Model
         'contact_phone',
         'contact_email',
         'campus',
+        'campus_id',
         'building',
         'location_detail',
         'time_limit_hours',
@@ -86,11 +87,10 @@ class WorkorderTemplate extends Model
      */
     public static function getCampusOptions(): array
     {
-        return [
-            'old_campus' => '老校区',
-            'new_campus' => '新校区',
-            'asean_campus' => '东盟校区',
-        ];
+        return \App\Models\Campus::orderBy('sort_order')
+            ->orderBy('name')
+            ->pluck('name', 'id')
+            ->toArray();
     }
 
     /**
@@ -114,7 +114,8 @@ class WorkorderTemplate extends Model
      */
     public function getCampusTextAttribute(): string
     {
-        return self::getCampusOptions()[$this->campus] ?? $this->campus;
+        $campus = \App\Models\Campus::find($this->campus_id);
+        return $campus ? $campus->name : '';
     }
 
     /**
@@ -123,7 +124,7 @@ class WorkorderTemplate extends Model
     public function getLocationAttribute(): string
     {
         $location = '';
-        if ($this->campus) {
+        if ($this->campus_id) {
             $location .= $this->campus_text;
         }
         if ($this->building) {
@@ -159,6 +160,7 @@ class WorkorderTemplate extends Model
             'contact_phone' => $this->contact_phone,
             'contact_email' => $this->contact_email,
             'campus' => $this->campus,
+            'campus_id' => $this->campus_id,
             'building' => $this->building,
             'location_detail' => $this->location_detail,
             'time_limit_hours' => $this->time_limit_hours,

@@ -17,76 +17,76 @@
     </div>
 </div>
 
-<div class="row">
-    <div class="col-md-8">
-        <div class="card">
-            <div class="card-header">
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+    <div class="">
+        <div class="card p-5">
+            <div class="text-sm font-semibold text-ink mb-3">
                 <h5 class="card-title mb-0">基本信息</h5>
             </div>
-            <div class="card-body">
-                <div class="row mb-3">
-                    <div class="col-md-4">
+            <div >
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-3">
+                    <div class="">
                         <strong>校区ID：</strong>
                     </div>
-                    <div class="col-md-8">
+                    <div class="">
                         {{ $campus->id }}
                     </div>
                 </div>
                 
-                <div class="row mb-3">
-                    <div class="col-md-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-3">
+                    <div class="">
                         <strong>校区名称：</strong>
                     </div>
-                    <div class="col-md-8">
+                    <div class="">
                         {{ $campus->name }}
                     </div>
                 </div>
                 
-                <div class="row mb-3">
-                    <div class="col-md-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-3">
+                    <div class="">
                         <strong>校区描述：</strong>
                     </div>
-                    <div class="col-md-8">
+                    <div class="">
                         {{ $campus->description ?: '-' }}
                     </div>
                 </div>
                 
-                <div class="row mb-3">
-                    <div class="col-md-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-3">
+                    <div class="">
                         <strong>排序顺序：</strong>
                     </div>
-                    <div class="col-md-8">
+                    <div class="">
                         {{ $campus->sort_order }}
                     </div>
                 </div>
                 
-                <div class="row mb-3">
-                    <div class="col-md-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-3">
+                    <div class="">
                         <strong>状态：</strong>
                     </div>
-                    <div class="col-md-8">
+                    <div class="">
                         @if($campus->status == 'active')
-                            <span class="badge bg-success">{{ $campus->status_text }}</span>
+                            <span class="badge bg-green-100 text-green-700">{{ $campus->status_text }}</span>
                         @else
-                            <span class="badge bg-danger">{{ $campus->status_text }}</span>
+                            <span class="badge bg-red-100 text-red-700">{{ $campus->status_text }}</span>
                         @endif
                     </div>
                 </div>
                 
-                <div class="row mb-3">
-                    <div class="col-md-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-3">
+                    <div class="">
                         <strong>创建时间：</strong>
                     </div>
-                    <div class="col-md-8">
+                    <div class="">
                         {{ $campus->created_at->format('Y-m-d H:i:s') }}
                     </div>
                 </div>
                 
-                <div class="row mb-3">
-                    <div class="col-md-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-3">
+                    <div class="">
                         <strong>更新时间：</strong>
                     </div>
-                    <div class="col-md-8">
+                    <div class="">
                         {{ $campus->updated_at->format('Y-m-d H:i:s') }}
                     </div>
                 </div>
@@ -94,12 +94,12 @@
         </div>
     </div>
     
-    <div class="col-md-4">
-        <div class="card">
-            <div class="card-header">
+    <div class="">
+        <div class="card p-5">
+            <div class="text-sm font-semibold text-ink mb-3">
                 <h5 class="card-title mb-0">操作</h5>
             </div>
-            <div class="card-body">
+            <div >
                 <div class="d-grid gap-2">
                     <a href="{{ route('locations.edit-campus', $campus->id) }}" class="btn btn-primary">
                         <i class="fas fa-edit"></i> 编辑校区
@@ -114,7 +114,7 @@
                         </button>
                     </form>
                     
-                    <a href="{{ route('locations.create') }}?campus_id={{ $campus->id }}" class="btn btn-success">
+                    <a href="{{ route('locations.create') }}?campus_id={{ $campus->id }}" class="btn btn-primary">
                         <i class="fas fa-plus"></i> 新增地址
                     </a>
                     
@@ -125,7 +125,7 @@
                         <button type="submit" class="btn btn-danger w-100" {{ $campus->canBeDeleted() ? '' : 'disabled' }}>
                             <i class="fas fa-trash"></i> 删除校区
                             @if(!$campus->canBeDeleted())
-                                <br><small class="text-muted">（有关联地址，无法删除）</small>
+                                <br><small class="text-ink-muted">（有关联地址，无法删除）</small>
                             @endif
                         </button>
                     </form>
@@ -137,12 +137,12 @@
 
 @if($campus->locations->count() > 0)
 <div class="row mt-4">
-    <div class="col-12">
-        <div class="card">
-            <div class="card-header">
+    <div class="">
+        <div class="card p-5">
+            <div class="text-sm font-semibold text-ink mb-3">
                 <h5 class="card-title mb-0">关联地址 ({{ $campus->locations->count() }})</h5>
             </div>
-            <div class="card-body">
+            <div >
                 <div class="table-responsive">
                     <table class="table table-striped table-hover">
                         <thead>
@@ -161,14 +161,14 @@
                             <tr>
                                 <td>{{ $location->id }}</td>
                                 <td>{{ $location->name }}</td>
-                                <td><span class="badge bg-secondary">{{ $location->building_type_text }}</span></td>
+                                <td><span class="badge bg-slate-100 text-slate-600">{{ $location->building_type_text }}</span></td>
                                 <td>{{ $location->building_code ?: '-' }}</td>
                                 <td>{{ $location->sort_order }}</td>
                                 <td>
                                     @if($location->status == 'active')
-                                        <span class="badge bg-success">{{ $location->status_text }}</span>
+                                        <span class="badge bg-green-100 text-green-700">{{ $location->status_text }}</span>
                                     @else
-                                        <span class="badge bg-danger">{{ $location->status_text }}</span>
+                                        <span class="badge bg-red-100 text-red-700">{{ $location->status_text }}</span>
                                     @endif
                                 </td>
                                 <td>

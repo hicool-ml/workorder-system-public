@@ -2,103 +2,91 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class WorkorderSource extends Model
 {
-    use HasFactory;
-
-    protected $table = 'workorder_sources';
-
     protected $fillable = [
         'name',
-        'code',
         'description',
+        'is_active',
         'sort_order',
-        'status',
     ];
 
     protected $casts = [
+        'is_active' => 'boolean',
         'sort_order' => 'integer',
-        'status' => 'string',
     ];
 
     /**
-     * 默认的工单来源（与数据库 enum 字段保持一致）
+     * Get all active workorder sources, ordered by sort_order then name.
      */
-    public const DEFAULT_SOURCES = [
-        'phone' => '电话',
-        'web' => '网络',
-        'email' => '邮件',
-        'scene' => '现场',
-        'other' => '其他',
-    ];
+    public static function getActiveSources()
+    {
+        return self::where('is_active', true)
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->get();
+    }
 
     /**
-     * 获取所有启用的来源代码列表
+     * Get all active source names (for validation).
      */
     public static function getActiveSourceCodes(): array
     {
-        $tableExists = self::tableExists();
-
-        if (!$tableExists) {
-            return array_keys(self::DEFAULT_SOURCES);
-        }
-
-        $codes = self::where('status', 'active')
-            ->orderBy('sort_order')
-            ->pluck('code')
+        return self::where('is_active', true)
+            ->pluck('name')
             ->toArray();
-
-        // 如果表中没有数据，回退到默认来源
-        if (empty($codes)) {
-            return array_keys(self::DEFAULT_SOURCES);
-        }
-
-        return $codes;
     }
 
     /**
-     * 获取所有启用的来源选项（code => name）
+     * Find a source by its name (treated as "code").
      */
-    public static function getActiveOptions(): array
+    public static function findByCode($code)
     {
-        $tableExists = self::tableExists();
-
-        if (!$tableExists) {
-            return self::DEFAULT_SOURCES;
-        }
-
-        $options = self::where('status', 'active')
-            ->orderBy('sort_order')
-            ->pluck('name', 'code')
-            ->toArray();
-
-        if (empty($options)) {
-            return self::DEFAULT_SOURCES;
-        }
-
-        return $options;
+        return self::where('name', $code)->first();
     }
 
     /**
-     * 检查表是否存在（避免迁移前调用报错）
+     * Check if a source name already exists.
      */
-    private static function tableExists(): bool
+    public static function isCodeExists($code, $excludeId = null)
     {
-        try {
-            return \Schema::hasTable('workorder_sources');
-        } catch (\Exception $e) {
-            return false;
+        $query = self::where('name', $code);
+        if ($excludeId) {
+            $query->where('id', '!=', $excludeId);
+        }
+        return $query->exists();
+    }
+
+    /**
+     * Initialize default workorder sources.
+     */
+    public static function initializeDefaultSources()
+    {
+        $defaultSources = [
+            ['name' => '电话报修', 'description' => '用户通过电话直接报修', 'sort_order' => 1],
+            ['name' => '在线平台', 'description' => '通过网站或APP在线提交报修', 'sort_order' => 2],
+            ['name' => '邮件申请', 'description' => '通过发送邮件申请维修服务', 'sort_order' => 3],
+            ['name' => '现场报修', 'description' => '工作人员现场发现并记录的问题', 'sort_order' => 4],
+            ['name' => '巡检发现', 'description' => '定期巡检过程中发现的设备问题', 'sort_order' => 5],
+            ['name' => '系统预警', 'description' => '监控系统自动发出的预警信息', 'sort_order' => 6],
+            ['name' => '其他来源', 'description' => '除上述分类外的其他报修方式', 'sort_order' => 7],
+        ];
+
+        foreach ($defaultSources as $source) {
+            self::firstOrCreate(
+                ['name' => $source['name']],
+                $source
+            );
         }
     }
 
     /**
-     * 获取状态文本
+     * Workorders using this source (matched by name).
      */
-    public function getStatusTextAttribute(): string
+    public function workorders()
     {
-        return $this->status === 'active' ? '启用' : '禁用';
+        return $this->hasMany(\App\Models\Workorder::class, 'source', 'name');
     }
 }

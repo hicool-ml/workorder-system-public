@@ -1,4 +1,4 @@
-﻿@extends('layouts.app')
+@extends('layouts.app')
 
 @section('title', '工单列表')
 
@@ -78,12 +78,12 @@
                                value="{{ request('date_to') }}" autocomplete="off">
                     </div>
                     <div>
-                        <label class="label" for="campus">校区</label>
-                        <select class="input" id="campus" name="campus">
+                        <label class="label" for="campus_id">校区</label>
+                        <select class="input" id="campus_id" name="campus_id">
                             <option value="">全部校区</option>
-                            <option value="old_campus" {{ request('campus') == 'old_campus' ? 'selected' : '' }}>老校区</option>
-                            <option value="new_campus" {{ request('campus') == 'new_campus' ? 'selected' : '' }}>新校区</option>
-                            <option value="asean_campus" {{ request('campus') == 'asean_campus' ? 'selected' : '' }}>东盟校区</option>
+                            @foreach(\App\Models\Campus::orderBy('sort_order')->orderBy('name')->get() as $campus)
+                            <option value="{{ $campus->id }}" {{ request('campus_id') == $campus->id ? 'selected' : '' }}>{{ $campus->name }}</option>
+                            @endforeach
                         </select>
                     </div>
                     <div>
@@ -211,7 +211,7 @@
                         <td class="px-4 py-3 max-w-[180px]">
                             <div class="text-xs text-ink-muted">
                                 @if($workorder->campus)
-                                    {{ \App\Models\Location::CAMPUSES[$workorder->campus] ?? $workorder->campus }}
+                                    {{ $workorder->campus }}
                                 @endif
                                 @if($workorder->building)
                                     @php
@@ -311,7 +311,7 @@
                 <div class="text-xs text-ink-muted mb-2 flex items-center gap-1">
                     <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z M12 13a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/></svg>
                     <span class="truncate">
-                        @if($workorder->campus){{ \App\Models\Location::CAMPUSES[$workorder->campus] ?? $workorder->campus }}@endif
+                        @if($workorder->campus){{ $workorder->campus }}@endif
                         @if($workorder->building) - {{ \App\Models\Location::find($workorder->building)?->name ?? $workorder->building }}@endif
                     </span>
                 </div>
@@ -397,174 +397,4 @@
 @include('workorders._batch_resolve_modal')
 @endif
 
-@endsection
-
-@section('scripts')
-<script>
-// Toggle advanced filters
-document.getElementById('toggleAdvanced')?.addEventListener('click', function() {
-    var panel = document.getElementById('advancedFilters');
-    var chevron = document.getElementById('adv-chevron');
-    panel.classList.toggle('hidden');
-    chevron.classList.toggle('rotate-180');
-});
-
-// Checkbox selection
-var selectedWorkorders = [];
-
-function updateSelectedCount() {
-    var checked = document.querySelectorAll('.workorder-checkbox:checked');
-    selectedWorkorders = Array.from(checked).map(function(cb) { return cb.value; });
-    var countEl = document.getElementById('selectedCount');
-    var bar = document.getElementById('batchBar');
-    if (countEl) countEl.textContent = selectedWorkorders.length;
-    if (bar) {
-        if (selectedWorkorders.length > 0) bar.classList.remove('hidden');
-        else bar.classList.add('hidden');
-    }
-}
-
-// Select all
-document.getElementById('selectAll')?.addEventListener('change', function() {
-    document.querySelectorAll('.workorder-checkbox').forEach(function(cb) {
-        cb.checked = this.checked;
-    }.bind(this));
-    updateSelectedCount();
-});
-
-// Individual checkboxes
-document.querySelectorAll('.workorder-checkbox').forEach(function(cb) {
-    cb.addEventListener('change', updateSelectedCount);
-});
-
-// Clear selection
-document.getElementById('clearSelectionBtn')?.addEventListener('click', function() {
-    document.querySelectorAll('.workorder-checkbox').forEach(function(cb) { cb.checked = false; });
-    var sa = document.getElementById('selectAll');
-    if (sa) sa.checked = false;
-    updateSelectedCount();
-});
-
-// Batch assign
-document.getElementById('batchAssignBtn')?.addEventListener('click', function() {
-    openModal('batchAssignModal');
-});
-
-// Batch resolve
-document.getElementById('batchResolveBtn')?.addEventListener('click', function() {
-    openModal('batchResolveModal');
-});
-
-// Batch start
-document.getElementById('batchStartBtn')?.addEventListener('click', function() {
-    if (selectedWorkorders.length === 0) { alert('请先选择工单'); return; }
-    if (!confirm('确认批量开始处理 ' + selectedWorkorders.length + ' 个工单？')) return;
-    var formData = new FormData();
-    formData.append('_token', '{{ csrf_token() }}');
-    selectedWorkorders.forEach(function(id) { formData.append('workorder_ids[]', id); });
-    fetch('{{ route("workorders.batch.start") }}', { method: 'POST', body: formData, headers: { 'X-Requested-With': 'XMLHttpRequest' } })
-        .then(function(r) { return r.json(); })
-        .then(function(d) { alert(d.message || '操作完成'); if (d.success) location.reload(); })
-        .catch(function() { alert('请求失败'); });
-});
-
-// Batch close
-document.getElementById('batchCloseBtn')?.addEventListener('click', function() {
-    if (selectedWorkorders.length === 0) { alert('请先选择工单'); return; }
-    if (!confirm('确认批量关闭 ' + selectedWorkorders.length + ' 个工单？')) return;
-    var formData = new FormData();
-    formData.append('_token', '{{ csrf_token() }}');
-    selectedWorkorders.forEach(function(id) { formData.append('workorder_ids[]', id); });
-    fetch('{{ route("workorders.batch.close") }}', { method: 'POST', body: formData, headers: { 'X-Requested-With': 'XMLHttpRequest' } })
-        .then(function(r) { return r.json(); })
-        .then(function(d) { alert(d.message || '操作完成'); if (d.success) location.reload(); })
-        .catch(function() { alert('请求失败'); });
-});
-
-// Modal helpers
-function openModal(id) {
-    var modal = document.getElementById(id);
-    if (modal) {
-        modal.classList.remove('hidden');
-        modal.classList.add('flex');
-        document.body.classList.add('overflow-hidden');
-    }
-}
-function closeModal(id) {
-    var modal = document.getElementById(id);
-    if (modal) {
-        modal.classList.add('hidden');
-        modal.classList.remove('flex');
-        document.body.classList.remove('overflow-hidden');
-    }
-}
-// Close modal on backdrop click
-document.querySelectorAll('[data-modal]').forEach(function(modal) {
-    modal.addEventListener('click', function(e) {
-        if (e.target === this) closeModal(this.id);
-    });
-});
-// Close button
-document.querySelectorAll('[data-modal-close]').forEach(function(btn) {
-    btn.addEventListener('click', function() {
-        closeModal(this.getAttribute('data-modal-close'));
-    });
-});
-
-// Assign modal: set workorder ID
-document.querySelectorAll('[data-assign-workorder]').forEach(function(btn) {
-    btn.addEventListener('click', function() {
-        var id = this.getAttribute('data-assign-workorder');
-        document.getElementById('assignWorkorderId').value = id;
-        var form = document.getElementById('assignForm');
-        form.action = '{{ route("workorders.assign", ":id") }}'.replace(':id', id);
-        openModal('assignModal');
-    });
-});
-
-// Resolve modal: set workorder ID
-document.querySelectorAll('[data-resolve-workorder]').forEach(function(btn) {
-    btn.addEventListener('click', function() {
-        var id = this.getAttribute('data-resolve-workorder');
-        document.getElementById('resolveWorkorderId').value = id;
-        var form = document.getElementById('resolveForm');
-        form.action = '{{ route("workorders.resolve", ":id") }}'.replace(':id', id);
-        openModal('resolveModal');
-    });
-});
-
-// No materials checkbox
-document.getElementById('no_materials')?.addEventListener('change', function() {
-    var div = document.getElementById('materials_usage_div');
-    if (div) div.style.display = this.checked ? 'none' : 'block';
-});
-document.getElementById('batch_no_materials')?.addEventListener('change', function() {
-    var div = document.getElementById('batch_materials_usage_div');
-    if (div) div.style.display = this.checked ? 'none' : 'block';
-});
-
-// Batch assign form submit
-document.getElementById('batchAssignForm')?.addEventListener('submit', function(e) {
-    e.preventDefault();
-    if (selectedWorkorders.length === 0) { alert('请先选择工单'); return; }
-    var formData = new FormData(this);
-    selectedWorkorders.forEach(function(id) { formData.append('workorder_ids[]', id); });
-    fetch('{{ route("workorders.batch.assign") }}', { method: 'POST', body: formData, headers: { 'X-Requested-With': 'XMLHttpRequest' } })
-        .then(function(r) { return r.json(); })
-        .then(function(d) { alert(d.message || '操作完成'); if (d.success) location.reload(); })
-        .catch(function() { alert('请求失败'); });
-});
-
-// Batch resolve form submit
-document.getElementById('batchResolveForm')?.addEventListener('submit', function(e) {
-    e.preventDefault();
-    if (selectedWorkorders.length === 0) { alert('请先选择工单'); return; }
-    var formData = new FormData(this);
-    selectedWorkorders.forEach(function(id) { formData.append('workorder_ids[]', id); });
-    fetch('{{ route("workorders.batch.resolve") }}', { method: 'POST', body: formData, headers: { 'X-Requested-With': 'XMLHttpRequest' } })
-        .then(function(r) { return r.json(); })
-        .then(function(d) { alert(d.message || '操作完成'); if (d.success) location.reload(); })
-        .catch(function() { alert('请求失败'); });
-});
-</script>
 @endsection

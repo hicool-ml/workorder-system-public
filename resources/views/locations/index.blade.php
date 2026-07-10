@@ -28,17 +28,17 @@
 
 <!-- 搜索和筛选 -->
 <div class="card mb-4">
-    <div class="card-body">
+    <div >
         <form method="GET" action="{{ route('locations.index') }}">
             <div class="row g-3">
-                <div class="col-md-3">
-                    <label for="keyword" class="form-label">关键词</label>
-                    <input type="text" class="form-control" id="keyword" name="keyword" autocomplete="off"
+                <div class="">
+                    <label for="keyword" class="label">关键词</label>
+                    <input type="text" class="input" id="keyword" name="keyword" autocomplete="off"
                            value="{{ request('keyword') }}" placeholder="地址名称" autocomplete="off">
                 </div>
-                <div class="col-md-2">
-                    <label for="campus_id" class="form-label">校区</label>
-                    <select class="form-select" id="campus_id" name="campus_id">
+                <div class="">
+                    <label for="campus_id" class="label">校区</label>
+                    <select class="input" id="campus_id" name="campus_id">
                         <option value="">全部校区</option>
                         @foreach($campuses as $id => $name)
                         <option value="{{ $id }}" {{ request('campus_id') == $id ? 'selected' : '' }}>
@@ -47,9 +47,9 @@
                         @endforeach
                     </select>
                 </div>
-                <div class="col-md-2">
-                    <label for="building_type" class="form-label">建筑类型</label>
-                    <select class="form-select" id="building_type" name="building_type">
+                <div class="">
+                    <label for="building_type" class="label">建筑类型</label>
+                    <select class="input" id="building_type" name="building_type">
                         <option value="">全部类型</option>
                         @foreach(\App\Models\Location::BUILDING_TYPES as $key => $value)
                         <option value="{{ $key }}" {{ request('building_type') == $key ? 'selected' : '' }}>
@@ -58,9 +58,9 @@
                         @endforeach
                     </select>
                 </div>
-                <div class="col-md-2">
-                    <label for="status" class="form-label">状态</label>
-                    <select class="form-select" id="status" name="status">
+                <div class="">
+                    <label for="status" class="label">状态</label>
+                    <select class="input" id="status" name="status">
                         <option value="">全部状态</option>
                         @foreach(\App\Models\Location::STATUSES as $key => $value)
                         <option value="{{ $key }}" {{ request('status') == $key ? 'selected' : '' }}>
@@ -83,8 +83,8 @@
 </div>
 
 <!-- 地址列表 -->
-<div class="card">
-    <div class="card-body">
+<div class="card p-5">
+    <div >
         <div class="table-responsive">
             <table class="table table-striped table-hover">
                 <thead>
@@ -103,14 +103,14 @@
                     <tr>
                         <td>{{ $location->id }}</td>
                         <td>{{ $location->name }}</td>
-                        <td><span class="badge bg-info">{{ $location->campus_text }}</span></td>
-                        <td><span class="badge bg-secondary">{{ $location->building_type_text }}</span></td>
+                        <td><span class="badge bg-blue-100 text-blue-700">{{ $location->campus_text }}</span></td>
+                        <td><span class="badge bg-slate-100 text-slate-600">{{ $location->building_type_text }}</span></td>
                         <td>{{ $location->sort_order }}</td>
                         <td>
                             @if($location->status == 'active')
-                                <span class="badge bg-success">{{ $location->status_text }}</span>
+                                <span class="badge bg-green-100 text-green-700">{{ $location->status_text }}</span>
                             @else
-                                <span class="badge bg-danger">{{ $location->status_text }}</span>
+                                <span class="badge bg-red-100 text-red-700">{{ $location->status_text }}</span>
                             @endif
                         </td>
                         <td>

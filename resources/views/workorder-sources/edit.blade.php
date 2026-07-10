@@ -43,21 +43,6 @@
                                     @enderror
                                 </div>
                             </div>
-                            <div class="col-md-6">
-                                <div class="form-group">
-                                    <label for="code">来源代码 <span class="text-danger">*</span></label>
-                                    <input type="text" class="form-control @error('code') is-invalid @enderror" 
-                                           id="code" name="code" value="{{ old('code', $workorderSource->code) }}" 
-                                           placeholder="请输入来源代码，只能包含小写字母、数字和下划线" 
-                                           pattern="[a-z0-9_]+" required autocomplete="off">
-                                    @error('code')
-                                        <span class="invalid-feedback" role="alert">
-                                            <strong>{{ $message }}</strong>
-                                        </span>
-                                    @enderror
-                                    <small class="form-text text-muted">只能包含小写字母、数字和下划线，用于程序识别</small>
-                                </div>
-                            </div>
                         </div>
 
                         <div class="row">

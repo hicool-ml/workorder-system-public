@@ -76,7 +76,7 @@
                                                 
                                                 // 添加校区
                                                 if($workorder->campus) {
-                                                    $addressParts[] = \App\Models\Location::CAMPUSES[$workorder->campus] ?? $workorder->campus;
+                                                    $addressParts[] = $workorder->campus;
                                                 }
                                                 
                                                 // 添加楼栋

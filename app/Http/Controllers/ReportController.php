@@ -9,6 +9,7 @@ use App\Models\WorkorderType;
 use App\Models\WorkorderCategorySimplified;
 use App\Models\Location;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
 class ReportController extends Controller
@@ -130,17 +131,17 @@ class ReportController extends Controller
      */
     private function getCampusStats()
     {
-        $campuses = ['old_campus', 'new_campus', 'asean_campus'];
+        $campuses = \App\Models\Campus::orderBy('sort_order')->orderBy('name')->get();
         $stats = [];
 
         foreach ($campuses as $campus) {
-            $stats[$campus] = [
-                'name' => $this->getCampusName($campus),
-                'total' => Workorder::where('campus', $campus)->count(),
-                'pending' => Workorder::where('campus', $campus)
+            $stats[$campus->id] = [
+                'name' => $campus->name,
+                'total' => Workorder::where('campus_id', $campus->id)->count(),
+                'pending' => Workorder::where('campus_id', $campus->id)
                     ->whereIn('status', ['pending', 'assigned', 'processing'])
                     ->count(),
-                'completed' => Workorder::where('campus', $campus)
+                'completed' => Workorder::where('campus_id', $campus->id)
                     ->whereIn('status', ['resolved', 'closed'])
                     ->count(),
             ];
@@ -154,13 +155,8 @@ class ReportController extends Controller
      */
     private function getCampusName($campus)
     {
-        $names = [
-            'old_campus' => '老校区',
-            'new_campus' => '新校区',
-            'asean_campus' => '东盟校区',
-        ];
-
-        return $names[$campus] ?? $campus;
+        $campusModel = \App\Models\Campus::find($campus);
+        return $campusModel ? $campusModel->name : $campus;
     }
 
     /**
@@ -269,7 +265,7 @@ class ReportController extends Controller
      */
     private function getEngineerStats()
     {
-        return User::whereIn('role', ['admin', 'engineer'])
+        return User::whereIn('role', ['admin', 'workorder_manager', 'engineer'])
             ->withCount(['assignedWorkorders'])
             ->withCount(['assignedWorkorders as pending_workorders_count' => function($query) {
                 $query->whereIn('status', ['pending', 'assigned', 'processing']);
@@ -293,7 +289,7 @@ class ReportController extends Controller
             'format' => 'required|in:xlsx,csv',
             'status' => 'nullable|string',
             'category_id' => 'nullable|integer',
-            'campus' => 'nullable|string',
+            'campus_id' => 'nullable|integer',
         ]);
 
         $startDate = $request->input('start_date', now()->subDays(30)->format('Y-m-d'));
@@ -326,8 +322,8 @@ class ReportController extends Controller
             $query->where('category_id', $request->input('category_id'));
         }
 
-        if ($request->filled('campus')) {
-            $query->where('campus', $request->input('campus'));
+        if ($request->filled('campus_id')) {
+            $query->where('campus_id', $request->input('campus_id'));
         }
 
         $workorders = $query->get();
@@ -426,7 +422,7 @@ class ReportController extends Controller
                     mb_convert_encoding($subCategory, 'UTF-8', 'auto'),
                     mb_convert_encoding($workorder->description, 'UTF-8', 'auto'),
                     mb_convert_encoding($workorder->contact_name, 'UTF-8', 'auto'),
-                    mb_convert_encoding($this->getCampusName($workorder->campus), 'UTF-8', 'auto'),
+                    mb_convert_encoding($this->getCampusName($workorder->campus_id), 'UTF-8', 'auto'),
                     mb_convert_encoding($this->getBuildingName($workorder->building) . ($workorder->location_detail ? ' - ' . $workorder->location_detail : ''), 'UTF-8', 'auto'),
                     mb_convert_encoding($workorder->contact_phone, 'UTF-8', 'auto'),
                     mb_convert_encoding($processorsText, 'UTF-8', 'auto'),

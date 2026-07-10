@@ -100,7 +100,7 @@
                         <td>
                             <small>
                                 @if(\$workorder->campus)
-                                    {{ \App\Models\Location::CAMPUSES[\$workorder->campus] ?? \$workorder->campus }}
+                                    {{ $workorder->campus }}
                                 @endif
                                 @if(\$workorder->building)
                                     {{ \$workorder->building }}

@@ -3,507 +3,1006 @@
 @section('title', '创建工单')
 
 @section('content')
-
-{{-- Template notice --}}
+<!-- 模板选择区域 -->
 @if(session('from_template'))
-<div class="flash-msg flex items-center gap-3 px-4 py-3 mb-4 rounded-xl bg-blue-50 border border-blue-200 text-blue-800 text-sm" role="alert">
-    <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 16v-4M12 8h.01M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z"/></svg>
-    <span>已从模板 "{{ session('template_name') }}" 预填充内容，请修改后提交。</span>
+<div class="p-3 rounded-lg bg-blue-50 text-blue-700 text-sm" role="alert">
+    <i class="fas fa-info-circle"></i>
+    <strong>使用模板创建工单：</strong> 您已从模板 "{{ session('template_name') }}" 预填充了表单内容，请根据需要修改后提交。
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="关闭模板提示"></button>
 </div>
 @endif
 
-{{-- Page header --}}
-<div class="flex items-center justify-between mb-6 gap-3 flex-wrap">
-    <div>
-        <h1 class="text-xl font-semibold text-ink">创建工单</h1>
-        <p class="text-sm text-ink-muted mt-0.5">填写信息提交工单</p>
-    </div>
-    <div class="flex items-center gap-2">
-        <a href="{{ route('workorders.index') }}" class="btn btn-secondary">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7 7-7M3 12h18"/></svg>
-            <span>返回</span>
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">创建工单</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <a href="{{ \App\Helpers\UrlHelper::relative_url('/workorders') }}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> 返回列表
         </a>
-        @if(auth()->user()->canManageWorkorderTypes())
-        <div class="relative">
-            <button type="button" id="templateDropdownBtn" class="btn btn-secondary">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z M14 2v6h6"/></svg>
-                <span>模板</span>
-                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+        <div class="btn-group ms-2">
+            <button type="button" class="btn btn-outline-primary dropdown-toggle" data-bs-toggle="dropdown">
+                <i class="fas fa-file-alt"></i> 使用模板
             </button>
-            <div id="templateDropdownMenu" class="hidden absolute right-0 mt-2 w-56 card shadow-lg py-1 z-50 max-h-72 overflow-y-auto">
-                <p class="px-3 py-1.5 text-xs text-ink-subtle">常用模板</p>
+            <ul class="dropdown-menu">
+                <li><h6 class="dropdown-header">常用模板</h6></li>
                 @foreach(\App\Models\WorkorderTemplate::where('is_active', true)->orderBy('name')->limit(5)->get() as $template)
-                <a href="{{ route('workorders.create') }}?template={{ $template->id }}" class="block px-3 py-2 text-sm hover:bg-surface-muted" style="color: var(--c-ink);">{{ $template->name }}</a>
+                <li>
+                    <a href="#" class="dropdown-item" onclick="useTemplate({{ $template->id }}, '{{ $template->name }}')">
+                        <i class="fas fa-file"></i> {{ $template->name }}
+                    </a>
+                </li>
                 @endforeach
-                <div class="border-t border-border my-1"></div>
-                <a href="{{ route('workorder-templates.index') }}" class="block px-3 py-2 text-sm hover:bg-surface-muted" style="color: var(--c-ink);">管理模板</a>
-            </div>
-        </div>
-        @endif
-    </div>
-</div>
-
-<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-    {{-- Main form --}}
-    <div class="lg:col-span-2 space-y-4">
-        <form method="POST" action="{{ route('workorders.store') }}" enctype="multipart/form-data" id="workorderForm">
-            @csrf
-
-            {{-- Contact info --}}
-            <div class="card p-5">
-                <h2 class="text-sm font-semibold text-ink mb-4 flex items-center gap-2">
-                    <svg class="w-4 h-4 text-brand-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2 M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z"/></svg>
-                    报修人信息
-                </h2>
-                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    <div>
-                        <label class="label" for="contact_name">报修人 <span class="text-red-500">*</span></label>
-                        <input type="text" class="input" id="contact_name" name="contact_name" value="{{ old('contact_name') }}" required maxlength="100" placeholder="姓名">
-                        @error('contact_name')<p class="text-xs text-red-500 mt-1">{{ $message }}</p>@enderror
-                    </div>
-                    <div>
-                        <label class="label" for="contact_phone">联系电话 <span class="text-red-500">*</span></label>
-                        <input type="tel" class="input" id="contact_phone" name="contact_phone" value="{{ old('contact_phone') }}" required maxlength="20" placeholder="手机号">
-                        @error('contact_phone')<p class="text-xs text-red-500 mt-1">{{ $message }}</p>@enderror
-                    </div>
-                    <div>
-                        <label class="label" for="contact_email">联系邮箱</label>
-                        <input type="email" class="input" id="contact_email" name="contact_email" value="{{ old('contact_email') }}" maxlength="100" placeholder="选填">
-                        @error('contact_email')<p class="text-xs text-red-500 mt-1">{{ $message }}</p>@enderror
-                    </div>
-                </div>
-
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
-                    <div>
-                        <label class="label" for="source">工单来源 <span class="text-red-500">*</span></label>
-                        <select class="input" id="source" name="source" required>
-                            <option value="phone" {{ old('source', 'phone') == 'phone' ? 'selected' : '' }}>电话</option>
-                            <option value="web" {{ old('source') == 'web' ? 'selected' : '' }}>网络</option>
-                            <option value="scene" {{ old('source') == 'scene' ? 'selected' : '' }}>现场</option>
-                            <option value="email" {{ old('source') == 'email' ? 'selected' : '' }}>邮件</option>
-                            <option value="other" {{ old('source') == 'other' ? 'selected' : '' }}>其他</option>
-                            <option value="custom" {{ old('source') == 'custom' ? 'selected' : '' }}>添加新渠道</option>
-                        </select>
-                        @error('source')<p class="text-xs text-red-500 mt-1">{{ $message }}</p>@enderror
-                    </div>
-                    <div>
-                        <label class="label">优先级 <span class="text-red-500">*</span></label>
-                        <div class="flex items-center gap-2 mt-1">
-                            @foreach(['low' => '低', 'medium' => '中', 'high' => '高'] as $val => $label)
-                            <label class="flex-1 cursor-pointer">
-                                <input type="radio" name="priority" value="{{ $val }}" class="peer sr-only" {{ old('priority', 'medium') == $val ? 'checked' : '' }}>
-                                <span class="block text-center py-2 px-3 rounded-lg border border-border-strong text-sm font-medium transition-colors peer-checked:bg-brand-600 peer-checked:text-white peer-checked:border-brand-600" style="color: var(--c-ink-muted);">{{ $label }}</span>
-                            </label>
-                            @endforeach
-                        </div>
-                        @error('priority')<p class="text-xs text-red-500 mt-1">{{ $message }}</p>@enderror
-                    </div>
-                </div>
-
-                <div id="custom_source_row" class="hidden mt-4">
-                    <label class="label" for="custom_source">新渠道名称 <span class="text-red-500">*</span></label>
-                    <input type="text" class="input" id="custom_source" name="custom_source" value="{{ old('custom_source') }}" maxlength="50" placeholder="请输入新的报修渠道名称">
-                    @error('custom_source')<p class="text-xs text-red-500 mt-1">{{ $message }}</p>@enderror
-                </div>
-            </div>
-
-            {{-- Location --}}
-            <div class="card p-5">
-                <h2 class="text-sm font-semibold text-ink mb-4 flex items-center gap-2">
-                    <svg class="w-4 h-4 text-brand-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z M12 13a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/></svg>
-                    地址信息
-                </h2>
-                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    <div>
-                        <label class="label" for="campus">校区 <span class="text-red-500">*</span></label>
-                        <select class="input" id="campus" name="campus" required>
-                            <option value="">请选择校区</option>
-                            <option value="old_campus" {{ old('campus') == 'old_campus' ? 'selected' : '' }}>老校区</option>
-                            <option value="new_campus" {{ old('campus') == 'new_campus' ? 'selected' : '' }}>新校区</option>
-                            <option value="asean_campus" {{ old('campus') == 'asean_campus' ? 'selected' : '' }}>东盟校区</option>
-                        </select>
-                        @error('campus')<p class="text-xs text-red-500 mt-1">{{ $message }}</p>@enderror
-                    </div>
-                    <div>
-                        <label class="label" for="building">楼栋 <span class="text-red-500">*</span></label>
-                        <select class="input" id="building" name="building" required>
-                            <option value="">请先选择校区</option>
-                        </select>
-                        @error('building')<p class="text-xs text-red-500 mt-1">{{ $message }}</p>@enderror
-                    </div>
-                    <div>
-                        <label class="label" for="location_detail">详细地址</label>
-                        <input type="text" class="input" id="location_detail" name="location_detail" value="{{ old('location_detail') }}" maxlength="500" placeholder="如：301室">
-                        @error('location_detail')<p class="text-xs text-red-500 mt-1">{{ $message }}</p>@enderror
-                    </div>
-                </div>
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
-                    <div>
-                        <label class="label" for="department_name">所属部门</label>
-                        <input type="text" class="input" id="department_name" name="department_name" value="{{ old('department_name') }}" maxlength="100" placeholder="选填">
-                        @error('department_name')<p class="text-xs text-red-500 mt-1">{{ $message }}</p>@enderror
-                    </div>
-                    <div id="appointment_time_wrapper">
-                        <label class="label" for="appointment_time">预约时间</label>
-                        <input type="datetime-local" class="input" id="appointment_time" name="appointment_time" value="{{ old('appointment_time') }}">
-                        @error('appointment_time')<p class="text-xs text-red-500 mt-1">{{ $message }}</p>@enderror
-                    </div>
-                </div>
-            </div>
-
-            {{-- Workorder details --}}
-            <div class="card p-5">
-                <h2 class="text-sm font-semibold text-ink mb-4 flex items-center gap-2">
-                    <svg class="w-4 h-4 text-brand-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
-                    工单信息
-                </h2>
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                        <label class="label" for="category_main">工单大类 <span class="text-red-500">*</span></label>
-                        <select class="input" id="category_main" name="category_main" required>
-                            <option value="">请选择工单大类</option>
-                            @foreach($categories['main'] as $category)
-                            <option value="{{ $category->id }}" data-prefix="{{ $category->ticket_prefix }}" data-hours="{{ $category->default_hours }}" {{ old('category_main') == $category->id ? 'selected' : '' }}>{{ $category->name }}</option>
-                            @endforeach
-                        </select>
-                        @error('category_main')<p class="text-xs text-red-500 mt-1">{{ $message }}</p>@enderror
-                    </div>
-                    <div>
-                        <label class="label" for="category_sub">故障分类 <span class="text-red-500">*</span></label>
-                        <select class="input" id="category_sub" name="category_sub" required>
-                            <option value="">请先选择工单大类</option>
-                        </select>
-                        @error('category_sub')<p class="text-xs text-red-500 mt-1">{{ $message }}</p>@enderror
-                    </div>
-                </div>
-
-                <div class="mt-4">
-                    <label class="label" for="description">问题描述 <span class="text-red-500">*</span></label>
-                    <textarea class="input" id="description" name="description" rows="4" required placeholder="请详细描述问题现象、发生时间等">{{ old('description') }}</textarea>
-                    @error('description')<p class="text-xs text-red-500 mt-1">{{ $message }}</p>@enderror
-                </div>
-
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
-                    <div>
-                        <label class="label" for="time_limit_hours">处理时限（小时）</label>
-                        <input type="number" class="input" id="time_limit_hours" name="time_limit_hours" value="{{ old('time_limit_hours') }}" min="1" max="168" step="1" placeholder="默认根据工单类型设置">
-                        @error('time_limit_hours')<p class="text-xs text-red-500 mt-1">{{ $message }}</p>@enderror
-                    </div>
-                    @if(auth()->user()->canAssignWorkorders())
-                    <div>
-                        <label class="label" for="assignee_id">指派处理人</label>
-                        <select class="input" id="assignee_id" name="assignee_id">
-                            <option value="">不指派（工程师自行接单）</option>
-                            @foreach(\App\Models\User::getAssignableEngineers() as $engineer)
-                            <option value="{{ $engineer->id }}" {{ old('assignee_id') == $engineer->id ? 'selected' : '' }}>{{ $engineer->name }} - {{ $engineer->department?->name }}</option>
-                            @endforeach
-                            <option value="other" {{ old('assignee_id') == 'other' ? 'selected' : '' }}>其他部门</option>
-                        </select>
-                    </div>
-                    @endif
-                </div>
-
-                @if(auth()->user()->canAssignWorkorders())
-                <div id="other_reason_div" class="hidden mt-4">
-                    <label class="label" for="other_reason">其他部门原因</label>
-                    <textarea class="input" id="other_reason" name="other_reason" rows="2" placeholder="请说明选择其他部门的原因">{{ old('other_reason') }}</textarea>
-                </div>
-                @endif
-
-                {{-- Toggles --}}
-                <div class="flex flex-wrap items-center gap-4 mt-4">
-                    <label id="need_visit_wrap" class="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" id="need_visit" name="need_visit" value="1" class="rounded border-border-strong w-4 h-4" {{ old('need_visit') ? 'checked' : '' }}>
-                        <span class="text-sm" style="color: var(--c-ink-muted);">需要回访</span>
-                    </label>
-                    <label class="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" id="is_emergency" name="is_emergency" value="1" class="rounded border-border-strong w-4 h-4" {{ old('is_emergency') ? 'checked' : '' }}>
-                        <span class="text-sm" style="color: var(--c-ink-muted);">紧急工单</span>
-                    </label>
-                    @if(auth()->user()->canUsePhoneAssist())
-                    <label class="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" id="phone_assisted" name="phone_assisted" value="1" class="rounded border-border-strong w-4 h-4" {{ old('phone_assisted') ? 'checked' : '' }}>
-                        <span class="text-sm" style="color: var(--c-ink-muted);">电话协助完成</span>
-                    </label>
-                    @endif
-                </div>
-
-                {{-- Phone solution (shown when phone_assisted checked) --}}
-                <div id="phone_solution_div" class="hidden mt-4">
-                    <label class="label" for="phone_solution">电话解决方案 <span class="text-red-500">*</span></label>
-                    <textarea class="input" id="phone_solution" name="phone_solution" rows="3" placeholder="请描述电话解决方案，工单将直接标记为已解决"></textarea>
-                </div>
-            </div>
-
-            {{-- Attachments --}}
-            <div class="card p-5">
-                <h2 class="text-sm font-semibold text-ink mb-4 flex items-center gap-2">
-                    <svg class="w-4 h-4 text-brand-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
-                    附件上传
-                </h2>
-                <input type="file" class="input" id="attachments" name="attachments[]" multiple accept=".jpg,.jpeg,.png,.gif,.pdf,.doc,.docx,.txt">
-                <p class="text-xs mt-1.5" style="color: var(--c-ink-subtle);">支持图片、文档，单个最大 10MB，最多 5 个文件。大图自动压缩。</p>
-                <div id="attachmentPreview" class="mt-3 space-y-3"></div>
-            </div>
-
-            {{-- Remarks --}}
-            <div class="card p-5">
-                <h2 class="text-sm font-semibold text-ink mb-4 flex items-center gap-2">
-                    <svg class="w-4 h-4 text-brand-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-                    其他说明
-                </h2>
-                <textarea class="input" id="remarks" name="remarks" rows="3" placeholder="补充说明（选填）">{{ old('remarks') }}</textarea>
-                @error('remarks')<p class="text-xs text-red-500 mt-1">{{ $message }}</p>@enderror
-            </div>
-
-            {{-- Submit --}}
-            <div class="flex items-center justify-end gap-2">
-                <a href="{{ route('workorders.index') }}" class="btn btn-secondary">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M18 6 6 18M6 6l12 12"/></svg>
-                    <span>取消</span>
-                </a>
-                <button type="submit" class="btn btn-primary">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
-                    <span>创建工单</span>
-                </button>
-            </div>
-        </form>
-    </div>
-
-    {{-- Sidebar --}}
-    <div class="lg:col-span-1 space-y-4">
-        <div class="card p-5">
-            <h3 class="text-sm font-semibold text-ink mb-3">创建提示</h3>
-            <ul class="space-y-2 text-sm" style="color: var(--c-ink-muted);">
-                <li class="flex gap-2"><svg class="w-4 h-4 shrink-0 mt-0.5 text-brand-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>尽可能详细描述问题</li>
-                <li class="flex gap-2"><svg class="w-4 h-4 shrink-0 mt-0.5 text-brand-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>提供准确联系方式和位置</li>
-                <li class="flex gap-2"><svg class="w-4 h-4 shrink-0 mt-0.5 text-brand-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>上传相关截图或文件</li>
-                <li class="flex gap-2"><svg class="w-4 h-4 shrink-0 mt-0.5 text-brand-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>紧急问题请标记紧急</li>
-                <li class="flex gap-2"><svg class="w-4 h-4 shrink-0 mt-0.5 text-brand-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>可设置预约时间</li>
+                <li><hr class="dropdown-divider"></li>
+                <li>
+                    <a href="{{ route('workorder-templates.index') }}" class="dropdown-item">
+                        <i class="fas fa-list"></i> 管理模板
+                    </a>
+                </li>
             </ul>
         </div>
+    </div>
+</div>
 
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+    <div class="">
         <div class="card p-5">
-            <h3 class="text-sm font-semibold text-ink mb-3">优先级说明</h3>
-            <div class="space-y-2.5 text-sm">
-                <div class="flex items-center gap-2">
+            <div class="text-sm font-semibold text-ink mb-3">
+                <h5 class="card-title mb-0">工单信息</h5>
+            </div>
+            <div >
+                <form method="POST" action="{{ route('workorders.store') }}" enctype="multipart/form-data" id="workorderForm">
+                    @csrf
+                    
+                    <!-- 自报家门：用户信息 -->
+                    <div class="card mb-4">
+                        <div class="card-header bg-light">
+                            <h6 class="mb-0"><i class="fas fa-user"></i> 报修人信息</h6>
+                        </div>
+                        <div >
+                            <div class="row g-3 mb-3">
+                                <div class="">
+                                    <label for="contact_name" class="label">报修人 <span class="text-red-500">*</span></label>
+                                    <input type="text" class="input" id="contact_name" name="contact_name"
+                                           value="{{ old('contact_name') }}" required maxlength="100" autocomplete="name">
+                                    @error('contact_name')
+                                        <div class="invalid-feedback d-block">{{ $message }}</div>
+                                    @enderror
+                                </div>
+                                <div class="">
+                                    <label for="contact_phone" class="label">联系电话 <span class="text-red-500">*</span></label>
+                                    <input type="tel" class="input" id="contact_phone" name="contact_phone"
+                                           value="{{ old('contact_phone') }}" required maxlength="20" autocomplete="tel">
+                                    @error('contact_phone')
+                                        <div class="invalid-feedback d-block">{{ $message }}</div>
+                                    @enderror
+                                </div>
+                                <div class="">
+                                    <label for="contact_email" class="label">联系邮箱</label>
+                                    <input type="email" class="input" id="contact_email" name="contact_email"
+                                           value="{{ old('contact_email') }}" maxlength="100" autocomplete="email">
+                                    @error('contact_email')
+                                        <div class="invalid-feedback d-block">{{ $message }}</div>
+                                    @enderror
+                                </div>
+                            </div>
+                            
+                            <!-- 工单来源和优先级 -->
+                            <div class="row g-3 mb-3">
+                                <div class="">
+                                    <label for="source" class="label">工单来源 <span class="text-red-500">*</span></label>
+                                    <select class="input" id="source" name="source" required onchange="toggleCustomSource()">
+                                        @foreach(\App\Models\WorkorderSource::getActiveSources() as $source)
+                                            <option value="{{ $source->name }}" {{ old('source', '电话报修') == $source->name ? 'selected' : '' }}>
+                                                {{ $source->name }}
+                                            </option>
+                                        @endforeach
+                                   </select>
+                                    @error('source')
+                                        <div class="invalid-feedback d-block">{{ $message }}</div>
+                                    @enderror
+                                </div>
+                                <div class="">
+                                    <label for="priority_low" class="label">优先级 <span class="text-red-500">*</span></label>
+                                    <div class="d-flex flex-wrap gap-3">
+                                        <div class="flex items-center gap-2">
+                                            <input class="rounded border-border-strong w-4 h-4" type="radio" name="priority" id="priority_low" value="low"
+                                                   {{ old('priority', 'medium') == 'low' ? 'checked' : '' }} autocomplete="off" required>
+                                            <label class="text-sm" for="priority_low">
+                                                <span class="badge bg-green-100 text-green-700">低</span>
+                                            </label>
+                                        </div>
+                                        <div class="flex items-center gap-2">
+                                            <input class="rounded border-border-strong w-4 h-4" type="radio" name="priority" id="priority_medium" value="medium"
+                                                   {{ old('priority', 'medium') == 'medium' ? 'checked' : '' }} autocomplete="off" required>
+                                            <label class="text-sm" for="priority_medium">
+                                                <span class="badge bg-amber-100 text-amber-700">中</span>
+                                            </label>
+                                        </div>
+                                        <div class="flex items-center gap-2">
+                                            <input class="rounded border-border-strong w-4 h-4" type="radio" name="priority" id="priority_high" value="high"
+                                                   {{ old('priority') == 'high' ? 'checked' : '' }} autocomplete="off" required>
+                                            <label class="text-sm" for="priority_high">
+                                                <span class="badge bg-red-100 text-red-700">高</span>
+                                            </label>
+                                        </div>
+                                    </div>
+                                    @error('priority')
+                                        <div class="invalid-feedback d-block">{{ $message }}</div>
+                                    @enderror
+                                </div>
+                            </div>
+                            
+                            <!-- 其他来源说明 -->
+                            <div class="row g-3 mb-3" id="other_source_row" style="display: none;">
+                                <div class="">
+                                    <label for="other_source" class="label">其他来源说明 <span class="text-red-500">*</span></label>
+                                    <input type="text" class="input" id="other_source" name="other_source" autocomplete="off"
+                                           value="{{ old('other_source') }}" maxlength="50" autocomplete="off"
+                                           placeholder="请说明具体的报修来源" autocomplete="off">
+                                    @error('other_source')
+                                        <div class="invalid-feedback d-block">{{ $message }}</div>
+                                    @enderror
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 自报家门：地址信息 -->
+                    <div class="card mb-4">
+                        <div class="card-header bg-light">
+                            <h6 class="mb-0"><i class="fas fa-map-marker-alt"></i> 地址信息</h6>
+                        </div>
+                        <div >
+                            <div class="row g-3 mb-3">
+                                <div class="">
+                                    <label for="campus_id" class="label">校区 <span class="text-red-500">*</span></label>
+                                    <select class="input" id="campus_id" name="campus_id" required>
+                                        <option value="">请选择校区</option>
+                                        @foreach(\App\Models\Campus::where('status', 'active')->orderBy('sort_order')->orderBy('name')->get() as $campus)
+                                        <option value="{{ $campus->id }}" {{ old('campus_id') == $campus->id ? 'selected' : '' }}>{{ $campus->name }}</option>
+                                        @endforeach
+                                    </select>
+                                    @error('campus_id')
+                                        <div class="invalid-feedback d-block">{{ $message }}</div>
+                                    @enderror
+                                </div>
+                                <div class="">
+                                    <label for="building" class="label">楼栋 <span class="text-red-500">*</span></label>
+                                    <select class="input" id="building" name="building" required>
+                                        <option value="">请先选择校区</option>
+                                    </select>
+                                    @error('building')
+                                        <div class="invalid-feedback d-block">{{ $message }}</div>
+                                    @enderror
+                                </div>
+                                <div class="">
+                                    <label for="location_detail" class="label">详细地址</label>
+                                    <input type="text" class="input" id="location_detail" name="location_detail" autocomplete="street-address"
+                                           value="{{ old('location_detail') }}" maxlength="500" autocomplete="street-address"
+                                           placeholder="如：301室" autocomplete="street-address">
+                                    @error('location_detail')
+                                        <div class="invalid-feedback d-block">{{ $message }}</div>
+                                    @enderror
+                                </div>
+                            </div>
+                            <div class="row g-3 mb-3">
+                                <div class="">
+                                    <label for="department_name" class="label">所属部门</label>
+                                    <input type="text" class="input" id="department_name" name="department_name" autocomplete="organization"
+                                           value="{{ old('department_name') }}" maxlength="100" autocomplete="organization"
+                                           placeholder="请填写部门名称（选填）" autocomplete="organization">
+                                    @error('department_name')
+                                        <div class="invalid-feedback d-block">{{ $message }}</div>
+                                    @enderror
+                                </div>
+                                <div class="">
+                                    <label for="appointment_time_start" class="label">预约时间</label>
+                                    <div class="row g-2">
+                                        <div class="col-6">
+                                            <input type="datetime-local" class="input" id="appointment_time_start" name="appointment_time_start"
+                                                   value="{{ old('appointment_time_start') }}" placeholder="开始时间" autocomplete="off">
+                                        </div>
+                                        <div class="col-6">
+                                            <input type="datetime-local" class="input" id="appointment_time_end" name="appointment_time_end"
+                                                   value="{{ old('appointment_time_end') }}" placeholder="结束时间" autocomplete="off">
+                                        </div>
+                                    </div>
+                                    <div class="form-text">请选择具体的预约时间段，如：12月15日 14:00 - 12月15日 16:00</div>
+                                    @error('appointment_time_start')
+                                        <div class="invalid-feedback d-block">{{ $message }}</div>
+                                    @enderror
+                                    @error('appointment_time_end')
+                                        <div class="invalid-feedback d-block">{{ $message }}</div>
+                                    @enderror
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 工单信息 -->
+                    <div class="card mb-4">
+                        <div class="card-header bg-light">
+                            <h6 class="mb-0"><i class="fas fa-tools"></i> 工单信息</h6>
+                        </div>
+                        <div >
+                            <div class="row g-3 mb-3">
+                                <div class="">
+                                    <label for="category_main" class="label">工单大类 <span class="text-red-500">*</span></label>
+                                    <select class="input" id="category_main" name="category_main" required>
+                                        <option value="">请选择工单大类</option>
+                                        @foreach($categories['main'] as $category)
+                                        <option value="{{ $category->id }}"
+                                                data-prefix="{{ $category->ticket_prefix }}"
+                                                data-hours="{{ $category->default_hours }}"
+                                                {{ old('category_main') == $category->id ? 'selected' : '' }}>
+                                            {{ $category->name }}
+                                        </option>
+                                        @endforeach
+                                    </select>
+                                    @error('category_main')
+                                        <div class="invalid-feedback d-block">{{ $message }}</div>
+                                    @enderror
+                                </div>
+                                <div class="">
+                                    <label for="category_sub" class="label">故障分类 <span class="text-red-500">*</span></label>
+                                    <select class="input" id="category_sub" name="category_sub" required>
+                                        <option value="">请先选择工单大类</option>
+                                    </select>
+                                    @error('category_sub')
+                                        <div class="invalid-feedback d-block">{{ $message }}</div>
+                                    @enderror
+                                </div>
+                            </div>
+                            
+                            <div class="mb-4">
+                                <label for="description" class="label">问题描述 <span class="text-red-500">*</span></label>
+                                <textarea class="input" id="description" name="description" rows="3" required
+                                          placeholder="请简要描述问题" autocomplete="off">{{ old('description') }}</textarea>
+                                @error('description')
+                                    <div class="invalid-feedback d-block">{{ $message }}</div>
+                                @enderror
+                            </div>
+                            
+                            <div class="row g-3 mb-3">
+                                <div class="">
+                                    <label for="time_limit_hours" class="label">处理时限（小时）</label>
+                                    <input type="number" class="input" id="time_limit_hours" name="time_limit_hours"
+                                           value="{{ old('time_limit_hours') }}" min="1" max="168" step="1"
+                                           placeholder="默认根据工单类型设置" autocomplete="off">
+                                    @error('time_limit_hours')
+                                        <div class="invalid-feedback d-block">{{ $message }}</div>
+                                    @enderror
+                                </div>
+                            </div>
+                            
+                            <div class="row g-3 mb-3">
+                                <div class="">
+                                    <div class="flex items-center gap-2 mt-2">
+                                        <input class="rounded border-border-strong w-4 h-4" type="checkbox" id="need_visit" name="need_visit"
+                                               value="1" {{ old('need_visit') ? 'checked' : '' }} autocomplete="off">
+                                        <label class="text-sm" for="need_visit">
+                                            需要回访
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="">
+                                    <div class="flex items-center gap-2 mt-2">
+                                        <input class="rounded border-border-strong w-4 h-4" type="checkbox" id="is_emergency" name="is_emergency"
+                                               value="1" {{ old('is_emergency') ? 'checked' : '' }} autocomplete="off">
+                                        <label class="text-sm" for="is_emergency">
+                                            紧急工单
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="">
+                                    <div class="flex items-center gap-2 mt-2">
+                                        <input class="rounded border-border-strong w-4 h-4" type="checkbox" id="requires_signature" name="requires_signature"
+                                               value="1" {{ old('requires_signature') ? 'checked' : '' }} autocomplete="off">
+                                        <label class="text-sm" for="requires_signature">
+                                            需签单
+                                        </label>
+                                    </div>
+                                    <div class="form-text text-blue-600 small mt-1">
+                                        <i class="fas fa-info-circle"></i> 勾选此选项后，工单解决前需要报修人签字确认
+                                    </div>
+                                </div>
+                                @if(auth()->user()->canUsePhoneAssist())
+                                <div class="">
+                                    <div class="flex items-center gap-2 mt-2">
+                                        <input class="rounded border-border-strong w-4 h-4" type="checkbox" id="phone_assisted" name="phone_assisted"
+                                               value="1" {{ old('phone_assisted') ? 'checked' : '' }} autocomplete="off">
+                                        <label class="text-sm" for="phone_assisted">
+                                            电话协助完成
+                                        </label>
+                                    </div>
+                                </div>
+                                @endif
+                            </div>
+                            
+                            <div class="row g-3 mb-3">
+                                <div class="">
+                                    <label for="assignee_id" class="label">指定接单工程师</label>
+                                    <select class="input" id="assignee_id" name="assignee_id">
+                                        <option value="">不指定（工程师自行接单）</option>
+                                        @foreach(\App\Models\User::getAssignableEngineers() as $engineer)
+                                        <option value="{{ $engineer->id }}" {{ old('assignee_id') == $engineer->id ? 'selected' : '' }}>
+                                            {{ $engineer->name }} - {{ $engineer->department?->name }}
+                                        </option>
+                                        @endforeach
+                                        <option value="other">其他部门</option>
+                                    </select>
+                                    <div class="form-text">可以选择指定工程师，或不指定由工程师自行接单</div>
+                                </div>
+                                <div class="" id="other_reason_div" style="display: none;">
+                                    <label for="other_reason" class="label">其他部门原因</label>
+                                    <textarea class="input" id="other_reason" name="other_reason" rows="2"
+                                              placeholder="请说明选择其他部门的原因">{{ old('other_reason') }}</textarea>
+                                    <div class="form-text">如果选择其他部门，请说明原因</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 附件上传 -->
+                    <div class="card mb-4">
+                        <div class="card-header bg-light">
+                            <h6 class="mb-0"><i class="fas fa-paperclip"></i> 附件上传</h6>
+                        </div>
+                        <div >
+                            <div class="mb-4">
+                                <label for="attachments" class="label">相关附件</label>
+                                <input type="file" class="input" id="attachments" name="attachments[]"
+                                       multiple accept=".jpg,.jpeg,.png,.gif,.pdf,.doc,.docx,.txt" autocomplete="off">
+                                <div class="form-text">
+                                    支持上传图片、文档等文件，单个文件最大10MB，最多5个文件<br>
+                                    <small class="text-blue-600">大图片将自动压缩以减少文件大小，提高上传成功率</small>
+                                </div>
+                                <div id="attachmentPreview" class="mt-2"></div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 备注 -->
+                    <div class="card mb-4">
+                        <div class="card-header bg-light">
+                            <h6 class="mb-0"><i class="fas fa-comment"></i> 备注</h6>
+                        </div>
+                        <div >
+                            <div class="mb-4">
+                                <label for="remarks" class="label">其他说明</label>
+                                <textarea class="input" id="remarks" name="remarks" rows="3"
+                                          placeholder="其他需要说明的信息" autocomplete="off">{{ old('remarks') }}</textarea>
+                                @error('remarks')
+                                    <div class="invalid-feedback d-block">{{ $message }}</div>
+                                @enderror
+                            </div>
+                        </div>
+                    </div>
+                    
+                    
+                    
+                    <!-- 提交按钮 -->
+                    <div class="d-flex justify-content-end">
+                        <a href="{{ \App\Helpers\UrlHelper::relative_url('/workorders') }}" class="btn btn-secondary me-2">
+                            <i class="fas fa-times"></i> 取消
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i> 创建工单
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="">
+        <!-- 创建提示 -->
+        <div class="card mb-4">
+            <div class="text-sm font-semibold text-ink mb-3">
+                <h6 class="card-title mb-0">创建提示</h6>
+            </div>
+            <div >
+                <ul class="mb-0">
+                    <li>请尽可能详细地描述问题</li>
+                    <li>提供准确的联系方式和位置信息</li>
+                    <li>如有相关截图或文件，请上传附件</li>
+                    <li>紧急问题请标记为"紧急工单"</li>
+                    <li>系统将根据工单类型自动生成工单编号</li>
+                    <li>可以设置预约时间，技术人员将按预约时间处理</li>
+                </ul>
+            </div>
+        </div>
+        
+        <!-- 优先级说明 -->
+        <div class="card mb-4">
+            <div class="text-sm font-semibold text-ink mb-3">
+                <h6 class="card-title mb-0">优先级说明</h6>
+            </div>
+            <div >
+                <div class="mb-2">
                     <span class="badge bg-red-100 text-red-700">高</span>
-                    <span style="color: var(--c-ink-muted);">严重影响工作或学习</span>
+                    <small>严重影响正常工作或学习</small>
                 </div>
-                <div class="flex items-center gap-2">
+                <div class="mb-2">
                     <span class="badge bg-amber-100 text-amber-700">中</span>
-                    <span style="color: var(--c-ink-muted);">部分影响正常活动</span>
+                    <small>部分影响正常工作或学习</small>
                 </div>
-                <div class="flex items-center gap-2">
+                <div class="mb-2">
                     <span class="badge bg-green-100 text-green-700">低</span>
-                    <span style="color: var(--c-ink-muted);">轻微影响，可延后</span>
+                    <small>轻微影响，可延后处理</small>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 常见问题 -->
+        <div class="card p-5">
+            <div class="text-sm font-semibold text-ink mb-3">
+                <h6 class="card-title mb-0">常见问题</h6>
+            </div>
+            <div >
+                <div class="accordion" id="faqAccordion">
+                    <div class="accordion-item">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                                    data-bs-target="#faq1">
+                                网络无法连接怎么办？
+                            </button>
+                        </h2>
+                        <div id="faq1" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
+                            <div class="accordion-body">
+                                请先检查网线是否插好，重启电脑和路由器，如仍无法解决请提交工单。
+                            </div>
+                        </div>
+                    </div>
+                    <div class="accordion-item">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                                    data-bs-target="#faq2">
+                                打印机无法打印怎么办？
+                            </button>
+                        </h2>
+                        <div id="faq2" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
+                            <div class="accordion-body">
+                                请检查打印机电源、纸张和墨盒，重启打印服务，如仍无法解决请提交工单。
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 </div>
-
-{{-- Image preview modal --}}
-<div id="imagePreviewModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60" onclick="if(event.target===this)closeImagePreview()">
-    <div class="card max-w-3xl w-full overflow-hidden">
-        <div class="flex items-center justify-between px-5 py-3 border-b border-border">
-            <span id="imagePreviewTitle" class="text-sm font-medium text-ink"></span>
-            <button type="button" onclick="closeImagePreview()" class="btn btn-ghost btn-icon">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M18 6 6 18M6 6l12 12"/></svg>
-            </button>
-        </div>
-        <div class="p-4 flex items-center justify-center" style="background-color: var(--c-muted);">
-            <img id="imagePreviewImg" src="" alt="" class="max-h-[70vh] rounded-lg">
-        </div>
-    </div>
-</div>
-
 @endsection
 
 @section('scripts')
 <script>
+// 从地址管理获取校区楼栋数据
 var campusBuildings = @json(\App\Models\Location::getCampusBuildings());
+var campuses = @json(\App\Models\Campus::where('status', 'active')->orderBy('sort_order')->orderBy('name')->get());
+
+// 工单分类数据
 var categoryData = @json($categories);
 
-(function() {
-    // Campus -> Building cascade
-    var campusSel = document.getElementById('campus');
-    var buildingSel = document.getElementById('building');
-    campusSel.addEventListener('change', function() {
-        var campus = this.value;
-        buildingSel.innerHTML = '<option value="">请选择楼栋</option>';
-        if (campus && campusBuildings[campus]) {
-            campusBuildings[campus].forEach(function(b) {
-                var opt = document.createElement('option');
-                opt.value = b.id;
-                opt.textContent = b.name;
-                buildingSel.appendChild(opt);
+$(document).ready(function() {
+    // 校区变更时更新楼栋选项
+    $('#campus_id').change(function() {
+        var campusId = $(this).val();
+        var buildingSelect = $('#building');
+        
+        buildingSelect.empty().append('<option value="">请选择楼栋</option>');
+        
+        // 将校区ID转换为数字类型，确保能正确匹配campusBuildings的键
+        var campusIdNum = parseInt(campusId);
+        
+        if (campusId && campusBuildings[campusIdNum]) {
+            $.each(campusBuildings[campusIdNum].buildings, function(index, building) {
+                buildingSelect.append('<option value="' + building.id + '">' + building.name + '</option>');
             });
         }
     });
-
-    // Category main -> sub cascade + default hours
-    var mainSel = document.getElementById('category_main');
-    var subSel = document.getElementById('category_sub');
-    var timeLimitInput = document.getElementById('time_limit_hours');
-    mainSel.addEventListener('change', function() {
-        var id = this.value;
-        subSel.innerHTML = '<option value="">请选择故障分类</option>';
-        if (id && categoryData.sub[id]) {
-            categoryData.sub[id].forEach(function(c) {
-                var opt = document.createElement('option');
-                opt.value = c.id;
-                opt.textContent = c.name;
-                subSel.appendChild(opt);
+    
+    // 工单大类变更时更新故障分类
+    $('#category_main').change(function() {
+        var mainCategoryId = $(this).val();
+        var subSelect = $('#category_sub');
+        var timeLimitInput = $('#time_limit_hours');
+        
+        subSelect.empty().append('<option value="">请选择故障分类</option>');
+        
+        if (mainCategoryId && categoryData.sub[mainCategoryId]) {
+            $.each(categoryData.sub[mainCategoryId], function(index, category) {
+                subSelect.append('<option value="' + category.id + '">' + category.name + '</option>');
             });
-        }
-        var mainCat = categoryData.main.find(function(c) { return c.id == id; });
-        if (mainCat && !timeLimitInput.value) {
-            timeLimitInput.value = mainCat.default_hours;
+            
+            // 设置默认处理时限
+            var mainCategory = categoryData.main.find(function(cat) {
+                return cat.id == mainCategoryId;
+            });
+            
+            if (mainCategory && !timeLimitInput.val()) {
+                timeLimitInput.val(mainCategory.default_hours);
+            }
         }
     });
-
-    // Source: toggle custom source
-    var sourceSel = document.getElementById('source');
-    var customRow = document.getElementById('custom_source_row');
-    var customInput = document.getElementById('custom_source');
-    function syncCustomSource() {
-        var isCustom = sourceSel.value === 'custom';
-        customRow.classList.toggle('hidden', !isCustom);
-        if (isCustom) customInput.setAttribute('required', 'required');
-        else { customInput.removeAttribute('required'); }
-    }
-    sourceSel.addEventListener('change', syncCustomSource);
-    syncCustomSource();
-
-    // Assignee: toggle other_reason
-    var assigneeSel = document.getElementById('assignee_id');
-    if (assigneeSel) {
-        var otherDiv = document.getElementById('other_reason_div');
-        var otherInput = document.getElementById('other_reason');
-        function syncOtherReason() {
-            var isOther = assigneeSel.value === 'other';
-            if (otherDiv) otherDiv.classList.toggle('hidden', !isOther);
-            if (isOther && otherInput) otherInput.setAttribute('required', 'required');
-            else if (otherInput) otherInput.removeAttribute('required');
+    
+    // 故障分类变更时更新处理时限
+    $('#category_sub').change(function() {
+        var subCategoryId = $(this).val();
+        var timeLimitInput = $('#time_limit_hours');
+        
+        if (subCategoryId) {
+            // 可以在这里根据子分类调整时限
         }
-        assigneeSel.addEventListener('change', syncOtherReason);
-        syncOtherReason();
-    }
-
-    // Phone assist toggle
-    var phoneCb = document.getElementById('phone_assisted');
-    if (phoneCb) {
-        phoneCb.addEventListener('change', function() {
-            var checked = this.checked;
-            document.getElementById('phone_solution_div').classList.toggle('hidden', !checked);
-            document.getElementById('appointment_time_wrapper').classList.toggle('hidden', checked);
-            var nvWrap = document.getElementById('need_visit_wrap');
-            if (nvWrap) nvWrap.classList.toggle('hidden', checked);
-            var psInput = document.getElementById('phone_solution');
-            if (checked && psInput) psInput.setAttribute('required', 'required');
-            else if (psInput) psInput.removeAttribute('required');
-        });
-    }
-
-    // Attachment preview
-    var fileInput = document.getElementById('attachments');
-    var previewDiv = document.getElementById('attachmentPreview');
-    fileInput.addEventListener('change', function() {
-        previewDiv.innerHTML = '';
+    });
+    
+    // 电话协助完成选项处理
+    $('#phone_assisted').change(function() {
+        if ($(this).is(':checked')) {
+            // 如果选择电话协助完成，可以隐藏一些不必要的字段
+            $('#appointment_time_start').closest('.col-md-6').hide();
+            $('#need_visit').closest('.col-md-3').hide();
+            // 显示电话协助解决方案输入框
+            if (!$('#phone_solution_div').length) {
+                var solutionDiv = $('<div class="" id="phone_solution_div">');
+                solutionDiv.html(
+                    '<div class="mb-4">' +
+                        '<label for="phone_solution" class="label">电话解决方案 <span class="text-red-500">*</span></label>' +
+                        '<textarea class="input" id="phone_solution" name="phone_solution" rows="4" required' +
+                                  'placeholder="请详细描述电话解决方案..."></textarea>' +
+                        '<div class="form-text">选择电话协助完成后，工单将直接标记为已解决状态</div>' +
+                    '</div>'
+                );
+                $(this).closest('.row').after(solutionDiv);
+            }
+        } else {
+            $('#appointment_time_start').closest('.col-md-6').show();
+            $('#need_visit').closest('.col-md-3').show();
+            $('#phone_solution_div').remove();
+        }
+    });
+    
+    // 附件预览
+    $('#attachments').change(async function() {
+        var preview = $('#attachmentPreview');
+        preview.empty();
+        
         var files = this.files;
-        for (var i = 0; i < files.length; i++) {
-            (function(file, idx) {
-                var sizeMB = (file.size / 1024 / 1024).toFixed(2);
-                var willCompress = file.type.startsWith('image/') && file.size > 2 * 1024 * 1024;
-                var item = document.createElement('div');
-                item.className = 'flex items-start gap-3 p-3 rounded-lg border border-border';
-                var thumb = document.createElement('div');
-                thumb.className = 'w-12 h-12 rounded-lg overflow-hidden shrink-0 flex items-center justify-center';
-                thumb.style.backgroundColor = 'var(--c-muted)';
-                if (file.type.startsWith('image/')) {
-                    var reader = new FileReader();
-                    reader.onload = function(e) {
-                        var img = document.createElement('img');
-                        img.src = e.target.result;
-                        img.className = 'w-full h-full object-cover cursor-pointer';
-                        img.onclick = function() { showImagePreview(e.target.result, file.name); };
-                        thumb.appendChild(img);
-                    };
-                    reader.readAsDataURL(file);
+        var processedFiles = [];
+        
+        // 处理每个文件
+        for (let index = 0; index < files.length; index++) {
+            const file = files[index];
+            const fileIndex = index;
+            const originalSize = file.size;
+            const originalName = file.name;
+            
+            // 显示处理中状态
+            var processingDiv = $('<div class="p-3 rounded-lg bg-amber-50 text-amber-700 text-sm mb-2">');
+            processingDiv.html('<span><i class="fas fa-spinner fa-spin"></i> 正在处理 ' + file.name + '...</span>');
+            preview.append(processingDiv);
+            
+            try {
+                // 检查是否为需要压缩的图片（降低阈值到2MB）
+                if (file.type.startsWith('image/') && file.size > 2 * 1024 * 1024) {
+                    // 压缩图片
+                    const compressedFile = await compressImageAsync(file, 4);
+                    const compressedSize = compressedFile.size;
+                    const originalSizeMB = (originalSize / 1024 / 1024).toFixed(2);
+                    const compressedSizeMB = (compressedSize / 1024 / 1024).toFixed(2);
+                    const compressionRatio = ((originalSize - compressedSize) / originalSize * 100).toFixed(1);
+                    
+                    // 移除处理中状态
+                    processingDiv.remove();
+                    
+                    // 显示压缩后的预览
+                    createAttachmentPreview(compressedFile, fileIndex, preview, {
+                        isCompressed: true,
+                        originalSize: originalSizeMB + ' MB',
+                        compressedSize: compressedSizeMB + ' MB',
+                        compressionRatio: compressionRatio + '%',
+                        originalName: originalName
+                    });
+                    
+                    processedFiles[fileIndex] = compressedFile;
                 } else {
-                    thumb.innerHTML = '<svg class="w-6 h-6 text-ink-subtle" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z M14 2v6h6"/></svg>';
+                    // 不需要压缩的文件直接处理
+                    const fileSizeMB = (file.size / 1024 / 1024).toFixed(2);
+                    
+                    // 移除处理中状态
+                    processingDiv.remove();
+                    
+                    createAttachmentPreview(file, fileIndex, preview, {
+                        isCompressed: false,
+                        fileSize: fileSizeMB + ' MB'
+                    });
+                    
+                    processedFiles[fileIndex] = file;
                 }
-                var info = document.createElement('div');
-                info.className = 'flex-1 min-w-0';
-                info.innerHTML =
-                    '<div class="flex items-center gap-2 flex-wrap">' +
-                        '<span class="text-sm font-medium text-ink truncate">' + file.name + '</span>' +
-                        (willCompress ? '<span class="badge bg-blue-100 text-blue-700">将压缩</span>' : '') +
-                    '</div>' +
-                    '<p class="text-xs text-ink-subtle mt-0.5">' + sizeMB + ' MB</p>' +
-                    '<input type="text" class="input mt-2 attachment-desc-input" data-file-index="' + idx + '" placeholder="附件描述（选填）" maxlength="200">';
-                var removeBtn = document.createElement('button');
-                removeBtn.type = 'button';
-                removeBtn.className = 'btn btn-ghost btn-icon btn-sm shrink-0';
-                removeBtn.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M18 6 6 18M6 6l12 12"/></svg>';
-                removeBtn.onclick = function() {
-                    var dt = new DataTransfer();
-                    var arr = Array.from(fileInput.files);
-                    arr.splice(idx, 1);
-                    arr.forEach(function(f) { dt.items.add(f); });
-                    fileInput.files = dt.files;
-                    fileInput.dispatchEvent(new Event('change'));
+            } catch (error) {
+                // 移除处理中状态
+                processingDiv.remove();
+                
+                // 显示错误信息
+                var errorDiv = $('<div class="p-3 rounded-lg bg-red-50 text-red-700 text-sm mb-2">');
+                errorDiv.html('<span><i class="fas fa-exclamation-triangle"></i> 处理 ' + file.name + ' 时出错: ' + error.message + '</span>');
+                preview.append(errorDiv);
+                
+                // 即使出错也要保留原始文件
+                processedFiles[fileIndex] = file;
+            }
+        }
+        
+        // 更新文件输入框
+        updateFileInput(processedFiles);
+    });
+    
+    // 创建附件预览
+    function createAttachmentPreview(file, fileIndex, previewContainer, options) {
+        var fileDiv = $('<div class="attachment-item mb-3 p-3 border rounded" data-file-index="' + fileIndex + '">');
+        var thumbnailDiv = $('<div class="attachment-thumbnail me-3">');
+        
+        if (file.type.startsWith('image/')) {
+            // 图片文件显示缩略图
+            var reader = new FileReader();
+            reader.onload = function(e) {
+                var img = $('<img src="' + e.target.result + '" class="img-thumbnail" alt="' + file.name + '" style="cursor: pointer;">');
+                thumbnailDiv.html(img);
+                
+                // 点击预览大图
+                img.click(function(e) {
+                    e.preventDefault();
+                    showImagePreview(e.target.src, options.originalName || file.name);
+                });
+            };
+            reader.readAsDataURL(file);
+        } else {
+            // 非图片文件显示文件图标
+            var iconClass = getFileIcon(file.name);
+            thumbnailDiv.html('<i class="' + iconClass + ' fa-3x"></i>');
+        }
+        
+        // 文件信息和描述
+        var fileInfoDiv = $('<div class="attachment-info flex-grow-1">');
+        var fileSize = options.fileSize || (file.size / 1024 / 1024).toFixed(2) + ' MB';
+        var fileSizeHtml = '<div class="attachment-size text-ink-muted small">' + fileSize;
+        
+        // 如果是压缩后的图片，显示压缩信息
+        if (options.isCompressed) {
+            fileSizeHtml += ' <span class="badge bg-success ms-1">已压缩</span>';
+            fileSizeHtml += '<div class="text-ink-muted small">原始: ' + options.originalSize + ' → 压缩后: ' + options.compressedSize + '</div>';
+            if (options.compressionRatio) {
+                fileSizeHtml += '<div class="text-ink-muted small">压缩率: ' + options.compressionRatio + '</div>';
+            }
+        }
+        
+        fileSizeHtml += '</div>';
+        
+        fileInfoDiv.html(
+            '<div class="attachment-name"><strong>' + (options.originalName || file.name) + '</strong></div>' +
+            fileSizeHtml +
+            '<div class="attachment-description mt-2">' +
+                '<label class="label small" for="attachment-desc-' + fileIndex + '">附件描述（选填）</label>' +
+                '<input type="text" class="input attachment-desc-input" ' +
+                       'id="attachment-desc-' + fileIndex + '" ' +
+                       'data-file-index="' + fileIndex + '" ' +
+                       'placeholder="请输入附件描述，如不填写将显示文件名"' +
+                       'maxlength="200" autocomplete="off">' +
+            '</div>' +
+            '<div class="attachment-actions mt-2">' +
+                '<button type="button" class="btn btn-sm btn-outline-danger remove-attachment" data-file-index="' + fileIndex + '">' +
+                '<i class="fas fa-times"></i> 移除' +
+                '</button>' +
+            '</div>'
+        );
+        
+        fileDiv.append(thumbnailDiv);
+        fileDiv.append(fileInfoDiv);
+        previewContainer.append(fileDiv);
+    }
+    
+    // 更新文件输入框
+    function updateFileInput(files) {
+        var fileInput = $('#attachments')[0];
+        var dt = new DataTransfer();
+        
+        // 添加处理后的文件
+        files.forEach(function(file) {
+            if (file) {
+                dt.items.add(file);
+            }
+        });
+        
+        fileInput.files = dt.files;
+    }
+    
+    // 生成基于日期时间的文件名
+    function generateTimestampFilename(originalFilename) {
+        const now = new Date();
+        const timestamp = now.getFullYear() +
+                        String(now.getMonth() + 1).padStart(2, '0') +
+                        String(now.getDate()).padStart(2, '0') + '_' +
+                        String(now.getHours()).padStart(2, '0') +
+                        String(now.getMinutes()).padStart(2, '0') +
+                        String(now.getSeconds()).padStart(2, '0');
+        
+        // 获取文件扩展名
+        const lastDotIndex = originalFilename.lastIndexOf('.');
+        const extension = lastDotIndex > -1 ? originalFilename.substring(lastDotIndex) : '';
+        const baseName = lastDotIndex > -1 ? originalFilename.substring(0, lastDotIndex) : originalFilename;
+        
+        // 限制基础名称长度，避免文件名过长
+        const maxBaseNameLength = 20;
+        const truncatedBaseName = baseName.length > maxBaseNameLength ?
+                                 baseName.substring(0, maxBaseNameLength) : baseName;
+        
+        return truncatedBaseName + '_' + timestamp + extension;
+    }
+
+    // 异步图片压缩函数
+    function compressImageAsync(file, maxSizeMB) {
+        return new Promise((resolve, reject) => {
+            if (!file.type.startsWith('image/')) {
+                resolve(file);
+                return;
+            }
+            
+            var reader = new FileReader();
+            reader.onload = function(e) {
+                var img = new Image();
+                img.onload = function() {
+                    try {
+                        var canvas = document.createElement('canvas');
+                        var ctx = canvas.getContext('2d');
+                        
+                        // 计算压缩比例
+                        var maxWidth = 1920;
+                        var maxHeight = 1080;
+                        var width = img.width;
+                        var height = img.height;
+                        
+                        // 如果图片尺寸大于最大尺寸，按比例缩放
+                        if (width > maxWidth || height > maxHeight) {
+                            var ratio = Math.min(maxWidth / width, maxHeight / height);
+                            width *= ratio;
+                            height *= ratio;
+                        }
+                        
+                        canvas.width = width;
+                        canvas.height = height;
+                        
+                        // 绘制图片
+                        ctx.drawImage(img, 0, 0, width, height);
+                        
+                        // 尝试不同的质量级别
+                        var quality = 0.8;
+                        var attemptCompress = function() {
+                            canvas.toBlob(function(blob) {
+                                var sizeInMB = blob.size / 1024 / 1024;
+                                
+                                if (sizeInMB <= maxSizeMB || quality <= 0.1) {
+                                    // 生成新的文件名
+                                    const newFilename = generateTimestampFilename(file.name);
+                                     
+                                    // 创建新的File对象
+                                    var compressedFile = new File([blob], newFilename, {
+                                        type: file.type,
+                                        lastModified: Date.now()
+                                    });
+                                    resolve(compressedFile);
+                                } else {
+                                    // 继续降低质量
+                                    quality -= 0.1;
+                                    attemptCompress();
+                                }
+                            }, file.type, quality);
+                        };
+                        
+                        attemptCompress();
+                    } catch (error) {
+                        reject(error);
+                    }
                 };
-                item.appendChild(thumb);
-                item.appendChild(info);
-                item.appendChild(removeBtn);
-                previewDiv.appendChild(item);
-            })(files[i], i);
+                img.onerror = function() {
+                    reject(new Error('图片加载失败'));
+                };
+                img.src = e.target.result;
+            };
+            reader.onerror = function() {
+                reject(new Error('文件读取失败'));
+            };
+            reader.readAsDataURL(file);
+        });
+    }
+    
+    // 保留原有的回调式压缩函数以兼容其他代码
+    function compressImage(file, maxSizeMB, callback) {
+        compressImageAsync(file, maxSizeMB)
+            .then(callback)
+            .catch(function(error) {
+                console.error('图片压缩失败:', error);
+                callback(file); // 压缩失败时返回原文件
+            });
+    }
+    
+    // 获取文件图标
+    function getFileIcon(filename) {
+        var ext = filename.split('.').pop().toLowerCase();
+        var iconMap = {
+            'pdf': 'fas fa-file-pdf text-red-500',
+            'doc': 'fas fa-file-word text-brand-600',
+            'docx': 'fas fa-file-word text-brand-600',
+            'xls': 'fas fa-file-excel text-green-600',
+            'xlsx': 'fas fa-file-excel text-green-600',
+            'ppt': 'fas fa-file-powerpoint text-amber-600',
+            'pptx': 'fas fa-file-powerpoint text-amber-600',
+            'txt': 'fas fa-file-alt text-secondary',
+            'zip': 'fas fa-file-archive text-blue-600',
+            'rar': 'fas fa-file-archive text-blue-600',
+            '7z': 'fas fa-file-archive text-blue-600'
+        };
+        return iconMap[ext] || 'fas fa-file text-ink-muted';
+    }
+    
+    // 移除附件
+    function removeAttachment(button) {
+        var fileIndex = $(button).data('file-index');
+        $(button).closest('.attachment-item').remove();
+        
+        // 更新文件输入框
+        var fileInput = $('#attachments')[0];
+        var dt = new DataTransfer();
+        var files = Array.from(fileInput.files);
+        
+        // 移除对应索引的文件
+        files = files.filter((file, index) => index != fileIndex);
+        
+        // 重新添加剩余的文件
+        files.forEach(file => dt.items.add(file));
+        fileInput.files = dt.files;
+        
+        // 重新触发change事件以更新预览
+        $('#attachments').trigger('change');
+    }
+    
+    // 使用事件委托处理移除附件
+    $(document).on('click', '.remove-attachment', function() {
+        removeAttachment(this);
+    });
+    
+    // 表单提交前验证和收集附件描述
+    $('#workorderForm').on('submit', function(e) {
+        // 验证必填字段
+        var building = $('#building').val();
+        var categorySub = $('#category_sub').val();
+        var source = $('#source').val();
+        var otherSource = $('#other_source').val();
+        
+        // 验证楼栋
+        if (!building || building === '') {
+            e.preventDefault();
+            alert('请选择楼栋');
+            $('#building').focus();
+            return false;
+        }
+        
+        // 验证故障分类
+        if (!categorySub || categorySub === '') {
+            e.preventDefault();
+            alert('请选择故障分类');
+            $('#category_sub').focus();
+            return false;
+        }
+        
+        // 验证其他来源
+        if (source === '其他来源' && (!otherSource || otherSource.trim() === '')) {
+            e.preventDefault();
+            alert('请填写其他来源说明');
+            $('#other_source').focus();
+            return false;
+        }
+        
+        // 收集附件描述
+        var descriptions = [];
+        $('.attachment-desc-input').each(function() {
+            descriptions.push($(this).val());
+        });
+        
+        // 创建隐藏字段来存储附件描述
+        for (var i = 0; i < descriptions.length; i++) {
+            $('<input>').attr({
+                type: 'hidden',
+                name: 'attachment_descriptions[' + i + ']',
+                value: descriptions[i]
+            }).appendTo('#workorderForm');
         }
     });
-
-    // Collect attachment descriptions before submit
-    document.getElementById('workorderForm').addEventListener('submit', function() {
-        var inputs = this.querySelectorAll('.attachment-desc-input');
-        inputs.forEach(function(inp, i) {
-            var hidden = document.createElement('input');
-            hidden.type = 'hidden';
-            hidden.name = 'attachment_descriptions[' + i + ']';
-            hidden.value = inp.value;
-            this.appendChild(hidden);
-        }.bind(this));
+    
+    // 指定工程师选择处理
+    $('#assignee_id').change(function() {
+        var otherReasonDiv = $('#other_reason_div');
+        if ($(this).val() === 'other') {
+            otherReasonDiv.show();
+            $('#other_reason').attr('required', 'required');
+        } else {
+            otherReasonDiv.hide();
+            $('#other_reason').removeAttr('required');
+        }
     });
-
-    // Template dropdown
-    var tplBtn = document.getElementById('templateDropdownBtn');
-    if (tplBtn) {
-        var tplMenu = document.getElementById('templateDropdownMenu');
-        tplBtn.addEventListener('click', function(e) {
-            e.stopPropagation();
-            tplMenu.classList.toggle('hidden');
-        });
-        document.addEventListener('click', function() { tplMenu.classList.add('hidden'); });
+    
+    // 初始化其他部门原因显示状态
+    if ($('#assignee_id').val() === 'other') {
+        $('#other_reason_div').show();
+        $('#other_reason').attr('required', 'required');
     }
-})();
-
-// Image preview
-function showImagePreview(src, name) {
-    var modal = document.getElementById('imagePreviewModal');
-    document.getElementById('imagePreviewImg').src = src;
-    document.getElementById('imagePreviewTitle').textContent = name || '图片预览';
-    modal.classList.remove('hidden');
-    modal.classList.add('flex');
-    document.body.classList.add('overflow-hidden');
-}
-function closeImagePreview() {
-    var modal = document.getElementById('imagePreviewModal');
-    modal.classList.add('hidden');
-    modal.classList.remove('flex');
-    document.body.classList.remove('overflow-hidden');
-}
-document.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape') closeImagePreview();
+    
+    // 切换其他来源输入框显示/隐藏
+    window.toggleCustomSource = function() {
+        var sourceSelect = $('#source');
+        var otherSourceRow = $('#other_source_row');
+        var otherSourceInput = $('#other_source');
+        
+        if (sourceSelect.val() === '其他来源') {
+            otherSourceRow.show();
+            otherSourceInput.attr('required', 'required');
+        } else {
+            otherSourceRow.hide();
+            otherSourceInput.removeAttr('required');
+            otherSourceInput.val('');
+        }
+    }
+    
+    // 初始化其他来源显示状态
+    if ($('#source').val() === '其他来源') {
+        $('#other_source_row').show();
+        $('#other_source').attr('required', 'required');
+    }
 });
+
+// 使用模板创建工单
+function useTemplate(templateId, templateName) {
+    window.location.href = '{{ \App\Helpers\UrlHelper::relative_url('/workorders/create') }}?template=' + templateId;
+}
+
+// 显示图片预览模态框
+function showImagePreview(imageSrc, fileName) {
+    // 移除已存在的模态框
+    $('#imagePreviewModal').remove();
+    
+    var modalHtml = '<div class="modal fade" id="imagePreviewModal" tabindex="-1">' +
+        '<div class="modal-dialog modal-lg modal-dialog-centered">' +
+            '<div class="modal-content">' +
+                '<div class="modal-header">' +
+                    '<h5 class="modal-title">图片预览 - ' + fileName + '</h5>' +
+                    '<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="关闭图片预览"></button>' +
+                '</div>' +
+                '<div class="modal-body text-center p-0">' +
+                    '<div class="d-flex justify-content-center align-items-center" style="min-height: 400px; background-color: #f8f9fa;">' +
+                        '<img src="' + imageSrc + '" class="img-fluid" alt="' + fileName + '" style="max-height: 70vh; object-fit: contain;">' +
+                    '</div>' +
+                '</div>' +
+                '<div class="modal-footer">' +
+                    '<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>' +
+                '</div>' +
+            '</div>' +
+        '</div>' +
+    '</div>';
+    
+    $('body').append(modalHtml);
+    
+    // 显示模态框
+    var modal = new bootstrap.Modal(document.getElementById('imagePreviewModal'));
+    modal.show();
+    
+    // 模态框关闭时移除DOM
+    $('#imagePreviewModal').on('hidden.bs.modal', function () {
+        $(this).remove();
+    });
+    
+    // ESC键关闭模态框
+    $(document).on('keydown', function(e) {
+        if (e.keyCode === 27) { // ESC key
+            $('#imagePreviewModal').modal('hide');
+        }
+    });
+}
 </script>
 @endsection

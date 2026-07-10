@@ -10,9 +10,11 @@ use App\Models\WorkorderAttachment;
 use App\Models\WorkorderVisit;
 use App\Models\WorkorderCollaboration;
 use App\Models\WorkorderSource;
+use App\Models\WorkorderTemplate;
 use App\Models\User;
 use App\Models\Department;
 use App\Models\Location;
+use App\Models\Campus;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -39,26 +41,74 @@ class WorkorderController extends Controller
                               $request->filled('assignee_id') ||
                               $request->filled('date_from') ||
                               $request->filled('date_to') ||
-                              $request->filled('campus') ||
+                              $request->filled('campus_id') ||
                               $request->filled('source') ||
                               $request->filled('is_emergency') ||
                               $request->filled('phone_assisted');
                                 
-       // 检查是否选择了具体状态（不包括空字符串）
-       $hasStatusFilter = $request->filled('status');
-                               
-       // 只有在用户明确要求显示已完结工单时，才显示已完结工单
-       // 默认只显示未解决的工单（待处理、已分配、处理中）
-       // 但如果用户选择了状态或其他搜索条件，则不应用默认过滤
-       // 特殊处理：如果用户选择了"全部"状态，则不应用默认过滤
-       if (!$request->has('show_closed') && !$hasSearchConditions && !$hasStatusFilter) {
-           $query->whereIn('status', ['pending', 'assigned', 'processing']);
-       }
-       
-        // 如果勾选了"显示已解决"，扩大状态范围（包含 resolved + completed）
-        // 使用 where 而非 orWhere，确保不破坏 getWorkorderQueryScope 的权限范围
-        if ($request->boolean('show_closed')) {
-            $query->whereIn('status', ['pending', 'assigned', 'processing', 'resolved', 'completed']);
+        // 检查是否选择了具体状态（不包括空字符串）
+        $hasStatusFilter = $request->filled('status');
+                                
+        // 只有在用户明确要求显示已完结工单时，才显示已完结工单
+        // 默认只显示未解决的工单（待处理、已分配、处理中）
+        // 但如果用户选择了状态或其他搜索条件，则不应用默认过滤
+        // 特殊处理：如果用户选择了"全部"状态，则不应用默认过滤
+        if (!$request->has('show_closed') && !$hasSearchConditions && !$hasStatusFilter) {
+            $query->whereIn('status', ['pending', 'assigned', 'processing']);
+        }
+        
+        // 如果勾选了"显示已解决"，则包括已解决和已完结的工单
+        if ($request->has('show_closed') && $request->show_closed) {
+            if (!$hasSearchConditions) {
+                // 如果没有其他搜索条件，重新构建查询
+                $query = $user->getWorkorderQueryScope()
+                    ->with(['creator', 'assignee', 'category', 'department'])
+                    ->whereIn('status', ['pending', 'assigned', 'processing', 'resolved', 'completed']);
+            } else {
+                // 如果有其他搜索条件，添加已解决和已完结状态
+                $query->orWhere(function($q) use ($user) {
+                    $q->whereIn('status', ['resolved', 'completed']);
+                    // 如果是工程师，需要重新应用权限范围
+                    if ($user->role === 'engineer') {
+                        $q->where(function($subQ) use ($user) {
+                            $subQ->whereNull('assignee_id')
+                                  ->orWhere('creator_id', $user->id)
+                                  ->orWhere('assignee_id', $user->id)
+                                  ->orWhereHas('collaborations', function($collabQ) use ($user) {
+                                      $collabQ->where('collaborator_id', $user->id)
+                                             ->where('status', 'accepted');
+                                  });
+                        });
+                    }
+                });
+            }
+        }
+        
+        // 如果勾选了"显示已解决"，则包括已解决的工单
+        if ($request->has('show_closed') && $request->show_closed) {
+            if (!$hasSearchConditions) {
+                // 如果没有其他搜索条件，重新构建查询
+                $query = $user->getWorkorderQueryScope()
+                    ->with(['creator', 'assignee', 'category', 'department'])
+                    ->whereIn('status', ['pending', 'assigned', 'processing', 'resolved']);
+            } else {
+                // 如果有其他搜索条件，添加已解决状态
+                $query->orWhere(function($q) use ($user) {
+                    $q->where('status', 'resolved');
+                    // 如果是工程师，需要重新应用权限范围
+                    if ($user->role === 'engineer') {
+                        $q->where(function($subQ) use ($user) {
+                            $subQ->whereNull('assignee_id')
+                                  ->orWhere('creator_id', $user->id)
+                                  ->orWhere('assignee_id', $user->id)
+                                  ->orWhereHas('collaborations', function($collabQ) use ($user) {
+                                      $collabQ->where('collaborator_id', $user->id)
+                                             ->where('status', 'accepted');
+                                  });
+                        });
+                    }
+                });
+            }
         }
 
         // 搜索条件
@@ -90,7 +140,31 @@ class WorkorderController extends Controller
 
         // 分类筛选
         if ($request->filled('category_id')) {
-            $query->where('category_id', $request->input('category_id'));
+            $categoryId = $request->input('category_id');
+            
+            // 检查选择的是主分类还是子分类
+            $category = WorkorderCategorySimplified::find($categoryId);
+            
+            if ($category) {
+                if ($category->parent_id === null) {
+                    // 选择的是主分类，获取所有子分类ID
+                    $subCategoryIds = WorkorderCategorySimplified::where('parent_id', $categoryId)
+                        ->where('status', true)
+                        ->pluck('id')
+                        ->toArray();
+                    
+                    // 如果有子分类，使用whereIn搜索所有子分类
+                    if (!empty($subCategoryIds)) {
+                        $query->whereIn('category_id', $subCategoryIds);
+                    } else {
+                        // 如果没有子分类（不应该发生），按原逻辑搜索
+                        $query->where('category_id', $categoryId);
+                    }
+                } else {
+                    // 选择的是子分类，直接精确匹配
+                    $query->where('category_id', $categoryId);
+                }
+            }
         }
 
         // 处理人筛选
@@ -99,8 +173,8 @@ class WorkorderController extends Controller
         }
 
         // 校区筛选
-        if ($request->filled('campus')) {
-            $query->where('campus', $request->input('campus'));
+        if ($request->filled('campus_id')) {
+            $query->where('campus_id', $request->input('campus_id'));
         }
 
         // 来源筛选
@@ -210,7 +284,7 @@ class WorkorderController extends Controller
             'contact_name' => 'required|string|max:100',
             'contact_phone' => 'required|string|max:20',
             'contact_email' => 'nullable|email|max:100',
-            'campus' => 'required|string|in:old_campus,new_campus,asean_campus',
+            'campus_id' => 'required|exists:campuses,id',
             'building' => 'required|string',
             'location_detail' => 'nullable|string|max:500',
             'appointment_time_start' => 'nullable|date',
@@ -219,7 +293,7 @@ class WorkorderController extends Controller
             'time_limit_hours' => 'nullable|integer|min:1|max:168', // 最大7天
             'priority' => 'required|in:high,medium,low',
             'source' => 'required|in:' . implode(',', $validSources),
-            'custom_source' => 'nullable|string|max:50|required_if:source,custom',
+            'other_source' => 'nullable|string|max:50|required_if:source,其他来源',
             'department_name' => 'nullable|string|max:100',
             'need_visit' => 'boolean',
             'is_emergency' => 'boolean',
@@ -227,21 +301,14 @@ class WorkorderController extends Controller
             'phone_solution' => 'nullable|string|max:2000|required_if:phone_assisted,1',
             'assignee_id' => 'nullable|string',
             'other_reason' => 'nullable|string|max:500',
+            'requires_signature' => 'boolean',
             'attachments' => 'nullable|array',
             'attachments.*' => 'file|max:10240', // 最大10MB
         ]);
 
-       DB::beginTransaction();
-       try {
-            $data = $request->only([
-                'description', 'category_main', 'category_sub',
-                'contact_name', 'contact_phone', 'contact_email',
-                'campus', 'building', 'location_detail',
-                'appointment_time_start', 'appointment_time_end',
-                'time_limit_hours', 'priority', 'source', 'custom_source',
-                'department_name', 'assignee_id', 'other_reason',
-                'phone_assisted', 'phone_solution',
-            ]);
+        DB::beginTransaction();
+        try {
+            $data = $request->all();
             
             // 获取工单分类信息
             $mainCategory = WorkorderCategorySimplified::find($data['category_main']);
@@ -327,15 +394,19 @@ class WorkorderController extends Controller
             $data['type_id'] = null;
             
             // 设置位置信息
-            $data['location'] = $data['campus'] . ' - ' . $data['building'];
+            $campus = Campus::find($data['campus_id']);
+            $data['location'] = ($campus ? $campus->name : '') . ' - ' . $data['building'];
+            $data['campus'] = $campus ? $campus->name : '';
+            // 同时保存校区ID
+            $data['campus_id'] = $data['campus_id'];
             
             // 设置电话协助完成标记
             $data['phone_assisted'] = $request->boolean('phone_assisted');
             
             // 处理自定义来源
-            if ($request->input('source') === 'custom') {
-                $data['source'] = 'custom';
-                $data['custom_source'] = $request->input('custom_source');
+            if ($request->input('source') === '其他来源') {
+                $data['source'] = '其他来源';
+                $data['custom_source'] = $request->input('other_source');
             }
 
             $workorder = Workorder::create($data);
@@ -344,7 +415,12 @@ class WorkorderController extends Controller
             if ($request->boolean('phone_assisted')) {
                 $workorder->sendNotification('closed');
             } else {
-                $workorder->sendNotification('created');
+                // 如果有分配处理人，只发送给处理人；否则发送给创建人
+                if ($workorder->assignee_id) {
+                    $workorder->sendNotification('created', [], [$workorder->assignee_id]);
+                } else {
+                    $workorder->sendNotification('created', [], [$workorder->creator_id]);
+                }
             }
             
             // 如果是电话协助完成，记录日志
@@ -445,7 +521,7 @@ class WorkorderController extends Controller
             'contact_name' => 'required|string|max:100',
             'contact_phone' => 'required|string|max:20',
             'contact_email' => 'nullable|email|max:100',
-            'campus' => 'required|string|in:old_campus,new_campus,asean_campus',
+            'campus_id' => 'required|exists:campuses,id',
             'building' => 'required|string',
             'location_detail' => 'nullable|string|max:500',
             'appointment_time_start' => 'nullable|date',
@@ -454,7 +530,7 @@ class WorkorderController extends Controller
             'time_limit_hours' => 'nullable|integer|min:1|max:168',
             'priority' => 'required|in:high,medium,low',
             'source' => 'required|in:' . implode(',', $validSources),
-            'custom_source' => 'nullable|string|max:50|required_if:source,custom',
+            'other_source' => 'nullable|string|max:50|required_if:source,其他来源',
             'department_id' => 'nullable|exists:departments,id',
             'need_visit' => 'boolean',
             'is_emergency' => 'boolean',
@@ -477,29 +553,10 @@ class WorkorderController extends Controller
         
         $request->validate($rules);
 
-       DB::beginTransaction();
-       try {
-           $oldStatus = $workorder->status;
-            $data = $request->only([
-                'description', 'category_main', 'category_sub',
-                'contact_name', 'contact_phone', 'contact_email',
-                'campus', 'building', 'location_detail',
-                'appointment_time_start', 'appointment_time_end',
-                'time_limit_hours', 'priority', 'source', 'custom_source',
-                'department_id', 'remarks', 'assignee_id',
-                'is_emergency', 'need_visit',
-            ]);
-            // 条件性字段（根据工单状态）
-            if ($request->filled('materials_usage')) {
-                $data['materials_usage'] = $request->input('materials_usage');
-            }
-            if ($request->filled('solution')) {
-                $data['solution'] = $request->input('solution');
-            }
-            // 仅管理员可修改创建时间
-            if (Auth::user()->isAdmin() && $request->filled('created_at')) {
-                $data['created_at'] = $request->input('created_at');
-            }
+        DB::beginTransaction();
+        try {
+            $oldStatus = $workorder->status;
+            $data = $request->all();
             
             // 设置分类ID为子分类ID
             $data['category_id'] = $data['category_sub'];
@@ -507,8 +564,10 @@ class WorkorderController extends Controller
             $data['type_id'] = null;
             
             // 设置位置信息
-            if (isset($data['campus']) && isset($data['building'])) {
-                $data['location'] = $data['campus'] . ' - ' . $data['building'];
+            if (isset($data['campus_id']) && isset($data['building'])) {
+                $campus = Campus::find($data['campus_id']);
+                $data['location'] = ($campus ? $campus->name : '') . ' - ' . $data['building'];
+                $data['campus'] = $campus ? $campus->name : '';
             }
             
             // 设置预计完成时间
@@ -546,11 +605,10 @@ class WorkorderController extends Controller
             }
             
             // 处理自定义来源
-            if ($request->input('source') === 'custom') {
-                $data['source'] = 'custom';
-                $data['custom_source'] = $request->input('custom_source');
+            if ($request->input('source') === '其他来源') {
+                $data['other_source'] = $request->input('other_source');
             } else {
-                $data['custom_source'] = null;
+                $data['other_source'] = null;
             }
             
             // 如果分配了处理人但没有设置状态，自动设置为assigned
@@ -559,11 +617,6 @@ class WorkorderController extends Controller
                 $data['assigned_at'] = $data['assigned_at'] ?? now();
             }
             
-            // 如果管理员修改了创建时间，需要显式设置（不在 $fillable 中）
-            if (isset($data['created_at'])) {
-                $workorder->created_at = $data['created_at'];
-                unset($data['created_at']);
-            }
             $workorder->update($data);
             
             // 如果分配了处理人，发送通知
@@ -713,6 +766,14 @@ class WorkorderController extends Controller
             'no_materials' => 'boolean',
             'materials_usage' => 'required_if:no_materials,false|nullable|string|max:2000',
         ]);
+
+        // 注释掉签单检查，允许工单先解决再签单
+        // 根据用户反馈的流程：创建→分配→处理→解决→签单→完结
+        // if ($workorder->requires_signature && !$workorder->hasSignature()) {
+        //     // 如果需要签单但尚未签单，重定向到签单页面
+        //     return redirect()->route('workorders.signature.create', $workorder->id)
+        //         ->with('info', '此工单需要签单确认后才能解决，请先完成签单流程');
+        // }
 
         // 处理备件耗材使用情况
         $materialsUsage = null;
@@ -1076,7 +1137,7 @@ class WorkorderController extends Controller
         if (!$collaboration->canBeAccepted()) {
             $message = '无法接受此邀请';
             if ($request->isMethod('get')) {
-                return redirect(\App\Helpers\UrlHelper::relative_url("/workorders/{$collaboration->workorder_id}"))->with('error', $message);
+                return redirect(\App\Helpers\UrlHelper::relative_url("/workorders"))->with('error', $message);
             }
             return back()->with('error', $message);
         }
@@ -1091,7 +1152,8 @@ class WorkorderController extends Controller
                 // 记录日志
                 $collaboration->workorder->addLog('collaboration_accepted', "接受了 {$collaboration->inviter->name} 的协作邀请");
                 
-                return back()->with('success', '协作邀请接受成功');
+                // 接受邀请后，重定向到工单详情页面
+                return redirect(\App\Helpers\UrlHelper::relative_url("/workorders/{$collaboration->workorder_id}"))->with('success', '协作邀请接受成功');
             } else {
                 return back()->with('error', '协作邀请接受失败');
             }
@@ -1107,8 +1169,15 @@ class WorkorderController extends Controller
     {
         if (!$collaboration->canBeRejected()) {
             $message = '无法拒绝此邀请';
+            // 提供更具体的错误信息
+            if ($collaboration->collaborator_id !== auth()->id()) {
+                $message = '您没有权限拒绝此邀请';
+            } elseif ($collaboration->status !== 'pending') {
+                $message = '此邀请已被处理，无法拒绝';
+            }
+            
             if ($request->isMethod('get')) {
-                return redirect(\App\Helpers\UrlHelper::relative_url("/workorders/{$collaboration->workorder_id}"))->with('error', $message);
+                return redirect(\App\Helpers\UrlHelper::relative_url("/workorders"))->with('error', $message);
             }
             return back()->with('error', $message);
         }
@@ -1127,7 +1196,9 @@ class WorkorderController extends Controller
                 // 记录日志
                 $collaboration->workorder->addLog('collaboration_rejected', "拒绝了 {$collaboration->inviter->name} 的协作邀请");
                 
-                return back()->with('success', '协作邀请拒绝成功');
+                // 拒绝邀请后，重定向到工单列表而不是工单详情页面
+                // 因为用户拒绝后可能不再有权限查看该工单
+                return redirect(\App\Helpers\UrlHelper::relative_url("/workorders"))->with('success', '协作邀请拒绝成功');
             } else {
                 return back()->with('error', '协作邀请拒绝失败');
             }
@@ -1147,13 +1218,17 @@ class WorkorderController extends Controller
         }
         
         $request->validate([
-            'workorder_ids' => 'required|array',
-            'workorder_ids.*' => 'integer|exists:workorders,id',
+            'workorder_ids' => 'required|string',
             'assignee_id' => 'required|exists:users,id',
             'note' => 'nullable|string|max:500',
         ]);
         
-        $workorderIds = $request->input('workorder_ids');
+        // 将逗号分隔的字符串转换为数组
+        $workorderIds = explode(',', $request->input('workorder_ids'));
+        $workorderIds = array_filter($workorderIds, function($id) {
+            return is_numeric($id) && $id > 0;
+        });
+        $workorderIds = array_map('intval', $workorderIds);
         $assigneeId = $request->input('assignee_id');
         $note = $request->input('note');
         
@@ -1201,11 +1276,15 @@ class WorkorderController extends Controller
         }
         
         $request->validate([
-            'workorder_ids' => 'required|array',
-            'workorder_ids.*' => 'integer|exists:workorders,id',
+            'workorder_ids' => 'required|string',
         ]);
         
-        $workorderIds = $request->input('workorder_ids');
+        // 将逗号分隔的字符串转换为数组
+        $workorderIds = explode(',', $request->input('workorder_ids'));
+        $workorderIds = array_filter($workorderIds, function($id) {
+            return is_numeric($id) && $id > 0;
+        });
+        $workorderIds = array_map('intval', $workorderIds);
         
         try {
             $successCount = 0;
@@ -1253,40 +1332,102 @@ class WorkorderController extends Controller
     public function batchResolve(Request $request)
     {
         $request->validate([
-            'workorder_ids' => 'required|array',
-            'workorder_ids.*' => 'integer|exists:workorders,id',
-            'solution' => 'required|string|max:2000',
+            'workorder_ids' => 'required|string',
+            'solution_type' => 'required|in:common,individual',
         ]);
         
-        $workorderIds = $request->input('workorder_ids');
-        $solution = $request->input('solution');
+        // 将逗号分隔的字符串转换为数组
+        $workorderIds = explode(',', $request->input('workorder_ids'));
+        $workorderIds = array_filter($workorderIds, function($id) {
+            return is_numeric($id) && $id > 0;
+        });
+        $workorderIds = array_map('intval', $workorderIds);
+        $solutionType = $request->input('solution_type');
         
         try {
             $successCount = 0;
             $failedCount = 0;
             $failedWorkorders = [];
             
-            foreach ($workorderIds as $workorderId) {
-                $workorder = Workorder::find($workorderId);
+            if ($solutionType === 'common') {
+                // 通用解决方案模式验证
+                $request->validate([
+                    'solution' => 'required|string|max:2000',
+                ]);
                 
-                // 权限检查：只能处理分配给自己的工单，或者管理员/工单管理员可以处理所有工单
-                if (!auth()->user()->isAdmin() && !auth()->user()->isWorkorderManager() && $workorder->assignee_id !== auth()->id()) {
-                    $failedCount++;
-                    $failedWorkorders[] = $workorder->ticket_no ?? 'Unknown';
-                    continue;
+                $solution = $request->input('solution');
+                $noMaterials = $request->boolean('no_materials');
+                $materialsUsage = $noMaterials ? '无备件耗材使用' : $request->input('materials_usage');
+                
+                foreach ($workorderIds as $workorderId) {
+                    $workorder = Workorder::find($workorderId);
+                    
+                    // 权限检查：只能处理分配给自己的工单，或者管理员/工单管理员可以处理所有工单
+                    if (!auth()->user()->isAdmin() && !auth()->user()->isWorkorderManager() && $workorder->assignee_id !== auth()->id()) {
+                        $failedCount++;
+                        $failedWorkorders[] = $workorder->ticket_no ?? 'Unknown';
+                        continue;
+                    }
+                    
+                    if (!$workorder || !$workorder->canBeResolved()) {
+                        $failedCount++;
+                        $failedWorkorders[] = $workorder->ticket_no ?? 'Unknown';
+                        continue;
+                    }
+                    
+                    if ($workorder->resolve($solution)) {
+                        // 更新备件耗材使用情况
+                        $workorder->materials_usage = $materialsUsage;
+                        $workorder->save();
+                        
+                        // 记录日志
+                        $workorder->addLog('materials_updated', '更新了备件耗材使用情况');
+                        
+                        $successCount++;
+                    } else {
+                        $failedCount++;
+                        $failedWorkorders[] = $workorder->ticket_no;
+                    }
                 }
+            } else {
+                // 单独设置模式验证
+                $solutions = $request->input('solutions', []);
+                $noMaterialsArray = $request->input('no_materials_array', []);
+                $materialsUsageArray = $request->input('materials_usage_array', []);
                 
-                if (!$workorder || !$workorder->canBeResolved()) {
-                    $failedCount++;
-                    $failedWorkorders[] = $workorder->ticket_no ?? 'Unknown';
-                    continue;
-                }
-                
-                if ($workorder->resolve($solution)) {
-                    $successCount++;
-                } else {
-                    $failedCount++;
-                    $failedWorkorders[] = $workorder->ticket_no;
+                foreach ($workorderIds as $workorderId) {
+                    $workorder = Workorder::find($workorderId);
+                    
+                    // 权限检查：只能处理分配给自己的工单，或者管理员/工单管理员可以处理所有工单
+                    if (!auth()->user()->isAdmin() && !auth()->user()->isWorkorderManager() && $workorder->assignee_id !== auth()->id()) {
+                        $failedCount++;
+                        $failedWorkorders[] = $workorder->ticket_no ?? 'Unknown';
+                        continue;
+                    }
+                    
+                    if (!$workorder || !$workorder->canBeResolved()) {
+                        $failedCount++;
+                        $failedWorkorders[] = $workorder->ticket_no ?? 'Unknown';
+                        continue;
+                    }
+                    
+                    $solution = $solutions[$workorderId] ?? '';
+                    $noMaterials = $noMaterialsArray[$workorderId] ?? false;
+                    $materialsUsage = $noMaterials ? '无备件耗材使用' : ($materialsUsageArray[$workorderId] ?? '');
+                    
+                    if ($workorder->resolve($solution)) {
+                        // 更新备件耗材使用情况
+                        $workorder->materials_usage = $materialsUsage;
+                        $workorder->save();
+                        
+                        // 记录日志
+                        $workorder->addLog('materials_updated', '更新了备件耗材使用情况');
+                        
+                        $successCount++;
+                    } else {
+                        $failedCount++;
+                        $failedWorkorders[] = $workorder->ticket_no;
+                    }
                 }
             }
             
@@ -1312,11 +1453,15 @@ class WorkorderController extends Controller
         }
         
         $request->validate([
-            'workorder_ids' => 'required|array',
-            'workorder_ids.*' => 'integer|exists:workorders,id',
+            'workorder_ids' => 'required|string',
         ]);
         
-        $workorderIds = $request->input('workorder_ids');
+        // 将逗号分隔的字符串转换为数组
+        $workorderIds = explode(',', $request->input('workorder_ids'));
+        $workorderIds = array_filter($workorderIds, function($id) {
+            return is_numeric($id) && $id > 0;
+        });
+        $workorderIds = array_map('intval', $workorderIds);
         
         try {
             $successCount = 0;
@@ -1348,6 +1493,69 @@ class WorkorderController extends Controller
             return response()->json(['success' => true, 'message' => $message]);
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'message' => '批量关闭失败：' . $e->getMessage()]);
+        }
+    }
+    
+    /**
+     * 批量完结工单
+     */
+    public function batchComplete(Request $request)
+    {
+        $request->validate([
+            'workorder_ids' => 'required|string',
+            'completion_note' => 'nullable|string|max:1000',
+        ]);
+        
+        // 将逗号分隔的字符串转换为数组
+        $workorderIds = explode(',', $request->input('workorder_ids'));
+        $workorderIds = array_filter($workorderIds, function($id) {
+            return is_numeric($id) && $id > 0;
+        });
+        $workorderIds = array_map('intval', $workorderIds);
+        $completionNote = $request->input('completion_note', '批量完结工单');
+        
+        try {
+            $successCount = 0;
+            $failedCount = 0;
+            $failedWorkorders = [];
+            
+            foreach ($workorderIds as $workorderId) {
+                $workorder = Workorder::find($workorderId);
+                
+                // 权限检查：只能处理分配给自己的工单，或者管理员/工单管理员可以处理所有工单
+                if (!auth()->user()->isAdmin() && !auth()->user()->isWorkorderManager() && $workorder->assignee_id !== auth()->id()) {
+                    $failedCount++;
+                    $failedWorkorders[] = $workorder->ticket_no ?? 'Unknown';
+                    continue;
+                }
+                
+                if (!$workorder || !$workorder->canBeCompleted()) {
+                    $failedCount++;
+                    $failedWorkorders[] = $workorder->ticket_no ?? 'Unknown';
+                    continue;
+                }
+                
+                if ($workorder->complete()) {
+                    // 如果有完结备注，添加到日志
+                    if (!empty($completionNote)) {
+                        $workorder->addLog('completed', $completionNote);
+                    }
+                    
+                    $successCount++;
+                } else {
+                    $failedCount++;
+                    $failedWorkorders[] = $workorder->ticket_no;
+                }
+            }
+            
+            $message = "成功完结 {$successCount} 个工单";
+            if ($failedCount > 0) {
+                $message .= "，失败 {$failedCount} 个工单：" . implode(', ', $failedWorkorders);
+            }
+            
+            return response()->json(['success' => true, 'message' => $message]);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => '批量完结失败：' . $e->getMessage()]);
         }
     }
     

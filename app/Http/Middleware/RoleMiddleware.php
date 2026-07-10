@@ -14,9 +14,9 @@ class RoleMiddleware
      * @param  \Illuminate\Http\Request  $request
      * @param  \Closure(\Illuminate\Http\Request): (\Illuminate\Http\Response|\Illuminate\Http\RedirectResponse)  $next
      * @param  string  $role
-     * @return \Illuminate\Http\Response|\Illuminate\Http\RedirectResponse
-     */
-    public function handle(Request $request, Closure $next, string $role)
+    * @return \Illuminate\Http\Response|\Illuminate\Http\RedirectResponse
+    */
+    public function handle(Request $request, Closure $next, string ...$roles)
     {
         if (!Auth::user()) {
             return redirect()->route('login');
@@ -24,12 +24,14 @@ class RoleMiddleware
 
         $user = Auth::user();
         
-        // 检查用户角色
-        if (!$this->hasRole($user, $role)) {
-            abort(403, '您没有权限访问此页面');
+        // Check if user has ANY of the specified roles
+        foreach ($roles as $role) {
+            if ($this->hasRole($user, $role)) {
+                return $next($request);
+            }
         }
 
-        return $next($request);
+        abort(403, '您没有权限访问此页面');
     }
 
     /**

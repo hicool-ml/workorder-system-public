@@ -114,16 +114,7 @@ Route::middleware(['auth'])->group(function () {
     
     // 地址管理（需要登录即可访问）
     Route::middleware(['auth'])->group(function () {
-        Route::resource('locations', LocationController::class)->names([
-            'index' => 'locations.index',
-            'create' => 'locations.create',
-            'store' => 'locations.store',
-            'show' => 'locations.show',
-            'edit' => 'locations.edit',
-            'update' => 'locations.update',
-            'destroy' => 'locations.destroy',
-        ]);
-        
+        Route::middleware(['role:admin,workorder_manager'])->group(function () {
         // 校区管理
         Route::get('locations/campuses', [LocationController::class, 'campuses'])->name('locations.campuses');
         Route::get('locations/create-campus', [LocationController::class, 'createCampus'])->name('locations.create-campus');
@@ -137,6 +128,18 @@ Route::middleware(['auth'])->group(function () {
         // 校区重定向
         Route::redirect('/campuses', '/locations/campuses', 301);
         Route::redirect('/campuses/create', '/locations/create-campus', 301);
+        
+        // 地址资源路由 - must be after campus routes to avoid {location} catching them
+        Route::resource('locations', LocationController::class)->names([
+            'index' => 'locations.index',
+            'create' => 'locations.create',
+            'store' => 'locations.store',
+            'show' => 'locations.show',
+            'edit' => 'locations.edit',
+            'update' => 'locations.update',
+            'destroy' => 'locations.destroy',
+        ]);
+        });
     });
     
     // 工单分类管理（管理员和工单管理员）- 使用简化的工单分类
@@ -212,7 +215,7 @@ Route::middleware(['auth'])->group(function () {
     });
     
     // 统计报表（需要登录）
-    Route::middleware(['auth'])->group(function () {
+    Route::middleware(['auth', 'role:admin,workorder_manager'])->group(function () {
         Route::get('/reports', [ReportController::class, 'index'])->name('reports.index');
         Route::match(['get', 'post'], '/reports/export', [ReportController::class, 'export'])->name('reports.export');
     });

@@ -11,20 +11,6 @@ use Illuminate\Validation\Rule;
 
 class LocationController extends Controller
 {
-    /**
-     * 构造函数，设置权限检查
-     */
-    public function __construct()
-    {
-        $this->middleware('auth');
-        $this->middleware(function ($request, $next) {
-            if (!Auth::user()->isAdmin() && !Auth::user()->isWorkorderManager()) {
-                abort(403, '只有管理员或工单管理员可以管理地址');
-            }
-            
-            return $next($request);
-        });
-    }
 
     /**
      * 地址列表页面

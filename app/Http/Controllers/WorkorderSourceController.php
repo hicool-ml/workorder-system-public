@@ -12,7 +12,10 @@ class WorkorderSourceController extends Controller
      */
     public function index()
     {
-        $sources = WorkorderSource::orderBy('sort_order')->paginate(20);
+        $sources = WorkorderSource::orderBy('sort_order')
+            ->orderBy('name')
+            ->paginate(15);
+
         return view('workorder-sources.index', compact('sources'));
     }
 
@@ -30,14 +33,18 @@ class WorkorderSourceController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'name' => 'required|string|max:50',
-            'code' => 'required|string|max:30|unique:workorder_sources,code',
+            'name' => 'required|string|max:50|unique:workorder_sources,name',
             'description' => 'nullable|string|max:200',
+            'is_active' => 'boolean',
             'sort_order' => 'nullable|integer|min:0',
-            'status' => 'required|in:active,inactive',
         ]);
 
-        WorkorderSource::create($request->only(['name', 'code', 'description', 'sort_order', 'status']));
+        WorkorderSource::create([
+            'name' => $request->input('name'),
+            'description' => $request->input('description'),
+            'is_active' => $request->boolean('is_active', true),
+            'sort_order' => $request->input('sort_order', 0),
+        ]);
 
         return redirect()->route('workorder-sources.index')
             ->with('success', '工单来源创建成功');
@@ -57,14 +64,18 @@ class WorkorderSourceController extends Controller
     public function update(Request $request, WorkorderSource $workorderSource)
     {
         $request->validate([
-            'name' => 'required|string|max:50',
-            'code' => 'required|string|max:30|unique:workorder_sources,code,' . $workorderSource->id,
+            'name' => 'required|string|max:50|unique:workorder_sources,name,' . $workorderSource->id,
             'description' => 'nullable|string|max:200',
+            'is_active' => 'boolean',
             'sort_order' => 'nullable|integer|min:0',
-            'status' => 'required|in:active,inactive',
         ]);
 
-        $workorderSource->update($request->only(['name', 'code', 'description', 'sort_order', 'status']));
+        $workorderSource->update([
+            'name' => $request->input('name'),
+            'description' => $request->input('description'),
+            'is_active' => $request->boolean('is_active', true),
+            'sort_order' => $request->input('sort_order', 0),
+        ]);
 
         return redirect()->route('workorder-sources.index')
             ->with('success', '工单来源更新成功');
@@ -75,10 +86,14 @@ class WorkorderSourceController extends Controller
      */
     public function destroy(WorkorderSource $workorderSource)
     {
+        if ($workorderSource->workorders()->exists()) {
+            return back()->with('error', '无法删除，已有工单使用了此来源');
+        }
+
         $workorderSource->delete();
 
         return redirect()->route('workorder-sources.index')
-            ->with('success', '工单来源已删除');
+            ->with('success', '工单来源删除成功');
     }
 
     /**
@@ -87,9 +102,11 @@ class WorkorderSourceController extends Controller
     public function toggleStatus(WorkorderSource $workorderSource)
     {
         $workorderSource->update([
-            'status' => $workorderSource->status === 'active' ? 'inactive' : 'active',
+            'is_active' => !$workorderSource->is_active
         ]);
 
-        return back()->with('success', '状态已切换');
+        $status = $workorderSource->is_active ? '启用' : '禁用';
+
+        return back()->with('success', "工单来源已{$status}");
     }
 }

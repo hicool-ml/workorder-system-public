@@ -170,7 +170,7 @@
                     @php
                         $addressParts = [];
                         if($workorder->campus) {
-                            $addressParts[] = \App\Models\Location::CAMPUSES[$workorder->campus] ?? $workorder->campus;
+                            $addressParts[] = $workorder->campus;
                         }
                         if($workorder->building) {
                             $building = \App\Models\Location::find($workorder->building);

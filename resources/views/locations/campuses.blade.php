@@ -22,17 +22,17 @@
 
 <!-- 搜索和筛选 -->
 <div class="card mb-4">
-    <div class="card-body">
+    <div >
         <form method="GET" action="{{ route('locations.campuses') }}">
             <div class="row g-3">
-                <div class="col-md-4">
-                    <label for="keyword" class="form-label">关键词</label>
-                    <input type="text" class="form-control" id="keyword" name="keyword" autocomplete="off"
+                <div class="">
+                    <label for="keyword" class="label">关键词</label>
+                    <input type="text" class="input" id="keyword" name="keyword" autocomplete="off"
                            value="{{ request('keyword') }}" placeholder="校区名称、代码或描述" autocomplete="off">
                 </div>
-                <div class="col-md-3">
-                    <label for="status" class="form-label">状态</label>
-                    <select class="form-select" id="status" name="status">
+                <div class="">
+                    <label for="status" class="label">状态</label>
+                    <select class="input" id="status" name="status">
                         <option value="">全部状态</option>
                         <option value="active" {{ request('status') == 'active' ? 'selected' : '' }}>启用</option>
                         <option value="inactive" {{ request('status') == 'inactive' ? 'selected' : '' }}>禁用</option>
@@ -52,8 +52,8 @@
 </div>
 
 <!-- 校区列表 -->
-<div class="card">
-    <div class="card-body">
+<div class="card p-5">
+    <div >
         <div class="table-responsive">
             <table class="table table-striped table-hover">
                 <thead>
@@ -73,9 +73,9 @@
                         <td>{{ $campus->sort_order }}</td>
                         <td>
                             @if($campus->status == 'active')
-                                <span class="badge bg-success">{{ $campus->status_text }}</span>
+                                <span class="badge bg-green-100 text-green-700">{{ $campus->status_text }}</span>
                             @else
-                                <span class="badge bg-danger">{{ $campus->status_text }}</span>
+                                <span class="badge bg-red-100 text-red-700">{{ $campus->status_text }}</span>
                             @endif
                         </td>
                         <td>

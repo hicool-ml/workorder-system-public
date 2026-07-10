@@ -244,6 +244,9 @@
 
     @endif
 
+    {{-- jQuery for pages that use it (create/edit workorder) --}}
+    <script src="{{ asset('js/jquery.min.js') }}"></script>
+
     @yield('scripts')
 
 

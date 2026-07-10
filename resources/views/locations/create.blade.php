@@ -12,29 +12,29 @@
     </div>
 </div>
 
-<div class="row">
-    <div class="col-md-8">
-        <div class="card">
-            <div class="card-header">
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+    <div class="">
+        <div class="card p-5">
+            <div class="text-sm font-semibold text-ink mb-3">
                 <h5 class="card-title mb-0">地址信息</h5>
             </div>
-            <div class="card-body">
+            <div >
                 <form method="POST" action="{{ route('locations.store') }}">
                     @csrf
                     
                     <div class="row g-3 mb-4">
-                        <div class="col-md-12">
-                            <label for="name" class="form-label">地址名称 <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control" id="name" name="name" autocomplete="off"
+                        <div class="">
+                            <label for="name" class="label">地址名称 <span class="text-red-500">*</span></label>
+                            <input type="text" class="input" id="name" name="name" autocomplete="off"
                                    value="{{ old('name') }}" required maxlength="255" autocomplete="off"
                                    placeholder="如：老校区1-7教" autocomplete="street-address">
                         </div>
                     </div>
                     
                     <div class="row g-3 mb-4">
-                        <div class="col-md-4">
-                            <label for="campus_id" class="form-label">校区 <span class="text-danger">*</span></label>
-                            <select class="form-select" id="campus_id" name="campus_id" required>
+                        <div class="">
+                            <label for="campus_id" class="label">校区 <span class="text-red-500">*</span></label>
+                            <select class="input" id="campus_id" name="campus_id" required>
                                 <option value="">请选择校区</option>
                                 @foreach($campuses as $id => $name)
                                 <option value="{{ $id }}" {{ old('campus_id') == $id ? 'selected' : '' }}>
@@ -43,9 +43,9 @@
                                 @endforeach
                             </select>
                         </div>
-                        <div class="col-md-4">
-                            <label for="building_type" class="form-label">建筑类型 <span class="text-danger">*</span></label>
-                            <select class="form-select" id="building_type" name="building_type" required>
+                        <div class="">
+                            <label for="building_type" class="label">建筑类型 <span class="text-red-500">*</span></label>
+                            <select class="input" id="building_type" name="building_type" required>
                                 <option value="">请选择建筑类型</option>
                                 @foreach(\App\Models\Location::BUILDING_TYPES as $key => $value)
                                 <option value="{{ $key }}" {{ old('building_type') == $key ? 'selected' : '' }}>
@@ -54,9 +54,9 @@
                                 @endforeach
                             </select>
                         </div>
-                        <div class="col-md-4">
-                            <label for="status" class="form-label">状态 <span class="text-danger">*</span></label>
-                            <select class="form-select" id="status" name="status" required>
+                        <div class="">
+                            <label for="status" class="label">状态 <span class="text-red-500">*</span></label>
+                            <select class="input" id="status" name="status" required>
                                 @foreach(\App\Models\Location::STATUSES as $key => $value)
                                 <option value="{{ $key }}" {{ old('status', 'active') == $key ? 'selected' : '' }}>
                                     {{ $value }}
@@ -67,17 +67,17 @@
                     </div>
                     
                     <div class="row g-3 mb-4">
-                        <div class="col-md-6">
-                            <label for="sort_order" class="form-label">排序</label>
-                            <input type="number" class="form-control" id="sort_order" name="sort_order"
+                        <div class="">
+                            <label for="sort_order" class="label">排序</label>
+                            <input type="number" class="input" id="sort_order" name="sort_order"
                                    value="{{ old('sort_order', 0) }}" min="0" autocomplete="off">
                             <div class="form-text">数字越小排序越靠前</div>
                         </div>
                     </div>
                     
                     <div class="mb-4">
-                        <label for="description" class="form-label">描述</label>
-                        <textarea class="form-control" id="description" name="description" rows="3"
+                        <label for="description" class="label">描述</label>
+                        <textarea class="input" id="description" name="description" rows="3"
                                   placeholder="地址的详细描述" autocomplete="off">{{ old('description') }}</textarea>
                     </div>
                     
@@ -94,13 +94,13 @@
         </div>
     </div>
     
-    <div class="col-md-4">
+    <div class="">
         <!-- 说明 -->
         <div class="card mb-4">
-            <div class="card-header">
+            <div class="text-sm font-semibold text-ink mb-3">
                 <h6 class="card-title mb-0">填写说明</h6>
             </div>
-            <div class="card-body">
+            <div >
                 <ul class="mb-0">
                     <li><strong>地址名称：</strong>具体的地址描述，如"老校区1-7教"</li>
                     <li><strong>校区：</strong>选择所属校区</li>
@@ -112,10 +112,10 @@
         
         <!-- 校区说明 -->
         <div class="card mb-4">
-            <div class="card-header">
+            <div class="text-sm font-semibold text-ink mb-3">
                 <h6 class="card-title mb-0">校区说明</h6>
             </div>
-            <div class="card-body">
+            <div >
                 <div class="mb-2">
                     <strong>老校区：</strong>包含1-7教学楼、1-10学生宿舍
                 </div>
