@@ -23,13 +23,13 @@ class AuthenticatedSessionController extends Controller
     public function store(Request $request)
     {
         $credentials = $request->validate([
-            'name' => ['required', 'string'],
+            'login' => ['required', 'string'],
             'password' => ['required'],
         ]);
 
         // 尝试使用用户名登录
         $usernameCredentials = [
-            'username' => $credentials['name'],
+            'username' => $credentials['login'],
             'password' => $credentials['password']
         ];
         
@@ -40,7 +40,7 @@ class AuthenticatedSessionController extends Controller
 
         // 如果用户名登录失败，尝试使用邮箱登录
         $emailCredentials = [
-            'email' => $credentials['name'],
+            'email' => $credentials['login'],
             'password' => $credentials['password']
         ];
 
@@ -50,8 +50,8 @@ class AuthenticatedSessionController extends Controller
         }
 
         return back()->withErrors([
-            'name' => '用户名或密码错误。',
-        ])->onlyInput('name');
+            'login' => '用户名或密码错误。',
+        ])->onlyInput('login');
     }
 
     /**

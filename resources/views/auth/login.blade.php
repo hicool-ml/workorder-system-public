@@ -15,8 +15,8 @@
     <form method="POST" action="{{ route('login') }}">
         @csrf
         <div class="mb-4">
-            <label class="label" for="name">用户名 / 邮箱</label>
-            <input type="text" class="input" id="name" name="name" value="{{ old('name') }}" required autocomplete="username" autofocus placeholder="请输入用户名或邮箱">
+            <label class="label" for="login">用户名</label>
+            <input type="text" class="input" id="login" name="login" value="{{ old('login') }}" required autocomplete="username" autofocus placeholder="请输入用户名">
         </div>
         <div class="mb-4">
             <label class="label" for="password">密码</label>
