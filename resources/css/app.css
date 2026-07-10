@@ -114,7 +114,17 @@
     .btn-danger:hover:not(:disabled) { background-color: #dc2626; }
     .btn-ghost { background-color: transparent; color: var(--c-ink-muted); }
     .btn-ghost:hover:not(:disabled) { background-color: var(--c-muted); color: var(--c-ink); }
-    .btn-sm { padding: 0.375rem 0.75rem; font-size: 0.8125rem; }
+    .btn-outline-primary { background-color: transparent; color: var(--c-brand); border-color: var(--c-brand); }
+    .btn-outline-primary:hover:not(:disabled) { background-color: var(--c-brand-light); }
+    .btn-outline-danger { background-color: transparent; color: #ef4444; border-color: #ef4444; }
+    .btn-outline-danger:hover:not(:disabled) { background-color: rgba(239,68,68,0.08); }
+    .btn-outline-warning { background-color: transparent; color: #d97706; border-color: #d97706; }
+    .btn-outline-warning:hover:not(:disabled) { background-color: rgba(217,119,6,0.08); }
+    .btn-outline-success { background-color: transparent; color: #16a34a; border-color: #16a34a; }
+    .btn-outline-success:hover:not(:disabled) { background-color: rgba(22,163,74,0.08); }
+    .btn-outline-secondary { background-color: transparent; color: var(--c-ink-muted); border-color: var(--c-border-strong); }
+    .btn-outline-secondary:hover:not(:disabled) { background-color: var(--c-muted); }
+   .btn-sm { padding: 0.375rem 0.75rem; font-size: 0.8125rem; }
     .btn-icon { padding: 0.5rem; width: 2.25rem; height: 2.25rem; }
 
     .card { background-color: var(--c-card); border: 1px solid var(--c-border); border-radius: 0.75rem; }

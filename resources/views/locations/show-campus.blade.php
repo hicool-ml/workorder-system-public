@@ -3,68 +3,68 @@
 @section('title', '校区详情')
 
 @section('content')
-<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
-    <h1 class="h2">校区详情</h1>
-    <div class="btn-toolbar mb-2 mb-md-0">
-        <div class="btn-group" role="group">
+<div class="flex items-center justify-between mb-6 pb-4 border-b border-border">
+    <h1 class="text-xl font-semibold text-ink">校区详情</h1>
+    <div class="flex gap-2">
+        <div class="flex gap-2" role="group">
             <a href="{{ route('locations.campuses') }}" class="btn btn-secondary">
-                <i class="fas fa-arrow-left"></i> 返回列表
+                <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 12H5 M12 19l-7-7 7-7"/></svg> 返回列表
             </a>
             <a href="{{ route('locations.edit-campus', $campus->id) }}" class="btn btn-primary">
-                <i class="fas fa-edit"></i> 编辑校区
+                <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7 M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg> 编辑校区
             </a>
         </div>
     </div>
 </div>
 
 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-    <div class="">
+    <div>
         <div class="card p-5">
             <div class="text-sm font-semibold text-ink mb-3">
-                <h5 class="card-title mb-0">基本信息</h5>
+                <h5 class="text-sm font-semibold text-ink">基本信息</h5>
             </div>
-            <div >
+            <div>
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-3">
-                    <div class="">
+                    <div>
                         <strong>校区ID：</strong>
                     </div>
-                    <div class="">
+                    <div>
                         {{ $campus->id }}
                     </div>
                 </div>
                 
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-3">
-                    <div class="">
+                    <div>
                         <strong>校区名称：</strong>
                     </div>
-                    <div class="">
+                    <div>
                         {{ $campus->name }}
                     </div>
                 </div>
                 
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-3">
-                    <div class="">
+                    <div>
                         <strong>校区描述：</strong>
                     </div>
-                    <div class="">
+                    <div>
                         {{ $campus->description ?: '-' }}
                     </div>
                 </div>
                 
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-3">
-                    <div class="">
+                    <div>
                         <strong>排序顺序：</strong>
                     </div>
-                    <div class="">
+                    <div>
                         {{ $campus->sort_order }}
                     </div>
                 </div>
                 
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-3">
-                    <div class="">
+                    <div>
                         <strong>状态：</strong>
                     </div>
-                    <div class="">
+                    <div>
                         @if($campus->status == 'active')
                             <span class="badge bg-green-100 text-green-700">{{ $campus->status_text }}</span>
                         @else
@@ -74,19 +74,19 @@
                 </div>
                 
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-3">
-                    <div class="">
+                    <div>
                         <strong>创建时间：</strong>
                     </div>
-                    <div class="">
+                    <div>
                         {{ $campus->created_at->format('Y-m-d H:i:s') }}
                     </div>
                 </div>
                 
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-3">
-                    <div class="">
+                    <div>
                         <strong>更新时间：</strong>
                     </div>
-                    <div class="">
+                    <div>
                         {{ $campus->updated_at->format('Y-m-d H:i:s') }}
                     </div>
                 </div>
@@ -94,15 +94,15 @@
         </div>
     </div>
     
-    <div class="">
+    <div>
         <div class="card p-5">
             <div class="text-sm font-semibold text-ink mb-3">
-                <h5 class="card-title mb-0">操作</h5>
+                <h5 class="text-sm font-semibold text-ink">操作</h5>
             </div>
-            <div >
+            <div>
                 <div class="d-grid gap-2">
                     <a href="{{ route('locations.edit-campus', $campus->id) }}" class="btn btn-primary">
-                        <i class="fas fa-edit"></i> 编辑校区
+                        <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7 M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg> 编辑校区
                     </a>
                     
                     <form action="{{ route('locations.toggle-campus-status', $campus->id) }}" method="POST">
@@ -115,7 +115,7 @@
                     </form>
                     
                     <a href="{{ route('locations.create') }}?campus_id={{ $campus->id }}" class="btn btn-primary">
-                        <i class="fas fa-plus"></i> 新增地址
+                        <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 5v14M5 12h14"/></svg> 新增地址
                     </a>
                     
                     <form action="{{ route('locations.destroy-campus', $campus->id) }}" method="POST"
@@ -123,7 +123,7 @@
                         @csrf
                         @method('DELETE')
                         <button type="submit" class="btn btn-danger w-100" {{ $campus->canBeDeleted() ? '' : 'disabled' }}>
-                            <i class="fas fa-trash"></i> 删除校区
+                            <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 6h18 M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2 M10 11v6 M14 11v6"/></svg> 删除校区
                             @if(!$campus->canBeDeleted())
                                 <br><small class="text-ink-muted">（有关联地址，无法删除）</small>
                             @endif
@@ -137,13 +137,13 @@
 
 @if($campus->locations->count() > 0)
 <div class="row mt-4">
-    <div class="">
+    <div>
         <div class="card p-5">
             <div class="text-sm font-semibold text-ink mb-3">
-                <h5 class="card-title mb-0">关联地址 ({{ $campus->locations->count() }})</h5>
+                <h5 class="text-sm font-semibold text-ink">关联地址 ({{ $campus->locations->count() }})</h5>
             </div>
-            <div >
-                <div class="table-responsive">
+            <div>
+                <div class="overflow-x-auto">
                     <table class="table table-striped table-hover">
                         <thead>
                             <tr>
@@ -172,14 +172,14 @@
                                     @endif
                                 </td>
                                 <td>
-                                    <div class="btn-group" role="group">
+                                    <div class="flex gap-2" role="group">
                                         <a href="{{ route('locations.show', $location->id) }}"
                                            class="btn btn-sm btn-outline-info" title="查看">
-                                            <i class="fas fa-eye"></i>
+                                            <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/></svg>
                                         </a>
                                         <a href="{{ route('locations.edit', $location->id) }}"
                                            class="btn btn-sm btn-outline-primary" title="编辑">
-                                            <i class="fas fa-edit"></i>
+                                            <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7 M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                                         </a>
                                     </div>
                                 </td>

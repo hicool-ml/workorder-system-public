@@ -3,29 +3,29 @@
 @section('title', '编辑工单 - ' . $workorder->ticket_no)
 
 @section('content')
-<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
-    <h1 class="h2">编辑工单</h1>
-    <div class="btn-toolbar mb-2 mb-md-0">
+<div class="flex items-center justify-between mb-6 pb-4 border-b border-border">
+    <h1 class="text-xl font-semibold text-ink">编辑工单</h1>
+    <div class="flex gap-2">
         <a href="{{ route('workorders.show', $workorder->id) }}" class="btn btn-secondary">
-            <i class="fas fa-arrow-left"></i> 返回详情
+            <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 12H5 M12 19l-7-7 7-7"/></svg> 返回详情
         </a>
     </div>
 </div>
 
 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-    <div class="">
+    <div>
         <div class="card p-5">
             <div class="text-sm font-semibold text-ink mb-3">
-                <h5 class="card-title mb-0">编辑工单信息</h5>
+                <h5 class="text-sm font-semibold text-ink">编辑工单信息</h5>
             </div>
-            <div >
+            <div>
                 <form method="POST" action="{{ route('workorders.update', $workorder->id) }}">
                     @csrf
                     @method('PUT')
                     
                     <!-- 工单分类 -->
-                    <div class="row g-3 mb-4">
-                        <div class="">
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+                        <div>
                             <label for="category_main" class="label">工单大类 <span class="text-red-500">*</span></label>
                             <select class="input" id="category_main" name="category_main" required>
                                 <option value="">请选择工单大类</option>
@@ -39,10 +39,10 @@
                                 @endforeach
                             </select>
                             @error('category_main')
-                                <div class="invalid-feedback d-block">{{ $message }}</div>
+                                <div class="text-xs text-red-600 mt-1">{{ $message }}</div>
                             @enderror
                         </div>
-                        <div class="">
+                        <div>
                             <label for="category_sub" class="label">故障分类 <span class="text-red-500">*</span></label>
                             <select class="input" id="category_sub" name="category_sub" required>
                                 <option value="">请先选择工单大类</option>
@@ -53,7 +53,7 @@
                                 @endif
                             </select>
                             @error('category_sub')
-                                <div class="invalid-feedback d-block">{{ $message }}</div>
+                                <div class="text-xs text-red-600 mt-1">{{ $message }}</div>
                             @enderror
                         </div>
                     </div>
@@ -62,31 +62,31 @@
                         <label for="description" class="label">问题描述 <span class="text-red-500">*</span></label>
                         <textarea class="input" id="description" name="description" rows="6" required
                                   placeholder="请详细描述遇到的问题，包括现象、影响范围等">{{ old('description', $workorder->description) }}</textarea>
-                        <div class="form-text">请尽可能详细地描述问题，以便技术人员快速定位和解决</div>
+                        <div class="text-xs text-ink-muted mt-1">请尽可能详细地描述问题，以便技术人员快速定位和解决</div>
                     </div>
                     
                     <!-- 联系信息 -->
                     <h6 class="mb-4">联系信息</h6>
-                    <div class="row g-3 mb-4">
-                        <div class="">
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+                        <div>
                             <label for="contact_name" class="label">联系人 <span class="text-red-500">*</span></label>
                             <input type="text" class="input" id="contact_name" name="contact_name"
                                    value="{{ old('contact_name', $workorder->contact_name) }}" required maxlength="100" autocomplete="name">
                         </div>
-                        <div class="">
+                        <div>
                             <label for="contact_phone" class="label">联系电话 <span class="text-red-500">*</span></label>
                             <input type="tel" class="input" id="contact_phone" name="contact_phone"
                                    value="{{ old('contact_phone', $workorder->contact_phone) }}" required maxlength="20" autocomplete="tel">
                         </div>
-                        <div class="">
+                        <div>
                             <label for="contact_email" class="label">联系邮箱</label>
                             <input type="email" class="input" id="contact_email" name="contact_email"
                                    value="{{ old('contact_email', $workorder->contact_email) }}" maxlength="100" autocomplete="email">
                         </div>
                         
                         <!-- 工单来源和优先级 -->
-                        <div class="row g-3 mb-3">
-                            <div class="">
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
+                            <div>
                                 <label for="source" class="label">工单来源 <span class="text-red-500">*</span></label>
                                 <select class="input" id="source" name="source" required onchange="toggleCustomSource()">
                                     @foreach(\App\Models\WorkorderSource::getActiveSources() as $source)
@@ -96,12 +96,12 @@
                                     @endforeach
                                 </select>
                                 @error('source')
-                                    <div class="invalid-feedback d-block">{{ $message }}</div>
+                                    <div class="text-xs text-red-600 mt-1">{{ $message }}</div>
                                 @enderror
                             </div>
-                            <div class="">
+                            <div>
                                 <label class="label">优先级 <span class="text-red-500">*</span></label>
-                                <div class="d-flex flex-wrap gap-3">
+                                <div class="flex flex-wrap gap-3">
                                     <div class="flex items-center gap-2">
                                         <input class="rounded border-border-strong w-4 h-4" type="radio" name="priority" id="priority_low" value="low"
                                                {{ old('priority', $workorder->priority) == 'low' ? 'checked' : '' }} autocomplete="off">
@@ -125,20 +125,20 @@
                                     </div>
                                 </div>
                                 @error('priority')
-                                    <div class="invalid-feedback d-block">{{ $message }}</div>
+                                    <div class="text-xs text-red-600 mt-1">{{ $message }}</div>
                                 @enderror
                             </div>
                         </div>
                         
                         <!-- 其他来源说明 -->
-                        <div class="row g-3 mb-3" id="other_source_row" style="display: none;">
-                            <div class="">
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3" id="other_source_row" style="display: none;">
+                            <div>
                                 <label for="other_source" class="label">其他来源说明 <span class="text-red-500">*</span></label>
                                 <input type="text" class="input" id="other_source" name="other_source" autocomplete="off"
                                        value="{{ old('other_source', $workorder->other_source) }}" maxlength="50" autocomplete="off"
                                        placeholder="请说明具体的报修来源" autocomplete="off">
                                 @error('other_source')
-                                    <div class="invalid-feedback d-block">{{ $message }}</div>
+                                    <div class="text-xs text-red-600 mt-1">{{ $message }}</div>
                                 @enderror
                             </div>
                         </div>
@@ -146,8 +146,8 @@
                     
                     <!-- 位置信息 -->
                     <h6 class="mb-4">位置信息</h6>
-                    <div class="row g-3 mb-4">
-                        <div class="">
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+                        <div>
                             <label for="campus" class="label">校区 <span class="text-red-500">*</span></label>
                             <label for="campus_id" class="label">校区 <span class="text-red-500">*</span></label>
                             <select class="input" id="campus_id" name="campus_id" required>
@@ -157,55 +157,55 @@
                                 @endforeach
                             </select>
                         </div>
-                        <div class="">
+                        <div>
                             <label for="building" class="label">楼栋 <span class="text-red-500">*</span></label>
                             <select class="input" id="building" name="building" required>
                                 <option value="">请先选择校区</option>
                             </select>
                         </div>
-                        <div class="">
+                        <div>
                             <label for="location_detail" class="label">详细地址</label>
                             <input type="text" class="input" id="location_detail" name="location_detail" autocomplete="street-address"
                                    value="{{ old('location_detail', $workorder->location_detail) }}" maxlength="500" autocomplete="street-address"
                                    placeholder="如：301室" autocomplete="street-address">
                         </div>
                     </div>
-                    <div class="row g-3 mb-3">
-                        <div class="">
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
+                        <div>
                             <label for="appointment_time_start" class="label">预约时间</label>
-                            <div class="row g-2">
-                                <div class="col-6">
+                            <div class="grid grid-cols-2 gap-2">
+                                <div>
                                     <input type="datetime-local" class="input" id="appointment_time_start" name="appointment_time_start"
                                            value="{{ old('appointment_time_start', $workorder->appointment_time_start ? $workorder->appointment_time_start->format('Y-m-d\TH:i') : '') }}" placeholder="开始时间" autocomplete="off">
                                 </div>
-                                <div class="col-6">
+                                <div>
                                     <input type="datetime-local" class="input" id="appointment_time_end" name="appointment_time_end"
                                            value="{{ old('appointment_time_end', $workorder->appointment_time_end ? $workorder->appointment_time_end->format('Y-m-d\TH:i') : '') }}" placeholder="结束时间" autocomplete="off">
                                 </div>
                             </div>
-                            <div class="form-text">请选择具体的预约时间段，如：12月15日 14:00 - 12月15日 16:00</div>
+                            <div class="text-xs text-ink-muted mt-1">请选择具体的预约时间段，如：12月15日 14:00 - 12月15日 16:00</div>
                             @error('appointment_time_start')
-                                <div class="invalid-feedback d-block">{{ $message }}</div>
+                                <div class="text-xs text-red-600 mt-1">{{ $message }}</div>
                             @enderror
                             @error('appointment_time_end')
-                                <div class="invalid-feedback d-block">{{ $message }}</div>
+                                <div class="text-xs text-red-600 mt-1">{{ $message }}</div>
                             @enderror
                         </div>
-                        <div class="">
+                        <div>
                             <label for="time_limit_hours" class="label">处理时限（小时）</label>
                             <input type="number" class="input" id="time_limit_hours" name="time_limit_hours"
                                    value="{{ old('time_limit_hours', $workorder->time_limit_hours) }}" min="1" max="168" step="1"
                                    placeholder="默认根据工单类型设置" autocomplete="off">
                             @error('time_limit_hours')
-                                <div class="invalid-feedback d-block">{{ $message }}</div>
+                                <div class="text-xs text-red-600 mt-1">{{ $message }}</div>
                             @enderror
                         </div>
                     </div>
                     
                     <!-- 工单属性 -->
                     <h6 class="mb-4">工单属性</h6>
-                    <div class="row g-3 mb-4">
-                        <div class="">
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+                        <div>
                             <label for="department_id" class="label">所属部门</label>
                             <select class="input" id="department_id" name="department_id">
                                 <option value="">请选择部门</option>
@@ -217,7 +217,7 @@
                                 @endforeach
                             </select>
                         </div>
-                        <div class="">
+                        <div>
                             <label class="label">特殊标记</label>
                             <div class="flex items-center gap-2 mt-2">
                                 <input class="rounded border-border-strong w-4 h-4" type="checkbox" id="need_visit" name="need_visit"
@@ -246,7 +246,7 @@
                         <label for="materials_usage" class="label">备件耗材使用情况</label>
                         <textarea class="input" id="materials_usage" name="materials_usage" rows="3"
                                   placeholder="请记录使用的备件、耗材情况，如名称、规格、数量等">{{ old('materials_usage', $workorder->materials_usage) }}</textarea>
-                        <div class="form-text">记录维修过程中使用的备件和耗材信息</div>
+                        <div class="text-xs text-ink-muted mt-1">记录维修过程中使用的备件和耗材信息</div>
                     </div>
                     @endif
                     
@@ -255,7 +255,7 @@
                         <label for="solution" class="label">解决方案</label>
                         <textarea class="input" id="solution" name="solution" rows="4"
                                   placeholder="请描述问题的解决方案" autocomplete="off">{{ old('solution', $workorder->solution) }}</textarea>
-                        <div class="form-text">详细说明问题解决的方法和过程</div>
+                        <div class="text-xs text-ink-muted mt-1">详细说明问题解决的方法和过程</div>
                     </div>
                     @endif
                     
@@ -274,16 +274,16 @@
                             <label class="label">当前附件</label>
                             @foreach($workorder->attachments as $attachment)
                             <div class="attachment-item mb-2 p-2 border rounded">
-                                <div class="d-flex align-items-start">
-                                    <div class="attachment-thumbnail me-3">
+                                <div class="flex items-start gap-3">
+                                    <div class="attachment-thumbnail mr-3">
                                         @if($attachment->isImage())
                                             <img src="{{ $attachment->preview_url }}"
-                                                 class="img-thumbnail"
+                                                 class="rounded-lg border border-border"
                                                  alt="{{ $attachment->original_name }}"
                                                  style="width: 50px; height: 50px; object-fit: cover; cursor: pointer;"
                                                  onclick="showImagePreview('{{ $attachment->preview_url }}', '{{ $attachment->original_name }}')">
                                         @else
-                                            <i class="{{ $attachment->getFileIcon() }} fa-lg text-ink-muted"></i>
+                                            <i class="{{ $attachment->getFileIcon() }} text-lg text-ink-muted"></i>
                                         @endif
                                     </div>
                                     <div class="attachment-info flex-grow-1">
@@ -292,12 +292,12 @@
                                                 <h6 class="mb-1">{{ $attachment->original_name }}</h6>
                                                 <small class="text-ink-muted">{{ $attachment->formatted_file_size }}</small>
                                             </div>
-                                            <div class="btn-group btn-group-sm">
+                                            <div class="flex gap-1">
                                                 @if($attachment->isImage())
                                                 <button type="button" class="btn btn-secondary"
                                                         onclick="showImagePreview('{{ $attachment->preview_url }}', '{{ $attachment->original_name }}')"
                                                         title="预览">
-                                                    <i class="fas fa-eye"></i>
+                                                    <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/></svg>
                                                 </button>
                                                 @endif
                                                 <a href="{{ $attachment->download_url }}" class="btn btn-ghost" title="下载">
@@ -309,7 +309,7 @@
                                                     @csrf
                                                     @method('DELETE')
                                                     <button type="submit" class="btn btn-outline-danger" title="删除">
-                                                        <i class="fas fa-trash"></i>
+                                                        <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 6h18 M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2 M10 11v6 M14 11v6"/></svg>
                                                     </button>
                                                 </form>
                                                 @endif
@@ -327,7 +327,7 @@
                             <label for="new_attachments" class="label">上传新附件</label>
                             <input type="file" class="input" id="new_attachments" name="new_attachments[]"
                                    multiple accept=".jpg,.jpeg,.png,.gif,.pdf,.doc,.docx,.txt" autocomplete="off">
-                            <div class="form-text">
+                            <div class="text-xs text-ink-muted mt-1">
                                 支持上传图片、文档等文件，单个文件最大10MB，最多5个文件
                             </div>
                             <div id="newAttachmentPreview" class="mt-2"></div>
@@ -337,11 +337,11 @@
                     
                     <!-- 提交按钮 -->
                     <div class="d-flex justify-content-end">
-                        <a href="{{ route('workorders.show', $workorder->id) }}" class="btn btn-secondary me-2">
-                            <i class="fas fa-times"></i> 取消
+                        <a href="{{ route('workorders.show', $workorder->id) }}" class="btn btn-secondary mr-2">
+                            <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M18 6L6 18M6 6l12 12"/></svg> 取消
                         </a>
                         <button type="submit" class="btn btn-primary">
-                            <i class="fas fa-save"></i> 保存更改
+                            <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z M17 21v-8H7v8 M7 3v5h8"/></svg> 保存更改
                         </button>
                     </div>
                 </form>
@@ -349,13 +349,13 @@
         </div>
     </div>
     
-    <div class="">
+    <div>
         <!-- 工单状态信息 -->
         <div class="card mb-4">
             <div class="text-sm font-semibold text-ink mb-3">
-                <h6 class="card-title mb-0">工单状态</h6>
+                <h6 class="text-sm font-semibold text-ink">工单状态</h6>
             </div>
-            <div >
+            <div>
                 <div class="mb-2">
                     <strong>工单编号：</strong>{{ $workorder->ticket_no }}
                 </div>
@@ -374,9 +374,9 @@
                     <input type="datetime-local" class="input" id="created_at" name="created_at"
                            value="{{ old('created_at', $workorder->created_at ? $workorder->created_at->format('Y-m-d\TH:i') : '') }}" autocomplete="off">
                     @error('created_at')
-                        <div class="invalid-feedback d-block">{{ $message }}</div>
+                        <div class="text-xs text-red-600 mt-1">{{ $message }}</div>
                     @enderror
-                    <div class="form-text">管理员可以修改工单创建时间</div>
+                    <div class="text-xs text-ink-muted mt-1">管理员可以修改工单创建时间</div>
                 </div>
                 @endif
                 @if($workorder->assignee)
@@ -395,9 +395,9 @@
         <!-- 编辑提示 -->
         <div class="card mb-4">
             <div class="text-sm font-semibold text-ink mb-3">
-                <h6 class="card-title mb-0">编辑提示</h6>
+                <h6 class="text-sm font-semibold text-ink">编辑提示</h6>
             </div>
-            <div >
+            <div>
                 <ul class="mb-0">
                     <li>只有工单创建人可以编辑未分配的工单</li>
                     <li>已分配或开始处理的工单不能修改基本信息</li>
@@ -410,9 +410,9 @@
         <!-- 优先级说明 -->
         <div class="card p-5">
             <div class="text-sm font-semibold text-ink mb-3">
-                <h6 class="card-title mb-0">优先级说明</h6>
+                <h6 class="text-sm font-semibold text-ink">优先级说明</h6>
             </div>
-            <div >
+            <div>
                 <div class="mb-2">
                     <span class="badge bg-red-100 text-red-700">高</span>
                     <small>严重影响正常工作或学习</small>
@@ -576,7 +576,7 @@ $('#new_attachments').change(async function() {
         
         // 显示处理中状态
         var processingDiv = $('<div class="p-3 rounded-lg bg-amber-50 text-amber-700 text-sm mb-2">');
-        processingDiv.html('<span><i class="fas fa-spinner fa-spin"></i> 正在处理 ' + file.name + '...</span>');
+        processingDiv.html('<span><i class="fas animate-spinner animate-spin"></i> 正在处理 ' + file.name + '...</span>');
         preview.append(processingDiv);
         
         try {
@@ -622,7 +622,7 @@ $('#new_attachments').change(async function() {
             
             // 显示错误信息
             var errorDiv = $('<div class="p-3 rounded-lg bg-red-50 text-red-700 text-sm mb-2">');
-            errorDiv.html('<span><i class="fas fa-exclamation-triangle"></i> 处理 ' + file.name + ' 时出错: ' + error.message + '</span>');
+            errorDiv.html('<span><svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z M12 9v4 M12 17h.01"/></svg> 处理 ' + file.name + ' 时出错: ' + error.message + '</span>');
             preview.append(errorDiv);
             
             // 即使出错也要保留原始文件
@@ -637,13 +637,13 @@ $('#new_attachments').change(async function() {
 // 创建附件预览
 function createAttachmentPreview(file, fileIndex, previewContainer, options) {
     var fileDiv = $('<div class="attachment-item mb-2 p-2 border rounded">');
-    var thumbnailDiv = $('<div class="attachment-thumbnail me-3">');
+    var thumbnailDiv = $('<div class="attachment-thumbnail mr-3">');
     
     if (file.type.startsWith('image/')) {
         // 图片文件显示缩略图
         var reader = new FileReader();
         reader.onload = function(e) {
-            var img = $('<img src="' + e.target.result + '" class="img-thumbnail" alt="' + file.name + '" style="width: 50px; height: 50px; object-fit: cover; cursor: pointer;">');
+            var img = $('<img src="' + e.target.result + '" class="rounded-lg border border-border" alt="' + file.name + '" style="width: 50px; height: 50px; object-fit: cover; cursor: pointer;">');
             thumbnailDiv.html(img);
             
             // 点击预览大图
@@ -656,7 +656,7 @@ function createAttachmentPreview(file, fileIndex, previewContainer, options) {
     } else {
         // 非图片文件显示文件图标
         var iconClass = getFileIcon(file.name);
-        thumbnailDiv.html('<i class="' + iconClass + ' fa-lg"></i>');
+        thumbnailDiv.html('<i class="' + iconClass + ' text-lg"></i>');
     }
     
     // 文件信息和描述
@@ -666,7 +666,7 @@ function createAttachmentPreview(file, fileIndex, previewContainer, options) {
     
     // 如果是压缩后的图片，显示压缩信息
     if (options.isCompressed) {
-        fileSizeHtml += ' <span class="badge bg-success ms-1">已压缩</span>';
+        fileSizeHtml += ' <span class="badge bg-green-100 text-green-700">已压缩</span>';
         fileSizeHtml += '<div class="text-ink-muted small">原始: ' + options.originalSize + ' → 压缩后: ' + options.compressedSize + '</div>';
     }
     
@@ -827,44 +827,26 @@ function getFileIcon(filename) {
 
 // 显示图片预览模态框
 function showImagePreview(imageSrc, fileName) {
-    // 移除已存在的模态框
     $('#imagePreviewModal').remove();
-    
-    var modalHtml = '<div class="modal fade" id="imagePreviewModal" tabindex="-1">' +
-        '<div class="modal-dialog modal-lg modal-dialog-centered">' +
-            '<div class="modal-content">' +
-                '<div class="modal-header">' +
-                    '<h5 class="modal-title">图片预览 - ' + fileName + '</h5>' +
-                    '<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="关闭图片预览"></button>' +
-                '</div>' +
-                '<div class="modal-body text-center p-0">' +
-                    '<div class="d-flex justify-content-center align-items-center" style="min-height: 400px; background-color: #f8f9fa;">' +
-                        '<img src="' + imageSrc + '" class="img-fluid" alt="' + fileName + '" style="max-height: 70vh; object-fit: contain;">' +
-                    '</div>' +
-                '</div>' +
-                '<div class="modal-footer">' +
-                    '<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>' +
-                '</div>' +
+
+    var modalHtml = '<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" id="imagePreviewModal" onclick="if(event.target===this)this.remove()">' +
+        '<div class="relative w-full max-w-3xl card shadow-2xl">' +
+            '<div class="flex items-center justify-between px-5 py-3 border-b border-border">' +
+                '<h5 class="text-sm font-semibold text-ink">\u56fe\u7247\u9884\u89c8 - ' + fileName + '</h5>' +
+                '<button type="button" class="btn btn-icon btn-ghost" onclick="document.getElementById(\'imagePreviewModal\').remove()">' +
+                    '<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12"/></svg>' +
+                '</button>' +
+            '</div>' +
+            '<div class="p-5 flex items-center justify-center" style="min-height: 300px;">' +
+                '<img src="' + imageSrc + '" class="max-w-full h-auto rounded-lg" alt="' + fileName + '" style="max-height: 70vh; object-fit: contain;">' +
             '</div>' +
         '</div>' +
     '</div>';
-    
+
     $('body').append(modalHtml);
-    
-    // 显示模态框
-    var modal = new bootstrap.Modal(document.getElementById('imagePreviewModal'));
-    modal.show();
-    
-    // 模态框关闭时移除DOM
-    $('#imagePreviewModal').on('hidden.bs.modal', function () {
-        $(this).remove();
-    });
-    
-    // ESC键关闭模态框
-    $(document).on('keydown', function(e) {
-        if (e.keyCode === 27) { // ESC key
-            $('#imagePreviewModal').modal('hide');
-        }
+
+    $(document).on('keydown.imgPreview', function(e) {
+        if (e.keyCode === 27) { $('#imagePreviewModal').remove(); $(this).off('keydown.imgPreview'); }
     });
 }
 </script>
