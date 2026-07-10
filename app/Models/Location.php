@@ -11,7 +11,7 @@ class Location extends Model
 
     protected $fillable = [
         'name',
-        'campus',
+        'campus_id',
         'building_type',
         'building_code',
         'description',
@@ -21,14 +21,16 @@ class Location extends Model
 
     protected $casts = [
         'sort_order' => 'integer',
+        'campus_id' => 'integer',
     ];
 
-    // 校区选项
-    const CAMPUSES = [
-        'old_campus' => '老校区',
-        'new_campus' => '新校区',
-        'asean_campus' => '东盟校区',
-    ];
+    /**
+     * 获取所属校区
+     */
+    public function campus()
+    {
+        return $this->belongsTo(Campus::class);
+    }
 
     // 建筑类型选项
     const BUILDING_TYPES = [
@@ -53,7 +55,7 @@ class Location extends Model
      */
     public function getCampusTextAttribute()
     {
-        return self::CAMPUSES[$this->campus] ?? $this->campus;
+        return $this->campus ? $this->campus->name : '未设置校区';
     }
 
     /**
@@ -98,9 +100,9 @@ class Location extends Model
     /**
      * 按校区查询
      */
-    public function scopeByCampus($query, $campus)
+    public function scopeByCampus($query, $campusId)
     {
-        return $query->where('campus', $campus);
+        return $query->where('campus_id', $campusId);
     }
 
     /**
@@ -124,11 +126,11 @@ class Location extends Model
      */
     public static function getCampusOptions(): array
     {
-        return [
-            'old_campus' => '老校区',
-            'new_campus' => '新校区',
-            'asean_campus' => '东盟校区',
-        ];
+        return Campus::where('status', 'active')
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->pluck('name', 'id')
+            ->toArray();
     }
     
     /**
@@ -136,18 +138,26 @@ class Location extends Model
      */
     public static function getCampusBuildings(): array
     {
-        $locations = self::active()->orderBy('campus')->orderBy('sort_order')->get();
+        $locations = self::with('campus')
+            ->active()
+            ->orderBy('campus_id')
+            ->orderBy('sort_order')
+            ->get();
         
         $result = [];
         
         foreach ($locations as $location) {
-            $campus = $location->campus;
+            $campusId = $location->campus_id;
+            $campusName = $location->campus ? $location->campus->name : '未设置校区';
             
-            if (!isset($result[$campus])) {
-                $result[$campus] = [];
+            if (!isset($result[$campusId])) {
+                $result[$campusId] = [
+                    'name' => $campusName,
+                    'buildings' => []
+                ];
             }
             
-            $result[$campus][] = [
+            $result[$campusId]['buildings'][] = [
                 'id' => $location->id,
                 'name' => $location->name,
                 'address' => $location->address ?? '',

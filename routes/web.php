@@ -124,6 +124,19 @@ Route::middleware(['auth'])->group(function () {
             'destroy' => 'locations.destroy',
         ]);
         
+        // 校区管理
+        Route::get('locations/campuses', [LocationController::class, 'campuses'])->name('locations.campuses');
+        Route::get('locations/create-campus', [LocationController::class, 'createCampus'])->name('locations.create-campus');
+        Route::post('locations/store-campus', [LocationController::class, 'storeCampus'])->name('locations.store-campus');
+        Route::get('locations/{campus}/show-campus', [LocationController::class, 'showCampus'])->name('locations.show-campus');
+        Route::get('locations/{campus}/edit-campus', [LocationController::class, 'editCampus'])->name('locations.edit-campus');
+        Route::put('locations/{campus}/update-campus', [LocationController::class, 'updateCampus'])->name('locations.update-campus');
+        Route::delete('locations/{campus}/destroy-campus', [LocationController::class, 'destroyCampus'])->name('locations.destroy-campus');
+        Route::patch('locations/{campus}/toggle-campus-status', [LocationController::class, 'toggleCampusStatus'])->name('locations.toggle-campus-status');
+        
+        // 校区重定向
+        Route::redirect('/campuses', '/locations/campuses', 301);
+        Route::redirect('/campuses/create', '/locations/create-campus', 301);
     });
     
     // 工单分类管理（管理员和工单管理员）- 使用简化的工单分类
