@@ -51,10 +51,13 @@ class AttachmentController extends Controller
             abort(403, '此文件类型不支持预览');
         }
         
-        $file = Storage::disk('public')->get($attachment->file_path);
-        $mimeType = $attachment->mime_type;
+        $mimeType = $attachment->mime_type ?: Storage::disk('public')->mimeType($attachment->file_path);
         
-        return response($file)->header('Content-Type', $mimeType);
+        return Storage::disk('public')->response($attachment->file_path, null, [
+            'Content-Type' => $mimeType,
+            'Content-Disposition' => 'inline',
+            'Cache-Control' => 'public, max-age=3600',
+        ]);
     }
     
     /**
@@ -83,7 +86,7 @@ class AttachmentController extends Controller
             'is_video' => $attachment->isVideo(),
             'is_audio' => $attachment->isAudio(),
             'can_preview' => $attachment->canPreview(),
-            'preview_type' => $attachment->getPreviewType(),
+            'preview_type' => $attachment->preview_type,
             'preview_url' => $attachment->canPreview() ? route('attachments.preview', $attachment) : null,
             'download_url' => route('attachments.download', $attachment),
             'uploaded_at' => $attachment->created_at->format('Y-m-d H:i:s'),

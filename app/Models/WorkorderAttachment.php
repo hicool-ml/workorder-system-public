@@ -83,7 +83,11 @@ class WorkorderAttachment extends Model
      */
     public function getExtensionAttribute(): string
     {
-        return pathinfo($this->filename, PATHINFO_EXTENSION);
+        $ext = pathinfo($this->filename, PATHINFO_EXTENSION);
+        if (!$ext) {
+            $ext = pathinfo($this->original_name, PATHINFO_EXTENSION);
+        }
+        return strtolower($ext);
     }
 
     /**
@@ -198,7 +202,7 @@ class WorkorderAttachment extends Model
     /**
      * 获取预览类型
      */
-    public function getPreviewType(): string
+    public function getPreviewTypeAttribute(): string
     {
         if ($this->isImage()) {
             return 'image';
@@ -639,7 +643,7 @@ class WorkorderAttachment extends Model
      */
     public function canPreview(): bool
     {
-        return in_array($this->getPreviewType(), ['image', 'pdf', 'text']);
+        return in_array($this->preview_type, ['image', 'pdf', 'text']);
     }
 
     /**
@@ -687,7 +691,7 @@ class WorkorderAttachment extends Model
      */
     public function canPreviewOnline(): bool
     {
-        return in_array($this->getPreviewType(), ['image', 'text']);
+        return in_array($this->preview_type, ['image', 'text']);
     }
 
     /**
