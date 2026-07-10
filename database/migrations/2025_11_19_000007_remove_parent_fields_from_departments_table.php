@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
@@ -12,10 +12,11 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('departments', function (Blueprint $table) {
-            // 鍒犻櫎涓婄骇閮ㄩ棬鐩稿叧瀛楁
-            $table->dropIndex(['parent_id', 'status']);
+            // 删除上级部门相关字段
+            $table->dropForeign(['parent_id']);
             $table->dropColumn('parent_id');
             $table->dropColumn('level');
+            $table->dropIndex(['parent_id', 'status']);
         });
     }
 
@@ -25,8 +26,8 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('departments', function (Blueprint $table) {
-            $table->unsignedBigInteger('parent_id')->nullable()->comment('涓婄骇閮ㄩ棬ID');
-            $table->integer('level')->default(1)->comment('閮ㄩ棬灞傜骇');
+            $table->unsignedBigInteger('parent_id')->nullable()->comment('上级部门ID');
+            $table->integer('level')->default(1)->comment('部门层级');
             
             $table->foreign('parent_id')->references('id')->on('departments')->onDelete('cascade');
             $table->index(['parent_id', 'status']);
