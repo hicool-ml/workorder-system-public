@@ -496,8 +496,20 @@
         </div>
         <form method="POST" action="{{ route('workorders.attachments.upload', $workorder->id) }}" enctype="multipart/form-data">
             @csrf
-            <label class="label" for="new_attachments">选择文件</label>
-            <input type="file" class="input mb-1" id="new_attachments" name="attachments[]" multiple accept=".jpg,.jpeg,.png,.gif,.pdf,.doc,.docx,.txt" required>
+            <label class="label">选择文件或拍照</label>
+            <div class="flex gap-2 mb-1">
+                <button type="button" onclick="document.getElementById('camera_attachments').click()" class="btn btn-secondary flex-1">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z M12 17a4 4 0 1 0 0-8 4 4 0 0 0 0 8z"/></svg>
+                    <span>拍照</span>
+                </button>
+                <button type="button" onclick="document.getElementById('new_attachments').click()" class="btn btn-secondary flex-1">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4 M7 10l5 5 5-5 M12 15V3"/></svg>
+                    <span>选择文件</span>
+                </button>
+            </div>
+            <input type="file" class="hidden" id="new_attachments" name="attachments[]" multiple accept=".jpg,.jpeg,.png,.gif,.pdf,.doc,.docx,.txt" onchange="handleAttachmentSelect(this)">
+            <input type="file" class="hidden" id="camera_attachments" name="attachments[]" accept="image/*" capture="environment" onchange="handleAttachmentSelect(this)">
+            <div id="attachmentFileName" class="text-xs mt-1" style="color: var(--c-ink-subtle);">未选择文件</div>
             <p class="text-xs" style="color: var(--c-ink-subtle);">单个最大 10MB，最多 5 个</p>
             <div id="newAttachmentPreview" class="mt-3 space-y-2"></div>
             <div class="flex items-center justify-end gap-2 mt-4">
@@ -666,10 +678,20 @@ document.getElementById('no_materials')?.addEventListener('change', function() {
 });
 
 // New attachment preview in upload modal
-document.getElementById('new_attachments')?.addEventListener('change', function() {
+// Handle attachment selection (file picker or camera)
+function handleAttachmentSelect(input) {
     var preview = document.getElementById('newAttachmentPreview');
-    preview.innerHTML = '';
-    for (var i = 0; i < this.files.length; i++) {
+    var nameDiv = document.getElementById('attachmentFileName');
+    preview.innerHTML = "";
+    var allFiles = [];
+    var fileInput = document.getElementById('new_attachments');
+    var camInput = document.getElementById('camera_attachments');
+    if (fileInput && fileInput.files.length) allFiles = allFiles.concat(Array.from(fileInput.files));
+    if (camInput && camInput.files.length) allFiles = allFiles.concat(Array.from(camInput.files));
+    if (nameDiv) {
+        nameDiv.textContent = allFiles.length > 0 ? ("已选择 " + allFiles.length + " 个文件") : "未选择文件";
+    }
+    for (var i = 0; i < allFiles.length; i++) {
         (function(file, idx) {
             var sizeMB = (file.size / 1024 / 1024).toFixed(2);
             var compress = file.type.startsWith('image/') && file.size > 2 * 1024 * 1024;
@@ -678,9 +700,9 @@ document.getElementById('new_attachments')?.addEventListener('change', function(
             item.innerHTML = '<div class="flex items-center gap-2"><span class="text-ink">' + file.name + '</span><span class="text-xs text-ink-subtle">' + sizeMB + ' MB</span>' + (compress ? '<span class="badge bg-blue-100 text-blue-700">压缩</span>' : '') + '</div>' +
                 '<input type="text" class="input mt-2" name="attachment_descriptions[' + idx + ']" placeholder="附件描述（选填）" maxlength="200">';
             preview.appendChild(item);
-        })(this.files[i], i);
+        })(allFiles[i], i);
     }
-});
+}
 
 // File preview
 function showFilePreview(fileId, previewType, previewUrl, fileName) {
