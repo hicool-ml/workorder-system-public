@@ -6,7 +6,7 @@
 
 @section('content')
 
-@php
+<?php
     $statusStyles = [
         'pending' => 'bg-amber-100 text-amber-700',
         'assigned' => 'bg-blue-100 text-blue-700',
@@ -16,7 +16,7 @@
         'closed' => 'bg-slate-100 text-slate-600',
     ];
     $priorityStyles = ['high' => 'bg-red-100 text-red-700', 'medium' => 'bg-amber-100 text-amber-700', 'low' => 'bg-green-100 text-green-700'];
-@endphp
+?>
 
 {{-- Header with actions --}}
 <div class="flex items-center justify-between mb-6 gap-3 flex-wrap">
@@ -270,8 +270,31 @@
                         @if($attachment->isImage())
                         <img src="{{ route('attachments.preview', $attachment->id) }}?v={{ $attachment->updated_at ? $attachment->updated_at->timestamp : $attachment->id }}" alt="{{ $attachment->original_name }}" class="w-full h-full object-cover cursor-pointer" onclick="showFilePreview({{ $attachment->id }}, '{{ $attachment->preview_type }}', '{{ route('attachments.preview', $attachment->id) }}?v={{ $attachment->updated_at ? $attachment->updated_at->timestamp : $attachment->id }}', '{{ $attachment->description ?: $attachment->original_name }}')">
                         @else
-                        <button type="button" onclick="showFilePreview({{ $attachment->id }}, '{{ $attachment->preview_type }}', '{{ route('attachments.preview', $attachment->id) }}?v={{ $attachment->updated_at ? $attachment->updated_at->timestamp : $attachment->id }}', '{{ $attachment->description ?: $attachment->original_name }}')" class="w-full h-full flex items-center justify-center">
-                            <svg class="w-5 h-5 text-ink-subtle" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z M14 2v6h6"/></svg>
+                        <button type="button" onclick="showFilePreview({{ $attachment->id }}, '{{ $attachment->preview_type }}', '{{ route('attachments.preview', $attachment->id) }}?v={{ $attachment->updated_at ? $attachment->updated_at->timestamp : $attachment->id }}', '{{ $attachment->description ?: $attachment->original_name }}')" class="w-full h-full flex flex-col items-center justify-center gap-0.5 cursor-pointer">
+                            <?php
+                                $ext = strtolower($attachment->extension);
+                                $fileIcons = [
+                                    'pdf'  => ['label' => 'PDF',  'color' => 'text-red-600',   'bg' => 'bg-red-50'],
+                                    'doc'  => ['label' => 'DOC',  'color' => 'text-blue-600',  'bg' => 'bg-blue-50'],
+                                    'docx' => ['label' => 'DOC',  'color' => 'text-blue-600',  'bg' => 'bg-blue-50'],
+                                    'xls'  => ['label' => 'XLS',  'color' => 'text-green-600', 'bg' => 'bg-green-50'],
+                                    'xlsx' => ['label' => 'XLS',  'color' => 'text-green-600', 'bg' => 'bg-green-50'],
+                                    'ppt'  => ['label' => 'PPT',  'color' => 'text-orange-600','bg' => 'bg-orange-50'],
+                                    'pptx' => ['label' => 'PPT',  'color' => 'text-orange-600','bg' => 'bg-orange-50'],
+                                    'txt'  => ['label' => 'TXT',  'color' => 'text-slate-600', 'bg' => 'bg-slate-100'],
+                                    'md'   => ['label' => 'MD',   'color' => 'text-slate-600', 'bg' => 'bg-slate-100'],
+                                    'zip'  => ['label' => 'ZIP',  'color' => 'text-amber-600', 'bg' => 'bg-amber-50'],
+                                    'rar'  => ['label' => 'RAR',  'color' => 'text-amber-600', 'bg' => 'bg-amber-50'],
+                                    '7z'   => ['label' => '7Z',   'color' => 'text-amber-600', 'bg' => 'bg-amber-50'],
+                                    'mp4'  => ['label' => 'MP4',  'color' => 'text-purple-600','bg' => 'bg-purple-50'],
+                                    'avi'  => ['label' => 'AVI',  'color' => 'text-purple-600','bg' => 'bg-purple-50'],
+                                    'mov'  => ['label' => 'MOV',  'color' => 'text-purple-600','bg' => 'bg-purple-50'],
+                                    'mp3'  => ['label' => 'MP3',  'color' => 'text-pink-600',  'bg' => 'bg-pink-50'],
+                                    'wav'  => ['label' => 'WAV',  'color' => 'text-pink-600',  'bg' => 'bg-pink-50'],
+                                ];
+                                $icon = $fileIcons[$ext] ?? ['label' => strtoupper($ext ?: 'FILE'), 'color' => 'text-slate-500', 'bg' => 'bg-slate-100'];
+                            ?>
+                            <span class="text-[10px] font-bold {{ $icon['color'] }} leading-none">{{ $icon['label'] }}</span>
                         </button>
                         @endif
                     </div>
