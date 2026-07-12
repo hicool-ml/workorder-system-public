@@ -55,8 +55,8 @@ class AttachmentController extends Controller
         
         return Storage::disk('public')->response($attachment->file_path, null, [
             'Content-Type' => $mimeType,
-            'Content-Disposition' => 'inline',
-            'Cache-Control' => 'public, max-age=3600',
+           'Content-Disposition' => 'inline',
+           'Cache-Control' => 'no-cache, must-revalidate',
         ]);
     }
     

@@ -268,9 +268,9 @@
                 <div class="flex items-center gap-3 p-2.5 rounded-lg border border-border">
                     <div class="w-10 h-10 rounded-lg overflow-hidden shrink-0 flex items-center justify-center" style="background-color: var(--c-muted);">
                         @if($attachment->isImage())
-                        <img src="{{ route('attachments.preview', $attachment->id) }}" alt="{{ $attachment->original_name }}" class="w-full h-full object-cover cursor-pointer" onclick="showFilePreview({{ $attachment->id }}, '{{ $attachment->preview_type }}', '{{ route('attachments.preview', $attachment->id) }}', '{{ $attachment->description ?: $attachment->original_name }}')">
+                        <img src="{{ route('attachments.preview', $attachment->id) }}?v={{ $attachment->updated_at ? $attachment->updated_at->timestamp : $attachment->id }}" alt="{{ $attachment->original_name }}" class="w-full h-full object-cover cursor-pointer" onclick="showFilePreview({{ $attachment->id }}, '{{ $attachment->preview_type }}', '{{ route('attachments.preview', $attachment->id) }}?v={{ $attachment->updated_at ? $attachment->updated_at->timestamp : $attachment->id }}', '{{ $attachment->description ?: $attachment->original_name }}')">
                         @else
-                        <button type="button" onclick="showFilePreview({{ $attachment->id }}, '{{ $attachment->preview_type }}', '{{ route('attachments.preview', $attachment->id) }}', '{{ $attachment->description ?: $attachment->original_name }}')" class="w-full h-full flex items-center justify-center">
+                        <button type="button" onclick="showFilePreview({{ $attachment->id }}, '{{ $attachment->preview_type }}', '{{ route('attachments.preview', $attachment->id) }}?v={{ $attachment->updated_at ? $attachment->updated_at->timestamp : $attachment->id }}', '{{ $attachment->description ?: $attachment->original_name }}')" class="w-full h-full flex items-center justify-center">
                             <svg class="w-5 h-5 text-ink-subtle" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z M14 2v6h6"/></svg>
                         </button>
                         @endif
@@ -668,9 +668,9 @@ function showFilePreview(fileId, previewType, previewUrl, fileName) {
     dl.href = '/attachments/' + fileId + '/download';
 
     if (previewType === 'image') {
-        body.innerHTML = '<div class="flex items-center justify-center p-4"><img src="/attachments/' + fileId + '/preview" alt="' + fileName + '" class="max-h-[75vh] rounded-lg" onerror="this.style.display=\'none\'"></div>';
+        body.innerHTML = '<div class="flex items-center justify-center p-4"><img src="/attachments/' + fileId + '/preview?t=' + Date.now() + '" alt="' + fileName + '" class="max-h-[75vh] rounded-lg" onerror="this.style.display=\'none\'"></div>';
     } else if (previewType === 'pdf') {
-        body.innerHTML = '<iframe src="/attachments/' + fileId + '/preview" class="w-full border-none" style="height: 75vh;" title="PDF预览"></iframe>';
+        body.innerHTML = '<iframe src="/attachments/' + fileId + '/preview?t=' + Date.now() + '" class="w-full border-none" style="height: 75vh;" title="PDF预览"></iframe>';
     } else if (previewType === 'text') {
         body.innerHTML = '<div class="p-4"><div id="textLoading" class="text-center text-ink-muted">加载中...</div><pre id="textContent" class="hidden p-3 rounded-lg overflow-auto text-sm" style="background-color: var(--c-card); color: var(--c-ink); max-height: 70vh;"></pre></div>';
         fetch('/attachments/' + fileId + '/info').then(function(r) { return r.json(); }).then(function(data) {
@@ -700,3 +700,5 @@ function closeFilePreview() {
 </script>
 @endsection
                     @if($workorder->campus){{ $workorder->campus }}@endif
+
+
