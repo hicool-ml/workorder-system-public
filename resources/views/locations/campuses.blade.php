@@ -3,122 +3,125 @@
 @section('title', '校区管理')
 
 @section('content')
-<div class="flex items-center justify-between mb-6 pb-4 border-b border-border">
-    <h1 class="text-xl font-semibold text-ink">地址管理</h1>
-    <div class="flex gap-2">
-        <div class="flex gap-2" role="group">
-            <a href="{{ route('locations.index') }}" class="btn {{ request()->routeIs('locations.index') ? 'btn-primary' : 'btn-outline-primary' }}">
-                <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 21h18 M5 21V7l8-4v18 M19 21V11l-6-4 M9 9v.01 M9 12v.01 M9 15v.01 M9 18v.01"/></svg> 地址管理
-            </a>
-            <a href="{{ route('locations.campuses') }}" class="btn {{ request()->routeIs('locations.campuses') ? 'btn-primary' : 'btn-outline-primary' }}">
-                <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z M12 13a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/></svg> 校区管理
-            </a>
-        </div>
-        <a href="{{ route('locations.create-campus') }}" class="btn btn-primary ml-2">
-            <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 5v14M5 12h14"/></svg> 新增校区
-        </a>
+<div class="flex items-center justify-between mb-6">
+    <div>
+        <h1 class="text-xl font-semibold text-ink">校区管理</h1>
+        <p class="text-sm text-ink-muted mt-0.5">管理学校的校区信息</p>
     </div>
+    <a href="{{ route('locations.create-campus') }}" class="btn btn-primary">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 5v14M5 12h14"/></svg>
+        <span>新增校区</span>
+    </a>
 </div>
 
-<!-- 搜索和筛选 -->
+<div class="flex gap-1 mb-4">
+    <a href="{{ route('locations.index') }}" class="px-4 py-2 text-sm font-medium rounded-lg text-ink-muted hover:bg-surface-muted">楼宇地址</a>
+    <a href="{{ route('locations.campuses') }}" class="px-4 py-2 text-sm font-medium rounded-lg bg-brand-600 text-white">校区管理</a>
+</div>
+
 <div class="card mb-4">
-    <div>
-        <form method="GET" action="{{ route('locations.campuses') }}">
-            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div>
-                    <label for="keyword" class="label">关键词</label>
-                    <input type="text" class="input" id="keyword" name="keyword" autocomplete="off"
-                           value="{{ request('keyword') }}" placeholder="校区名称、代码或描述" autocomplete="off">
-                </div>
-                <div>
-                    <label for="status" class="label">状态</label>
-                    <select class="input" id="status" name="status">
-                        <option value="">全部状态</option>
-                        <option value="active" {{ request('status') == 'active' ? 'selected' : '' }}>启用</option>
-                        <option value="inactive" {{ request('status') == 'inactive' ? 'selected' : '' }}>禁用</option>
-                    </select>
-                </div>
-                <div class="col-md-5 d-flex align-items-end">
-                    <button type="submit" class="btn btn-primary mr-2">
-                        <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16z M21 21l-4.35-4.35"/></svg> 搜索
-                    </button>
-                    <a href="{{ route('locations.campuses') }}" class="btn btn-secondary">
-                        <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M18 6L6 18M6 6l12 12"/></svg> 重置
-                    </a>
-                </div>
+    <form method="GET" action="{{ route('locations.campuses') }}">
+        <div class="p-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div>
+                <label class="label" for="keyword">关键词</label>
+                <input type="text" class="input" id="keyword" name="keyword"
+                       value="{{ request('keyword') }}" placeholder="校区名称、描述" autocomplete="off">
             </div>
-        </form>
-    </div>
+            <div>
+                <label class="label" for="status">状态</label>
+                <select class="input" id="status" name="status">
+                    <option value="">全部状态</option>
+                    <option value="active" {{ request('status') == 'active' ? 'selected' : '' }}>启用</option>
+                    <option value="inactive" {{ request('status') == 'inactive' ? 'selected' : '' }}>禁用</option>
+                </select>
+            </div>
+            <div class="flex items-end gap-2">
+                <button type="submit" class="btn btn-primary flex-1">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16z M21 21l-4.35-4.35"/></svg>
+                    <span>搜索</span>
+                </button>
+                <a href="{{ route('locations.campuses') }}" class="btn btn-secondary">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M18 6L6 18M6 6l12 12"/></svg>
+                </a>
+            </div>
+        </div>
+    </form>
 </div>
 
-<!-- 校区列表 -->
-<div class="card p-5">
-    <div>
-        <div class="overflow-x-auto">
-            <table class="table table-striped table-hover">
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>校区名称</th>
-                        <th>排序</th>
-                        <th>状态</th>
-                        <th>操作</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @forelse($campuses as $campus)
-                    <tr>
-                        <td>{{ $campus->id }}</td>
-                        <td>{{ $campus->name }}</td>
-                        <td>{{ $campus->sort_order }}</td>
-                        <td>
-                            @if($campus->status == 'active')
-                                <span class="badge bg-green-100 text-green-700">{{ $campus->status_text }}</span>
-                            @else
-                                <span class="badge bg-red-100 text-red-700">{{ $campus->status_text }}</span>
-                            @endif
-                        </td>
-                        <td>
-                            <div class="flex gap-2" role="group">
-                                <a href="{{ route('locations.show-campus', $campus->id) }}"
-                                   class="btn btn-sm btn-outline-info" title="查看">
-                                    <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/></svg>
-                                </a>
-                                <a href="{{ route('locations.edit-campus', $campus->id) }}"
-                                   class="btn btn-sm btn-outline-primary" title="编辑">
-                                    <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7 M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                                </a>
-                                <form action="{{ route('locations.toggle-campus-status', $campus->id) }}" method="POST" class="d-inline">
-                                    @csrf
-                                    @method('PATCH')
-                                    <button type="submit" class="btn btn-sm btn-outline-warning" title="切换状态">
-                                        <i class="fas fa-toggle-{{ $campus->status == 'active' ? 'off' : 'on' }}"></i>
-                                    </button>
-                                </form>
-                                <form action="{{ route('locations.destroy-campus', $campus->id) }}" method="POST"
-                                      onsubmit="return confirm('确定要删除这个校区吗？')">
-                                    @csrf
-                                    @method('DELETE')
-                                    <button type="submit" class="btn btn-sm btn-outline-danger" title="删除">
-                                        <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 6h18 M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2 M10 11v6 M14 11v6"/></svg>
-                                    </button>
-                                </form>
-                            </div>
-                        </td>
-                    </tr>
-                    @empty
-                    <tr>
-                        <td colspan="8" class="text-center">暂无校区数据</td>
-                    </tr>
-                    @endforelse
-                </tbody>
-            </table>
-        </div>
-
-        <!-- 分页 -->
-        <div class="d-flex justify-content-center mt-4">
-            {{ $campuses->appends(request()->query())->links() }}
-        </div>
+<div class="card overflow-hidden">
+    <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+            <thead>
+                <tr class="border-b border-border bg-surface-muted">
+                    <th class="px-4 py-3 text-left font-medium text-ink-muted">校区名称</th>
+                    <th class="px-4 py-3 text-left font-medium text-ink-muted">代码</th>
+                    <th class="px-4 py-3 text-left font-medium text-ink-muted">描述</th>
+                    <th class="px-4 py-3 text-center font-medium text-ink-muted">排序</th>
+                    <th class="px-4 py-3 text-center font-medium text-ink-muted">状态</th>
+                    <th class="px-4 py-3 text-right font-medium text-ink-muted">操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                @forelse($campuses as $campus)
+                <tr class="border-b border-border last:border-0 hover:bg-surface-muted transition-colors">
+                    <td class="px-4 py-3">
+                        <a href="{{ route('locations.show-campus', $campus->id) }}" class="font-medium text-ink hover:text-brand-600">{{ $campus->name }}</a>
+                    </td>
+                    <td class="px-4 py-3 text-ink-muted">{{ $campus->code ?: '-' }}</td>
+                    <td class="px-4 py-3 text-ink-muted max-w-xs truncate">{{ $campus->description ?: '-' }}</td>
+                    <td class="px-4 py-3 text-center text-ink-muted">{{ $campus->sort_order }}</td>
+                    <td class="px-4 py-3 text-center">
+                        @if($campus->status == 'active')
+                            <span class="badge bg-green-100 text-green-700">启用</span>
+                        @else
+                            <span class="badge bg-surface-muted text-ink-muted">禁用</span>
+                        @endif
+                    </td>
+                    <td class="px-4 py-3">
+                        <div class="flex items-center justify-end gap-1">
+                            <a href="{{ route('locations.show-campus', $campus->id) }}" class="btn btn-icon btn-ghost" title="查看">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/></svg>
+                            </a>
+                            <a href="{{ route('locations.edit-campus', $campus->id) }}" class="btn btn-icon btn-ghost" title="编辑">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7 M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                            </a>
+                            <form action="{{ route('locations.toggle-campus-status', $campus->id) }}" method="POST">
+                                @csrf
+                                @method('PATCH')
+                                <button type="submit" class="btn btn-icon btn-ghost" title="{{ $campus->status == 'active' ? '禁用' : '启用' }}">
+                                    @if($campus->status == 'active')
+                                        <svg class="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 8L21 12L17 16 M3 12h18"/></svg>
+                                    @else
+                                        <svg class="w-4 h-4 text-green-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 8L21 12L17 16 M3 12h18"/></svg>
+                                    @endif
+                                </button>
+                            </form>
+                            <form action="{{ route('locations.destroy-campus', $campus->id) }}" method="POST" onsubmit="return confirm('确定要删除校区「{{ $campus->name }}」吗？')">
+                                @csrf
+                                @method('DELETE')
+                                <button type="submit" class="btn btn-icon btn-ghost text-red-600" title="删除">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 6h18 M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2 M10 11v6 M14 11v6"/></svg>
+                                </button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                @empty
+                <tr>
+                    <td colspan="6" class="px-4 py-12 text-center text-ink-muted">
+                        <svg class="w-12 h-12 mx-auto mb-3 text-ink-subtle" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35 M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16z"/></svg>
+                        <p>暂无校区数据</p>
+                    </td>
+                </tr>
+                @endforelse
+            </tbody>
+        </table>
     </div>
+
+    @if($campuses->hasPages())
+    <div class="px-4 py-3 border-t border-border">
+        {{ $campuses->appends(request()->query())->links() }}
+    </div>
+    @endif
 </div>
 @endsection

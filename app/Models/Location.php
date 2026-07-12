@@ -38,7 +38,7 @@ class Location extends Model
         'dormitory' => '学生宿舍',
         'office_building' => '办公楼',
         'library' => '图书馆',
-        'laboratory' => '实验室',
+        'laboratory' => '实验楼',
         'canteen' => '食堂',
         'sports_facility' => '体育设施',
         'other' => '其他',
@@ -81,11 +81,11 @@ class Location extends Model
     {
         $campus = $this->getCampusTextAttribute();
         $buildingType = $this->getBuildingTypeTextAttribute();
-        
+
         if ($this->building_code) {
             return "{$campus} - {$buildingType} ({$this->building_code}) - {$this->name}";
         }
-        
+
         return "{$campus} - {$buildingType} - {$this->name}";
     }
 
@@ -120,7 +120,7 @@ class Location extends Model
     {
         return $query->orderBy('sort_order')->orderBy('name');
     }
-    
+
     /**
      * 获取所有可用的校区选项
      */
@@ -132,9 +132,9 @@ class Location extends Model
             ->pluck('name', 'id')
             ->toArray();
     }
-    
+
     /**
-     * 获取校区楼栋数据，用于前端选择
+     * 获取校区楼宇数据，用于前端选择
      */
     public static function getCampusBuildings(): array
     {
@@ -143,27 +143,27 @@ class Location extends Model
             ->orderBy('campus_id')
             ->orderBy('sort_order')
             ->get();
-        
+
         $result = [];
-        
+
         foreach ($locations as $location) {
             $campusId = $location->campus_id;
             $campusName = $location->campus ? $location->campus->name : '未设置校区';
-            
+
             if (!isset($result[$campusId])) {
                 $result[$campusId] = [
                     'name' => $campusName,
                     'buildings' => []
                 ];
             }
-            
+
             $result[$campusId]['buildings'][] = [
                 'id' => $location->id,
                 'name' => $location->name,
                 'address' => $location->address ?? '',
             ];
         }
-        
+
         return $result;
     }
 }
