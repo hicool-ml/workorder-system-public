@@ -498,7 +498,7 @@
             @csrf
             <label class="label">选择文件或拍照</label>
             <div class="flex gap-2 mb-1">
-                <button type="button" onclick="document.getElementById('camera_attachments').click()" class="btn btn-secondary flex-1">
+                <button type="button" onclick="openCameraModal('new_attachments')" class="btn btn-secondary flex-1">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z M12 17a4 4 0 1 0 0-8 4 4 0 0 0 0 8z"/></svg>
                     <span>拍照</span>
                 </button>
@@ -508,7 +508,7 @@
                 </button>
             </div>
             <input type="file" class="hidden" id="new_attachments" name="attachments[]" multiple accept=".jpg,.jpeg,.png,.gif,.pdf,.doc,.docx,.txt" onchange="handleAttachmentSelect(this)">
-            <input type="file" class="hidden" id="camera_attachments" name="attachments[]" accept="image/*" capture="environment" onchange="handleAttachmentSelect(this)">
+
             <div id="attachmentFileName" class="text-xs mt-1" style="color: var(--c-ink-subtle);">未选择文件</div>
             <p class="text-xs" style="color: var(--c-ink-subtle);">单个最大 10MB，最多 5 个</p>
             <div id="newAttachmentPreview" class="mt-3 space-y-2"></div>
@@ -645,6 +645,7 @@
     </div>
 </div>
 
+@include('workorders._camera')
 {{-- End modals --}}
 @endsection
 
@@ -745,5 +746,6 @@ function closeFilePreview() {
 </script>
 @endsection
                     @if($workorder->campus){{ $workorder->campus }}@endif
+
 
 

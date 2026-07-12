@@ -326,7 +326,7 @@
                         <div class="mb-4">
                             <label for="new_attachments" class="label">上传新附件</label>
                                 <div class="flex gap-2 mb-1">
-                                    <button type="button" onclick="document.getElementById('camera_edit').click()" class="btn btn-secondary flex-1">
+                                    <button type="button" onclick="openCameraModal('new_attachments')" class="btn btn-secondary flex-1">
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z M12 17a4 4 0 1 0 0-8 4 4 0 0 0 0 8z"/></svg>
                                         <span>拍照</span>
                                     </button>
@@ -336,7 +336,7 @@
                                     </button>
                                 </div>
                                 <input type="file" class="hidden" id="new_attachments" name="new_attachments[]" multiple accept=".jpg,.jpeg,.png,.gif,.pdf,.doc,.docx,.txt" onchange="document.getElementById('attEditName').textContent=this.files.length?'已选择 '+this.files.length+' 个文件':'未选择文件'">
-                                <input type="file" class="hidden" id="camera_edit" name="new_attachments[]" accept="image/*" capture="environment" onchange="document.getElementById('attEditName').textContent=this.files.length?'已选择 '+this.files.length+' 个文件':'未选择文件'">
+
                                 <div id="attEditName" class="text-xs mt-1" style="color: var(--c-ink-subtle);">未选择文件</div>
                                    multiple accept=".jpg,.jpeg,.png,.gif,.pdf,.doc,.docx,.txt" autocomplete="off">
                             <div class="text-xs text-ink-muted mt-1">
@@ -441,6 +441,7 @@
         </div>
     </div>
 </div>
+@include('workorders._camera')
 @endsection
 
 @section('scripts')
