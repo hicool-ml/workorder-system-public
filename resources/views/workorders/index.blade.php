@@ -19,8 +19,36 @@
 </div>
 
 {{-- Search filters --}}
+{{-- Search filters --}}
 <div class="card mb-4">
     <form method="GET" action="{{ route('workorders.index') }}" id="searchForm">
+        <?php
+            $activeFilterCount = 0;
+            foreach (['keyword','status','priority','category_main','category_sub','date_from','date_to','campus_id','source','assignee_id'] as $f) {
+                if (request()->filled($f)) $activeFilterCount++;
+            }
+            foreach (['show_closed','show_emergency','show_overdue'] as $f) {
+                if (request()->input($f)) $activeFilterCount++;
+            }
+        ?>
+        {{-- Mobile: collapsed toggle button --}}
+        <div class="md:hidden">
+            <button type="button" id="mobileFilterToggle" class="flex items-center justify-between w-full px-4 py-3 text-sm font-medium text-ink">
+                <span class="flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/></svg>
+                    筛选搜索
+                </span>
+                <span class="flex items-center gap-2">
+                    @if($activeFilterCount > 0)
+                    <span class="badge bg-brand-100 text-brand-700">{{ $activeFilterCount }}</span>
+                    @endif
+                    <svg id="mobileFilterChevron" class="w-4 h-4 transition-transform" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+                </span>
+            </button>
+        </div>
+
+        {{-- Filter container: hidden on mobile, always visible on desktop --}}
+        <div id="filterContainer" class="<?php echo $activeFilterCount > 0 ? '' : 'hidden'; ?> md:block">
         <div class="p-4 space-y-4">
             {{-- Primary search row --}}
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
@@ -79,19 +107,30 @@
                 </div>
             </div>
 
+            {{-- Date range row --}}
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 pt-3 border-t border-border">
+                <div>
+                    <label class="label" for="date_from">开始日期</label>
+                    <input type="date" class="input" id="date_from" name="date_from"
+                           value="{{ request('date_from') }}" autocomplete="off">
+                </div>
+                <div>
+                    <label class="label" for="date_to">结束日期</label>
+                    <input type="date" class="input" id="date_to" name="date_to"
+                           value="{{ request('date_to') }}" autocomplete="off">
+                </div>
+                <div class="col-span-2 flex items-end gap-1.5 flex-wrap">
+                    <button type="button" data-range="today" class="btn btn-ghost btn-sm date-quick">今天</button>
+                    <button type="button" data-range="7d" class="btn btn-ghost btn-sm date-quick">近7天</button>
+                    <button type="button" data-range="30d" class="btn btn-ghost btn-sm date-quick">近30天</button>
+                    <button type="button" data-range="month" class="btn btn-ghost btn-sm date-quick">本月</button>
+                    <button type="button" data-range="clear" class="btn btn-ghost btn-sm date-quick">清除</button>
+                </div>
+            </div>
+
             {{-- Advanced filters (collapsible) --}}
             <div id="advancedFilters" class="hidden">
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-3 border-t border-border">
-                    <div>
-                        <label class="label" for="date_from">开始日期</label>
-                        <input type="date" class="input" id="date_from" name="date_from"
-                               value="{{ request('date_from') }}" autocomplete="off">
-                    </div>
-                    <div>
-                        <label class="label" for="date_to">结束日期</label>
-                        <input type="date" class="input" id="date_to" name="date_to"
-                               value="{{ request('date_to') }}" autocomplete="off">
-                    </div>
+                <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 pt-3 border-t border-border">
                     <div>
                         <label class="label" for="campus_id">校区</label>
                         <select class="input" id="campus_id" name="campus_id">
@@ -125,7 +164,7 @@
                         </select>
                     </div>
                     @endif
-                    <div class="flex items-end gap-4">
+                    <div class="col-span-2 lg:col-span-4 flex items-center gap-4 flex-wrap">
                         <label class="flex items-center gap-2 text-sm text-ink-muted cursor-pointer">
                             <input type="checkbox" name="show_closed" value="1" class="rounded border-border-strong" {{ request('show_closed') ? 'checked' : '' }}>
                             显示已解决
@@ -161,6 +200,7 @@
                 </button>
             </div>
         </div>
+        </div>{{-- end #filterContainer --}}
     </form>
 </div>
 
@@ -430,6 +470,56 @@ var listCategoryData = @json($categories);
                 subSel.appendChild(opt);
             });
         }
+    });
+})();
+</script>
+
+<script>
+// 高级筛选展开/收起
+(function() {
+    var btn = document.getElementById('toggleAdvanced');
+    var panel = document.getElementById('advancedFilters');
+    var chevron = document.getElementById('adv-chevron');
+    if (!btn || !panel) return;
+    var hasAdv = ['{{ request('campus_id') }}','{{ request('source') }}','{{ request('assignee_id') }}','{{ request('show_emergency') }}','{{ request('show_overdue') }}'].some(function(v){return v && v.length>0;});
+    if (hasAdv) { panel.classList.remove('hidden'); if (chevron) chevron.style.transform = 'rotate(180deg)'; }
+    btn.addEventListener('click', function() {
+        panel.classList.toggle('hidden');
+        if (chevron) chevron.style.transform = panel.classList.contains('hidden') ? '' : 'rotate(180deg)';
+    });
+})();
+
+// 日期快捷范围
+(function() {
+    var fmt = function(d) { return d.toISOString().split('T')[0]; };
+    document.querySelectorAll('.date-quick').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            var from = document.getElementById('date_from');
+            var to   = document.getElementById('date_to');
+            if (!from || !to) return;
+            var range = this.getAttribute('data-range');
+            if (range === 'clear') { from.value = ''; to.value = ''; return; }
+            var now = new Date(), start = new Date();
+            if (range === '7d') { start.setDate(now.getDate() - 7); }
+            else if (range === '30d') { start.setDate(now.getDate() - 30); }
+            else if (range === 'month') { start = new Date(now.getFullYear(), now.getMonth(), 1); }
+            from.value = fmt(start);
+            to.value = fmt(now);
+        });
+    });
+})();
+</script>
+
+<script>
+// 移动端筛选展开/收起
+(function() {
+    var btn = document.getElementById('mobileFilterToggle');
+    var panel = document.getElementById('filterContainer');
+    var chevron = document.getElementById('mobileFilterChevron');
+    if (!btn || !panel) return;
+    btn.addEventListener('click', function() {
+        panel.classList.toggle('hidden');
+        if (chevron) chevron.style.transform = panel.classList.contains('hidden') ? '' : 'rotate(180deg)';
     });
 })();
 </script>
