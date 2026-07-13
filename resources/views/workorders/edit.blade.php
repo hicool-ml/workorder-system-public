@@ -335,7 +335,7 @@
                                         <span>选择文件</span>
                                     </button>
                                 </div>
-                                <input type="file" class="hidden" id="new_attachments" name="new_attachments[]" multiple accept=".jpg,.jpeg,.png,.gif,.pdf,.doc,.docx,.txt" onchange="document.getElementById('attEditName').textContent=this.files.length?'已选择 '+this.files.length+' 个文件':'未选择文件'">
+                                <input type="file" class="sr-only" id="new_attachments" name="new_attachments[]" multiple accept=".jpg,.jpeg,.png,.gif,.pdf,.doc,.docx,.txt" onchange="document.getElementById('attEditName').textContent=this.files.length?'已选择 '+this.files.length+' 个文件':'未选择文件'">
 
                                 <div id="attEditName" class="text-xs mt-1" style="color: var(--c-ink-subtle);">未选择文件</div>
                                    multiple accept=".jpg,.jpeg,.png,.gif,.pdf,.doc,.docx,.txt" autocomplete="off">
@@ -864,3 +864,4 @@ function showImagePreview(imageSrc, fileName) {
 }
 </script>
 @endsection
+

@@ -507,7 +507,7 @@
                     <span>选择文件</span>
                 </button>
             </div>
-            <input type="file" class="hidden" id="new_attachments" name="attachments[]" multiple accept=".jpg,.jpeg,.png,.gif,.pdf,.doc,.docx,.txt" onchange="handleAttachmentSelect(this)">
+            <input type="file" class="sr-only" id="new_attachments" name="attachments[]" multiple accept=".jpg,.jpeg,.png,.gif,.pdf,.doc,.docx,.txt" onchange="handleAttachmentSelect(this)">
 
             <div id="attachmentFileName" class="text-xs mt-1" style="color: var(--c-ink-subtle);">未选择文件</div>
             <p class="text-xs" style="color: var(--c-ink-subtle);">单个最大 10MB，最多 5 个</p>
@@ -746,6 +746,7 @@ function closeFilePreview() {
 </script>
 @endsection
                     @if($workorder->campus){{ $workorder->campus }}@endif
+
 
 
 
