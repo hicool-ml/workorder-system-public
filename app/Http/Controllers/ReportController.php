@@ -405,8 +405,6 @@ class ReportController extends Controller
             // 添加BOM以支持中文
             fwrite($file, "\xEF\xBB\xBF");
             
-            // 设置UTF-8编码过滤器
-            stream_filter_append($file, 'convert.iconv.utf8.utf8', STREAM_FILTER_WRITE);
             
             // CSV头部
             $headers = [
@@ -415,11 +413,7 @@ class ReportController extends Controller
                 '处理时长', '解决方案', '备件耗材使用', '备注', '是否回访', '回访结果'
             ];
             
-            // 潬换编码并写入CSV头部
-            $convertedHeaders = array_map(function($header) {
-                return mb_convert_encoding($header, 'UTF-8', 'auto');
-            }, $headers);
-            fputcsv($file, $convertedHeaders);
+            fputcsv($file, $headers);
             
             // CSV数据
             foreach ($workorders as $workorder) {
@@ -470,24 +464,24 @@ class ReportController extends Controller
                 
                 // 确保所有字段都是UTF-8编码
                 $rowData = [
-                    mb_convert_encoding($workorder->created_at->format('Y-m-d'), 'UTF-8', 'auto'),
-                    mb_convert_encoding($workorder->created_at->format('H:i:s'), 'UTF-8', 'auto'),
-                    mb_convert_encoding($workorder->ticket_no, 'UTF-8', 'auto'),
-                    mb_convert_encoding($mainCategory, 'UTF-8', 'auto'),
-                    mb_convert_encoding($subCategory, 'UTF-8', 'auto'),
-                    mb_convert_encoding($workorder->description, 'UTF-8', 'auto'),
-                    mb_convert_encoding($workorder->contact_name, 'UTF-8', 'auto'),
-                    mb_convert_encoding($this->getCampusName($workorder->campus_id), 'UTF-8', 'auto'),
-                    mb_convert_encoding($this->getBuildingName($workorder->building) . ($workorder->location_detail ? ' - ' . $workorder->location_detail : ''), 'UTF-8', 'auto'),
-                    mb_convert_encoding($workorder->contact_phone, 'UTF-8', 'auto'),
-                    mb_convert_encoding($processorsText, 'UTF-8', 'auto'),
-                    mb_convert_encoding($workorder->phone_assisted ? '电话协助' : '现场处理', 'UTF-8', 'auto'),
-                    mb_convert_encoding($processingDuration, 'UTF-8', 'auto'),
-                    mb_convert_encoding($workorder->solution ?? '', 'UTF-8', 'auto'),
-                    mb_convert_encoding($workorder->materials_usage ?? '', 'UTF-8', 'auto'),
-                    mb_convert_encoding($workorder->remarks ?? '', 'UTF-8', 'auto'),
-                    mb_convert_encoding($hasVisit ? '是' : '否', 'UTF-8', 'auto'),
-                    mb_convert_encoding($visitResult, 'UTF-8', 'auto')
+                    $workorder->created_at->format('Y-m-d'),
+                    $workorder->created_at->format('H:i:s'),
+                    $workorder->ticket_no,
+                    $mainCategory,
+                    $subCategory,
+                    $workorder->description,
+                    $workorder->contact_name,
+                    $this->getCampusName($workorder->campus_id),
+                    $this->getBuildingName($workorder->building) . ($workorder->location_detail ? ' - ' . $workorder->location_detail : ''),
+                    $workorder->contact_phone,
+                    $processorsText,
+                    $workorder->phone_assisted ? '电话协助' : '现场处理',
+                    $processingDuration,
+                    $workorder->solution ?? '',
+                    $workorder->materials_usage ?? '',
+                    $workorder->remarks ?? '',
+                    $hasVisit ? '是' : '否',
+                    $visitResult
                 ];
                 
                 fputcsv($file, $rowData);
