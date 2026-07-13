@@ -62,30 +62,15 @@
     <div style="position:relative;height:300px;"><canvas id="trendChart"></canvas></div>
 </div>
 
-{{-- Charts row: status + priority --}}
+{{-- Charts row: network + media sub-category top10 --}}
 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
     <div class="card p-5">
-        <h3 class="text-sm font-semibold text-ink mb-4">工单状态分布</h3>
-        <div class="flex items-center justify-center" style="height:220px;"><canvas id="statusChart"></canvas></div>
+        <h3 class="text-sm font-semibold text-ink mb-4">网络</h3>
+        <div class="flex items-center justify-center" style="height:260px;"><canvas id="networkSubChart"></canvas></div>
     </div>
     <div class="card p-5">
-        <h3 class="text-sm font-semibold text-ink mb-4">优先级分布</h3>
-        <div class="grid grid-cols-3 gap-3">
-            @php $prioTotal = max(array_sum($priorityDistribution), 1); @endphp
-            <div class="p-4 rounded-lg text-center" style="background-color: rgba(239,68,68,0.1);">
-                <p class="text-2xl font-bold text-red-600">{{ $priorityDistribution['high'] }}</p>
-                <p class="text-xs mt-1" style="color: var(--c-ink-muted);">高 ({{ round($priorityDistribution['high']/$prioTotal*100) }}%)</p>
-            </div>
-            <div class="p-4 rounded-lg text-center" style="background-color: rgba(245,158,11,0.1);">
-                <p class="text-2xl font-bold text-amber-600">{{ $priorityDistribution['medium'] }}</p>
-                <p class="text-xs mt-1" style="color: var(--c-ink-muted);">中 ({{ round($priorityDistribution['medium']/$prioTotal*100) }}%)</p>
-            </div>
-            <div class="p-4 rounded-lg text-center" style="background-color: rgba(34,197,94,0.1);">
-                <p class="text-2xl font-bold text-green-600">{{ $priorityDistribution['low'] }}</p>
-                <p class="text-xs mt-1" style="color: var(--c-ink-muted);">低 ({{ round($priorityDistribution['low']/$prioTotal*100) }}%)</p>
-            </div>
-        </div>
-        <div class="mt-4" style="height:100px;"><canvas id="priorityChart"></canvas></div>
+        <h3 class="text-sm font-semibold text-ink mb-4">多媒体</h3>
+        <div class="flex items-center justify-center" style="height:260px;"><canvas id="mediaSubChart"></canvas></div>
     </div>
 </div>
 
@@ -283,32 +268,26 @@ document.addEventListener('DOMContentLoaded', function() {
         options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top' } }, scales: { x: { ticks: { color: inkMuted, maxTicksLimit: 12 } }, y: { beginAtZero: true, ticks: { color: inkMuted } } } }
     });
 
-    // Status chart
-    var statusCtx = document.getElementById('statusChart');
-    if (statusCtx) new Chart(statusCtx, {
+    // Network sub-category top10 chart
+    var netSubCtx = document.getElementById('networkSubChart');
+    if (netSubCtx) new Chart(netSubCtx, {
         type: 'doughnut',
         data: {
-            labels: ['待处理','已分配','处理中','已解决','已关闭'],
-            datasets: [{ data: [
-                {{ $statusDistribution['pending'] ?? 0 }},
-                {{ $statusDistribution['assigned'] ?? 0 }},
-                {{ $statusDistribution['processing'] ?? 0 }},
-                {{ $statusDistribution['resolved'] ?? 0 }},
-                {{ $statusDistribution['closed'] ?? 0 }}
-            ], backgroundColor: ['#FFC107','#17A2B8','#36A2EB','#00C851','#6C757D'] }]
+            labels: [@foreach($networkSubDistribution as $item)'{{ $item['name'] }}',@endforeach],
+            datasets: [{ data: [@foreach($networkSubDistribution as $item){{ $item['count'] }},@endforeach], backgroundColor: ['#2563EB','#3B82F6','#60A5FA','#93C5FD','#1D4ED8','#1E40AF','#3730A3','#EF4444','#F59E0B','#22C55E'] }]
         },
-        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right' } } }
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { color: inkMuted, boxWidth: 12, font: { size: 11 } } } } }
     });
 
-    // Priority chart
-    var prioCtx = document.getElementById('priorityChart');
-    if (prioCtx) new Chart(prioCtx, {
-        type: 'bar',
+    // Media sub-category top10 chart
+    var medSubCtx = document.getElementById('mediaSubChart');
+    if (medSubCtx) new Chart(medSubCtx, {
+        type: 'doughnut',
         data: {
-            labels: ['高','中','低'],
-            datasets: [{ data: [{{ $priorityDistribution['high'] }}, {{ $priorityDistribution['medium'] }}, {{ $priorityDistribution['low'] }}], backgroundColor: ['#EF4444','#F59E0B','#22C55E'] }]
+            labels: [@foreach($mediaSubDistribution as $item)'{{ $item['name'] }}',@endforeach],
+            datasets: [{ data: [@foreach($mediaSubDistribution as $item){{ $item['count'] }},@endforeach], backgroundColor: ['#7C3AED','#8B5CF6','#A78BFA','#C4B5FD','#6D28D9','#5B21B6','#4C1D95','#EF4444','#F59E0B','#22C55E'] }]
         },
-        options: { responsive: true, maintainAspectRatio: false, indexAxis: 'y', plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true, ticks: { color: inkMuted } }, y: { ticks: { color: inkMuted } } } }
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { color: inkMuted, boxWidth: 12, font: { size: 11 } } } } }
     });
 
     // Category chart

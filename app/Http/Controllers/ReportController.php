@@ -57,9 +57,10 @@ class ReportController extends Controller
         // 获取工单趋势统计
         $recentStats = $this->getRecentStats($days, $rangeStart, $rangeEnd);
 
-        // 获取来源分布和优先级分布
+        // 获取网络/多媒体二级工单类型 Top10 分布
+        $networkSubDistribution = $this->getSubCategoryDistribution(1);
+        $mediaSubDistribution = $this->getSubCategoryDistribution(2);
         $sourceDistribution = $this->getSourceDistribution();
-        $priorityDistribution = $this->getPriorityDistribution();
 
         // 获取工单状态分布
         $statusDistribution = $this->getStatusDistribution();
@@ -89,8 +90,9 @@ class ReportController extends Controller
             'processingTimeStats',
            'satisfactionStats',
             'dateRange',
-            'sourceDistribution',
-            'priorityDistribution'
+            'networkSubDistribution',
+            'mediaSubDistribution',
+            'sourceDistribution'
         ));
     }
 
@@ -197,6 +199,37 @@ class ReportController extends Controller
 
          return $topCats->sortByDesc('workorders_count')->values();
      }
+    /**
+     * 获取一级分类下二级工单类型 Top10
+     */
+    private function getSubCategoryDistribution($rootId)
+    {
+        $subs = WorkorderCategorySimplified::where('parent_id', $rootId)
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->get(['id', 'name']);
+
+        $result = [];
+        foreach ($subs as $sub) {
+            $descendantIds = [$sub->id];
+            $queue = [$sub->id];
+            while (!empty($queue)) {
+                $children = WorkorderCategorySimplified::whereIn('parent_id', $queue)->pluck('id')->toArray();
+                $descendantIds = array_merge($descendantIds, $children);
+                $queue = $children;
+            }
+            $cnt = Workorder::whereIn('category_id', $descendantIds)->count();
+            if ($cnt > 0) {
+                $result[] = ['name' => $sub->name, 'count' => $cnt];
+            }
+        }
+
+        usort($result, function ($a, $b) {
+            return $b['count'] <=> $a['count'];
+        });
+
+        return array_slice($result, 0, 10);
+    }
 
     /**
      * 获取校区工单统计
