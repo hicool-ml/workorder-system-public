@@ -19,7 +19,12 @@ class ReportController extends Controller
      */
     public function index(Request $request)
     {
-        // 获取统计数据
+        // 获取时间范围
+        $dateRange = $request->input('date_range', '7days');
+        $days = $dateRange === '30days' ? 30 : ($dateRange === '90days' ? 90 : 7);
+        $rangeStart = now()->subDays($days - 1)->startOfDay();
+
+        // 统计概览
         $stats = [
             'total_workorders' => Workorder::count(),
             'pending_workorders' => Workorder::whereIn('status', ['pending', 'assigned', 'processing'])->count(),
@@ -34,14 +39,17 @@ class ReportController extends Controller
             'emergency_workorders' => Workorder::where('is_emergency', true)
                 ->whereNotIn('status', ['closed', 'resolved'])
                 ->count(),
+            'range_new' => Workorder::where('created_at', '>=', $rangeStart)->count(),
+            'range_resolved' => Workorder::where('resolved_at', '>=', $rangeStart)->count(),
+            'completion_rate' => round(Workorder::whereIn('status', ['resolved', 'closed'])->count() / max(Workorder::count(), 1) * 100, 1),
         ];
 
-        // 获取时间范围
-        $dateRange = $request->input('date_range', '7days');
-        $days = $dateRange === '30days' ? 30 : ($dateRange === '90days' ? 90 : 7);
-        
-        // 获取最近N天的工单统计
+        // 获取最近N天的工单统计（单次 GROUP BY 查询）
         $recentStats = $this->getRecentStats($days);
+
+        // 获取来源分布和优先级分布
+        $sourceDistribution = $this->getSourceDistribution();
+        $priorityDistribution = $this->getPriorityDistribution();
 
         // 获取工单状态分布
         $statusDistribution = $this->getStatusDistribution();
@@ -69,8 +77,10 @@ class ReportController extends Controller
             'campusStats',
             'engineerStats',
             'processingTimeStats',
-            'satisfactionStats',
-            'dateRange'
+           'satisfactionStats',
+            'dateRange',
+            'sourceDistribution',
+            'priorityDistribution'
         ));
     }
 
@@ -131,23 +141,21 @@ class ReportController extends Controller
      */
     private function getCampusStats()
     {
-        $campuses = \App\Models\Campus::orderBy('sort_order')->orderBy('name')->get();
-        $stats = [];
-
-        foreach ($campuses as $campus) {
-            $stats[$campus->id] = [
-                'name' => $campus->name,
-                'total' => Workorder::where('campus_id', $campus->id)->count(),
-                'pending' => Workorder::where('campus_id', $campus->id)
-                    ->whereIn('status', ['pending', 'assigned', 'processing'])
-                    ->count(),
-                'completed' => Workorder::where('campus_id', $campus->id)
-                    ->whereIn('status', ['resolved', 'closed'])
-                    ->count(),
-            ];
-        }
-
-        return $stats;
+        return \App\Models\Campus::leftJoin('workorders', 'campuses.id', '=', 'workorders.campus_id')
+            ->whereNull('workorders.deleted_at')
+            ->selectRaw("campuses.id, campuses.name,
+                COUNT(workorders.id) as total,
+                SUM(CASE WHEN workorders.status IN ('pending','assigned','processing') THEN 1 ELSE 0 END) as pending,
+                SUM(CASE WHEN workorders.status IN ('resolved','closed') THEN 1 ELSE 0 END) as completed")
+            ->groupBy('campuses.id', 'campuses.name')
+            ->orderBy('campuses.sort_order')
+            ->orderBy('campuses.name')
+            ->get()
+            ->keyBy('id')
+            ->map(function($item) {
+                return ['name' => $item->name, 'total' => (int)$item->total, 'pending' => (int)$item->pending, 'completed' => (int)$item->completed];
+            })
+            ->toArray();
     }
 
     /**
@@ -177,32 +185,18 @@ class ReportController extends Controller
      */
     private function getProcessingTimeStats()
     {
-        $completedWorkorders = Workorder::whereIn('status', ['resolved', 'closed'])
+        $r = Workorder::whereIn('status', ['resolved', 'closed'])
             ->whereNotNull('resolved_at')
             ->whereNotNull('started_at')
-            ->get();
-
-        if ($completedWorkorders->isEmpty()) {
-            return [
-                'average_time' => 0,
-                'min_time' => 0,
-                'max_time' => 0,
-                'total_completed' => 0,
-            ];
+            ->selectRaw("COUNT(*) as total,
+                AVG(TIMESTAMPDIFF(MINUTE, started_at, resolved_at)) as avg_time,
+                MIN(TIMESTAMPDIFF(MINUTE, started_at, resolved_at)) as min_time,
+                MAX(TIMESTAMPDIFF(MINUTE, started_at, resolved_at)) as max_time")
+            ->first();
+        if (!$r || $r->total == 0) {
+            return ['average_time' => 0, 'min_time' => 0, 'max_time' => 0, 'total_completed' => 0];
         }
-
-        $times = [];
-        foreach ($completedWorkorders as $workorder) {
-            $startTime = $workorder->started_at ?? $workorder->created_at;
-            $times[] = $startTime->diffInMinutes($workorder->resolved_at);
-        }
-
-        return [
-            'average_time' => round(array_sum($times) / count($times)),
-            'min_time' => min($times),
-            'max_time' => max($times),
-            'total_completed' => count($times),
-        ];
+        return ['average_time' => round($r->avg_time), 'min_time' => (int)$r->min_time, 'max_time' => (int)$r->max_time, 'total_completed' => (int)$r->total];
     }
 
     /**
@@ -241,6 +235,43 @@ class ReportController extends Controller
             'average_score' => round(array_sum($scores) / count($scores), 2),
             'total_visits' => count($scores),
             'distribution' => $distribution,
+        ];
+    }
+
+    /**
+     * 获取部门工单统计
+     */
+    /**
+     * 获取来源分布
+     */
+    private function getSourceDistribution()
+    {
+        $labels = ['phone' => '电话', 'web' => '网络', 'scene' => '现场', 'email' => '邮件', 'other' => '其他'];
+        $raw = Workorder::selectRaw("COALESCE(NULLIF(source,''),'unknown') as src, COUNT(*) as cnt")
+            ->groupByRaw("COALESCE(NULLIF(source,''),'unknown')")
+            ->pluck('cnt', 'src');
+        $result = [];
+        foreach ($labels as $code => $name) {
+            $result[$name] = $raw->get($code, 0);
+        }
+        // 合并未知来源
+        $unknown = $raw->get('unknown', 0);
+        if ($unknown > 0) $result['未知'] = $unknown;
+        return $result;
+    }
+
+    /**
+     * 获取优先级分布
+     */
+    private function getPriorityDistribution()
+    {
+        $raw = Workorder::selectRaw("priority, COUNT(*) as cnt")
+            ->groupBy('priority')
+            ->pluck('cnt', 'priority');
+        return [
+            'high' => $raw->get('high', 0),
+            'medium' => $raw->get('medium', 0),
+            'low' => $raw->get('low', 0),
         ];
     }
 
