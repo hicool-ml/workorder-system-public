@@ -230,9 +230,9 @@
 @endsection
 
 @section('scripts')
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.min.js"></script>
+<script src="{{ asset('js/chart.min.js') }}"></script>
 <script>
-(function() {
+document.addEventListener('DOMContentLoaded', function() {
     var cssVar = function(name){ return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); };
     var inkMuted = cssVar('--c-ink-muted') || '#888';
 
@@ -299,6 +299,6 @@
         },
         options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right' } } }
     });
-})();
+});
 </script>
 @endsection

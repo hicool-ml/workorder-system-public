@@ -246,18 +246,27 @@ class ReportController extends Controller
      */
     private function getSourceDistribution()
     {
-        $labels = ['phone' => '电话', 'web' => '网络', 'scene' => '现场', 'email' => '邮件', 'other' => '其他'];
+        // 兼容代码值(phone/web/scene)和中文值(电话报修/现场报修等)
         $raw = Workorder::selectRaw("COALESCE(NULLIF(source,''),'unknown') as src, COUNT(*) as cnt")
             ->groupByRaw("COALESCE(NULLIF(source,''),'unknown')")
             ->pluck('cnt', 'src');
-        $result = [];
-        foreach ($labels as $code => $name) {
-            $result[$name] = $raw->get($code, 0);
+
+        $map = [
+            'phone' => '电话', '电话报修' => '电话',
+            'web' => '网络', '在线平台' => '网络',
+            'scene' => '现场', '现场报修' => '现场',
+            'email' => '邮件',
+            'other' => '其他', '其他来源' => '其他',
+            '巡检发现' => '巡检',
+        ];
+
+        $result = ['电话' => 0, '网络' => 0, '现场' => 0, '邮件' => 0, '其他' => 0, '巡检' => 0];
+        foreach ($raw as $src => $cnt) {
+            $label = $map[$src] ?? '其他';
+            $result[$label] = ($result[$label] ?? 0) + $cnt;
         }
-        // 合并未知来源
-        $unknown = $raw->get('unknown', 0);
-        if ($unknown > 0) $result['未知'] = $unknown;
-        return $result;
+        // 移除为0的类别
+        return array_filter($result, function($v) { return $v > 0; });
     }
 
     /**
