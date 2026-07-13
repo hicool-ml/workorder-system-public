@@ -129,12 +129,27 @@ class ReportController extends Controller
      */
     private function getCategoryDistribution()
     {
-        return WorkorderCategorySimplified::withCount('workorders')
-            ->whereNull('parent_id')
-            ->orderBy('workorders_count', 'desc')
-            ->limit(10)
+        // 统计每个一级分类下所有工单（含子分类）
+        $topCats = WorkorderCategorySimplified::whereNull('parent_id')
+            ->orderBy('sort_order')
+            ->orderBy('name')
             ->get();
-    }
+
+        $allDescendantIds = function($parentId) use (&$allDescendantIds) {
+            $ids = WorkorderCategorySimplified::where('parent_id', $parentId)->pluck('id')->toArray();
+            $result = $ids;
+            foreach ($ids as $id) { $result = array_merge($result, $allDescendantIds($id)); }
+            return $result;
+        };
+
+         foreach ($topCats as $cat) {
+             $subIds = $allDescendantIds($cat->id);
+             $allIds = array_merge([$cat->id], $subIds);
+            $cat->workorders_count = Workorder::whereIn('category_id', $allIds)->count();
+        }
+
+         return $topCats->sortByDesc('workorders_count')->values();
+     }
 
     /**
      * 获取校区工单统计
