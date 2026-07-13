@@ -477,9 +477,9 @@ class ReportController extends Controller
                     $processorsText,
                     $workorder->phone_assisted ? '电话协助' : '现场处理',
                     $processingDuration,
-                    $workorder->solution ?? '',
-                    $workorder->materials_usage ?? '',
-                    $workorder->remarks ?? '',
+                   $workorder->solution ?? '',
+                    $workorder->materials_usage === '无备件耗材使用' ? '无' : ($workorder->materials_usage ?? ''),
+                   $workorder->remarks ?? '',
                     $hasVisit ? '是' : '否',
                     $visitResult
                 ];
