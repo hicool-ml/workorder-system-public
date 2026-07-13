@@ -34,81 +34,17 @@ class WorkorderController extends Controller
             ->with(['category', 'creator', 'assignee', 'department'])
             ->orderBy('created_at', 'desc');
         
-        // 默认隐藏已完结的工单，但如果用户有任何搜索条件，则显示所有工单
-        $hasSearchConditions = $request->filled('keyword') ||
-                              $request->filled('priority') ||
-                              $request->filled('category_id') ||
-                              $request->filled('assignee_id') ||
-                              $request->filled('date_from') ||
-                              $request->filled('date_to') ||
-                              $request->filled('campus_id') ||
-                              $request->filled('source') ||
-                              $request->filled('is_emergency') ||
-                              $request->filled('phone_assisted');
-                                
-        // 检查是否选择了具体状态（不包括空字符串）
-        $hasStatusFilter = $request->filled('status');
-                                
-        // 只有在用户明确要求显示已完结工单时，才显示已完结工单
-        // 默认只显示未解决的工单（待处理、已分配、处理中）
-        // 但如果用户选择了状态或其他搜索条件，则不应用默认过滤
-        // 特殊处理：如果用户选择了"全部"状态，则不应用默认过滤
-        if (!$request->has('show_closed') && !$hasSearchConditions && !$hasStatusFilter) {
+        // ---- 状态过滤（集中处理，后续筛选全部为 AND） ----
+        // 优先级：明确选择某状态 > 勾选"显示已解决" > 默认仅未完结
+        $status = $request->input('status');
+        $showClosed = $request->boolean('show_closed');
+
+        if ($status && $status !== 'all') {
+            // 用户明确选择了某个状态，精确匹配
+            $query->where('status', $status);
+        } elseif ($status !== 'all' && !$showClosed) {
+            // 默认：只显示未完结工单（待处理、已分配、处理中）
             $query->whereIn('status', ['pending', 'assigned', 'processing']);
-        }
-        
-        // 如果勾选了"显示已解决"，则包括已解决和已完结的工单
-        if ($request->has('show_closed') && $request->show_closed) {
-            if (!$hasSearchConditions) {
-                // 如果没有其他搜索条件，重新构建查询
-                $query = $user->getWorkorderQueryScope()
-                    ->with(['creator', 'assignee', 'category', 'department'])
-                    ->whereIn('status', ['pending', 'assigned', 'processing', 'resolved', 'completed']);
-            } else {
-                // 如果有其他搜索条件，添加已解决和已完结状态
-                $query->orWhere(function($q) use ($user) {
-                    $q->whereIn('status', ['resolved', 'completed']);
-                    // 如果是工程师，需要重新应用权限范围
-                    if ($user->role === 'engineer') {
-                        $q->where(function($subQ) use ($user) {
-                            $subQ->whereNull('assignee_id')
-                                  ->orWhere('creator_id', $user->id)
-                                  ->orWhere('assignee_id', $user->id)
-                                  ->orWhereHas('collaborations', function($collabQ) use ($user) {
-                                      $collabQ->where('collaborator_id', $user->id)
-                                             ->where('status', 'accepted');
-                                  });
-                        });
-                    }
-                });
-            }
-        }
-        
-        // 如果勾选了"显示已解决"，则包括已解决的工单
-        if ($request->has('show_closed') && $request->show_closed) {
-            if (!$hasSearchConditions) {
-                // 如果没有其他搜索条件，重新构建查询
-                $query = $user->getWorkorderQueryScope()
-                    ->with(['creator', 'assignee', 'category', 'department'])
-                    ->whereIn('status', ['pending', 'assigned', 'processing', 'resolved']);
-            } else {
-                // 如果有其他搜索条件，添加已解决状态
-                $query->orWhere(function($q) use ($user) {
-                    $q->where('status', 'resolved');
-                    // 如果是工程师，需要重新应用权限范围
-                    if ($user->role === 'engineer') {
-                        $q->where(function($subQ) use ($user) {
-                            $subQ->whereNull('assignee_id')
-                                  ->orWhere('creator_id', $user->id)
-                                  ->orWhere('assignee_id', $user->id)
-                                  ->orWhereHas('collaborations', function($collabQ) use ($user) {
-                                      $collabQ->where('collaborator_id', $user->id)
-                                             ->where('status', 'accepted');
-                                  });
-                        });
-                    }
-                });
-            }
         }
 
         // 搜索条件
@@ -120,17 +56,6 @@ class WorkorderController extends Controller
                   ->orWhere('contact_name', 'like', "%{$keyword}%")
                   ->orWhere('contact_phone', 'like', "%{$keyword}%");
             });
-        }
-
-        // 状态筛选
-        if ($request->filled('status')) {
-            if ($request->input('status') === 'all') {
-                // 选择"全部"时，不添加状态过滤条件，显示所有状态
-                // 但需要确保不被前面的默认过滤条件覆盖
-                // 所以这里不需要做任何操作，让查询保持原样
-            } else {
-                $query->where('status', $request->input('status'));
-            }
         }
 
         // 优先级筛选
