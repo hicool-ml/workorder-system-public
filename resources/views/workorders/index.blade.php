@@ -23,11 +23,37 @@
     <form method="GET" action="{{ route('workorders.index') }}" id="searchForm">
         <div class="p-4 space-y-4">
             {{-- Primary search row --}}
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
                 <div>
                     <label class="label" for="keyword">关键词</label>
                     <input type="text" class="input" id="keyword" name="keyword"
                            value="{{ request('keyword') }}" placeholder="工单号、描述、联系人" autocomplete="off">
+                </div>
+                <div>
+                    <label class="label" for="filter_category_main">工单大类</label>
+                    <select class="input" id="filter_category_main" name="category_main">
+                        <option value="">全部大类</option>
+                        @foreach($categories['main'] as $category)
+                        <option value="{{ $category->id }}" {{ request('category_main') == $category->id ? 'selected' : '' }}>
+                            {{ $category->name }}
+                        </option>
+                        @endforeach
+                    </select>
+                </div>
+                <div>
+                    <label class="label" for="filter_category_sub">故障分类</label>
+                    <select class="input" id="filter_category_sub" name="category_sub">
+                        <option value="">全部</option>
+                        @php
+                            $currentMain = request('category_main');
+                            $currentSub = request('category_sub');
+                            if ($currentMain && isset($categories['sub'][$currentMain])) {
+                                foreach ($categories['sub'][$currentMain] as $sub) {
+                                    echo '<option value="' . $sub->id . '"' . ($currentSub == $sub->id ? ' selected' : '') . '>' . e($sub->name) . '</option>';
+                                }
+                            }
+                        @endphp
+                    </select>
                 </div>
                 <div>
                     <label class="label" for="status">状态</label>
@@ -49,17 +75,6 @@
                         <option value="high" {{ request('priority') == 'high' ? 'selected' : '' }}>高</option>
                         <option value="medium" {{ request('priority') == 'medium' ? 'selected' : '' }}>中</option>
                         <option value="low" {{ request('priority') == 'low' ? 'selected' : '' }}>低</option>
-                    </select>
-                </div>
-                <div>
-                    <label class="label" for="category_id">工单分类</label>
-                    <select class="input" id="category_id" name="category_id">
-                        <option value="">全部分类</option>
-                        @foreach($categories['main'] as $category)
-                        <option value="{{ $category->id }}" {{ request('category_id') == $category->id ? 'selected' : '' }}>
-                            {{ $category->name }}
-                        </option>
-                        @endforeach
                     </select>
                 </div>
             </div>
@@ -396,5 +411,27 @@
 @include('workorders._batch_assign_modal')
 @include('workorders._batch_resolve_modal')
 @endif
+
+<script>
+var listCategoryData = @json($categories);
+(function() {
+    var mainSel = document.getElementById('filter_category_main');
+    var subSel  = document.getElementById('filter_category_sub');
+    if (!mainSel || !subSel) return;
+
+    mainSel.addEventListener('change', function() {
+        var mainId = this.value;
+        subSel.innerHTML = '<option value="">全部</option>';
+        if (mainId && listCategoryData.sub[mainId]) {
+            listCategoryData.sub[mainId].forEach(function(sub) {
+                var opt = document.createElement('option');
+                opt.value = sub.id;
+                opt.textContent = sub.name;
+                subSel.appendChild(opt);
+            });
+        }
+    });
+})();
+</script>
 
 @endsection

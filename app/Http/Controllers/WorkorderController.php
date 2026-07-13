@@ -63,30 +63,37 @@ class WorkorderController extends Controller
             $query->where('priority', $request->input('priority'));
         }
 
-        // 分类筛选
-        if ($request->filled('category_id')) {
+        // 分类筛选（层级：工单大类 → 故障分类，与创建页一致）
+        // 优先使用级联参数 category_main / category_sub，兼容旧参数 category_id
+        if ($request->filled('category_sub')) {
+            // 选了具体子分类，精确匹配
+            $query->where('category_id', $request->input('category_sub'));
+        } elseif ($request->filled('category_main')) {
+            // 只选了大类，匹配该大类下所有子分类
+            $subCategoryIds = WorkorderCategorySimplified::where('parent_id', $request->input('category_main'))
+                ->where('status', true)
+                ->pluck('id')
+                ->toArray();
+            if (!empty($subCategoryIds)) {
+                $query->whereIn('category_id', $subCategoryIds);
+            } else {
+                $query->where('category_id', $request->input('category_main'));
+            }
+        } elseif ($request->filled('category_id')) {
             $categoryId = $request->input('category_id');
-            
-            // 检查选择的是主分类还是子分类
             $category = WorkorderCategorySimplified::find($categoryId);
-            
             if ($category) {
                 if ($category->parent_id === null) {
-                    // 选择的是主分类，获取所有子分类ID
                     $subCategoryIds = WorkorderCategorySimplified::where('parent_id', $categoryId)
                         ->where('status', true)
                         ->pluck('id')
                         ->toArray();
-                    
-                    // 如果有子分类，使用whereIn搜索所有子分类
                     if (!empty($subCategoryIds)) {
                         $query->whereIn('category_id', $subCategoryIds);
                     } else {
-                        // 如果没有子分类（不应该发生），按原逻辑搜索
                         $query->where('category_id', $categoryId);
                     }
                 } else {
-                    // 选择的是子分类，直接精确匹配
                     $query->where('category_id', $categoryId);
                 }
             }
