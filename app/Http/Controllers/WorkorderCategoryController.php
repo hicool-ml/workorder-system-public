@@ -28,7 +28,11 @@ class WorkorderCategoryController extends Controller
 
         // 层级筛选
         if ($request->filled('level')) {
-            $query->where('level', $request->input('level'));
+            if ($request->input('level') == 1) {
+                $query->whereNull('parent_id');
+            } else {
+                $query->whereNotNull('parent_id');
+            }
         }
 
         // 状态筛选
@@ -40,7 +44,7 @@ class WorkorderCategoryController extends Controller
         $categories = $query->paginate(15);
         
         // 获取顶级分类用于筛选
-        $topLevelCategories = WorkorderCategory::whereNull('parent_id')
+        $topLevelCategories = WorkorderCategorySimplified::whereNull('parent_id')
             ->where('status', 'active')
             ->orderBy('sort_order')
             ->get();
