@@ -254,14 +254,30 @@ document.addEventListener('DOMContentLoaded', function() {
     var inkMuted = cssVar('--c-ink-muted') || '#888';
 
     // Trend chart
+    <?php
+        $trendStats = $recentStats['stats'];
+        $trendCats = $recentStats['topCats'];
+        $catColors = ['#2563eb', '#dc2626', '#16a34a', '#f59e0b', '#8b5cf6', '#ec4899'];
+        $catColorIdx = 0;
+    ?>
     var trendCtx = document.getElementById('trendChart');
     if (trendCtx) new Chart(trendCtx, {
         type: 'line',
         data: {
-            labels: [@foreach($recentStats as $s)'{{ $s["display_date"] }}',@endforeach],
+            labels: [@foreach($trendStats as $s)'{{ $s["display_date"] }}',@endforeach],
             datasets: [
-                { label: '新建', data: [@foreach($recentStats as $s){{ $s["total"] }},@endforeach], borderColor: '#2563eb', backgroundColor: 'rgba(37,99,235,0.1)', fill: true, tension: 0.3, pointRadius: 2 },
-                { label: '完成', data: [@foreach($recentStats as $s){{ $s["completed"] }},@endforeach], borderColor: '#16a34a', backgroundColor: 'rgba(22,163,74,0.1)', fill: true, tension: 0.3, pointRadius: 2 }
+                @php $catColorIdx = 0; @endphp
+                @foreach($trendCats as $cid => $cname)
+                {
+                    label: '{{ $cname }}',
+                    data: [@foreach($trendStats as $s){{ $s["cat_".$cid] ?? 0 }},@endforeach],
+                    borderColor: '{{ $catColors[$catColorIdx % count($catColors)] }}',
+                    backgroundColor: 'transparent',
+                    tension: 0.3,
+                    pointRadius: 2
+                },
+                @php $catColorIdx++; @endphp
+                @endforeach
             ]
         },
         options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top' } }, scales: { x: { ticks: { color: inkMuted, maxTicksLimit: 12 } }, y: { beginAtZero: true, ticks: { color: inkMuted } } } }

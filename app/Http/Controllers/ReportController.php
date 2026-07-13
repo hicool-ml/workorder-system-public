@@ -102,28 +102,58 @@ class ReportController extends Controller
         $rangeStart = $rangeStart ?? now()->subDays($days - 1)->startOfDay();
         $rangeEnd = $rangeEnd ?? now()->endOfDay();
 
-        $startDate = $rangeStart->format('Y-m-d');
+        // 构建 category_id → 一级分类ID 的映射
+        $allCats = WorkorderCategorySimplified::select('id', 'parent_id')->get()->keyBy('id');
+        $catToRoot = [];
+        foreach ($allCats as $id => $cat) {
+            $current = $id;
+            $guard = 0;
+            while ($allCats->has($current) && $allCats[$current]->parent_id && $guard++ < 10) {
+                $current = $allCats[$current]->parent_id;
+            }
+            $catToRoot[$id] = $current;
+        }
 
-        // 3 条 GROUP BY 查询替代 days*5 条查询
-        $created  = Workorder::selectRaw("DATE(created_at) as d, COUNT(*) as c")->whereBetween('created_at', [$rangeStart, $rangeEnd])->groupByRaw("DATE(created_at)")->pluck('c', 'd');
-        $resolved = Workorder::selectRaw("DATE(resolved_at) as d, COUNT(*) as c")->whereBetween('resolved_at', [$rangeStart, $rangeEnd])->groupByRaw("DATE(resolved_at)")->pluck('c', 'd');
-        $emergency = Workorder::selectRaw("DATE(created_at) as d, COUNT(*) as c")->whereBetween('created_at', [$rangeStart, $rangeEnd])->where('is_emergency', true)->groupByRaw("DATE(created_at)")->pluck('c', 'd');
+        // 获取一级分类名称
+        $topCats = WorkorderCategorySimplified::whereNull('parent_id')->orderBy('sort_order')->orderBy('name')->get();
+        $topCatNames = $topCats->pluck('name', 'id')->toArray();
+
+        // 每日新建数（总量）
+        $created = Workorder::selectRaw("DATE(created_at) as d, COUNT(*) as c")
+            ->whereBetween('created_at', [$rangeStart, $rangeEnd])
+            ->groupByRaw("DATE(created_at)")
+            ->pluck('c', 'd');
+
+        // 每日按一级分类的新建数
+        $byCat = [];
+        foreach ($topCatNames as $rootId => $rootName) {
+            $subIds = array_keys(array_filter($catToRoot, function($v) use ($rootId) { return $v == $rootId; }));
+            if (!empty($subIds)) {
+                $byCat[$rootId] = Workorder::selectRaw("DATE(created_at) as d, COUNT(*) as c")
+                    ->whereBetween('created_at', [$rangeStart, $rangeEnd])
+                    ->whereIn('category_id', $subIds)
+                    ->groupByRaw("DATE(created_at)")
+                    ->pluck('c', 'd');
+            }
+        }
 
         $stats = [];
         $cursor = $rangeStart->copy();
         while ($cursor <= $rangeEnd) {
             $date = $cursor->format('Y-m-d');
-            $stats[$date] = [
+            $row = [
                 'date' => $date,
                 'display_date' => $cursor->format('m-d'),
                 'total' => $created->get($date, 0),
-                'completed' => $resolved->get($date, 0),
-                'emergency' => $emergency->get($date, 0),
             ];
+            foreach ($topCatNames as $rootId => $rootName) {
+                $row['cat_' . $rootId] = isset($byCat[$rootId]) ? $byCat[$rootId]->get($date, 0) : 0;
+            }
+            $stats[$date] = $row;
             $cursor->addDay();
         }
 
-        return $stats;
+        return ['stats' => $stats, 'topCats' => $topCatNames];
     }
 
     /**
