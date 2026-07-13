@@ -1,4 +1,6 @@
 {{-- Camera capture modal (shared) --}}
+{{-- 隐藏的 capture 输入框，用于移动端非安全上下文（http）下直接调用系统相机 --}}
+<input type="file" id="nativeCameraInput" accept="image/*" capture="environment" class="hidden">
 <div id="cameraModal" class="hidden fixed inset-0 z-[70] items-center justify-center p-4 bg-black/80" data-modal>
     <div class="card w-full max-w-lg overflow-hidden">
         <div class="flex items-center justify-between px-5 py-3 border-b border-border">
@@ -39,6 +41,30 @@ var cameraTargetInput = 'attachments';
 
 function openCameraModal(targetInputId) {
     if (targetInputId) cameraTargetInput = targetInputId;
+    // 非安全上下文（http 局域网访问）下 getUserMedia 被浏览器禁用，
+    // 回退到 HTML 原生 capture 属性，直接调用系统相机
+    if (!window.isSecureContext || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        var nativeInput = document.getElementById('nativeCameraInput');
+        if (nativeInput) {
+            nativeInput.value = '';
+            nativeInput.onchange = function() {
+                if (this.files && this.files.length > 0) {
+                    var fileInput = document.getElementById(cameraTargetInput);
+                    if (!fileInput) return;
+                    var dt = new DataTransfer();
+                    if (fileInput.files) { for (var j = 0; j < fileInput.files.length; j++) { dt.items.add(fileInput.files[j]); } }
+                    for (var k = 0; k < this.files.length; k++) { dt.items.add(this.files[k]); }
+                    fileInput.files = dt.files;
+                    if (typeof handleAttachmentSelect === 'function') {
+                        handleAttachmentSelect(fileInput);
+                    }
+                }
+                this.onchange = null;
+            };
+            nativeInput.click();
+        }
+        return;
+    }
     var modal = document.getElementById('cameraModal');
     modal.classList.remove('hidden'); modal.classList.add('flex');
     document.body.classList.add('overflow-hidden');
