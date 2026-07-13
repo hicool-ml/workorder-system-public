@@ -19,10 +19,20 @@ class ReportController extends Controller
      */
     public function index(Request $request)
     {
-        // 获取时间范围
+       // 获取时间范围
         $dateRange = $request->input('date_range', '7days');
-        $days = $dateRange === '30days' ? 30 : ($dateRange === '90days' ? 90 : 7);
-        $rangeStart = now()->subDays($days - 1)->startOfDay();
+        $customFrom = $request->input('custom_from');
+        $customTo = $request->input('custom_to');
+        $rangeEnd = now()->endOfDay();
+
+        if ($dateRange === 'custom' && $customFrom) {
+            $rangeStart = \Carbon\Carbon::parse($customFrom)->startOfDay();
+            if ($customTo) { $rangeEnd = \Carbon\Carbon::parse($customTo)->endOfDay(); }
+            $days = max($rangeStart->diffInDays($rangeEnd) + 1, 1);
+        } else {
+            $days = $dateRange === '30days' ? 30 : ($dateRange === '90days' ? 90 : 7);
+            $rangeStart = now()->subDays($days - 1)->startOfDay();
+        }
 
         // 统计概览
         $stats = [
@@ -39,13 +49,13 @@ class ReportController extends Controller
             'emergency_workorders' => Workorder::where('is_emergency', true)
                 ->whereNotIn('status', ['closed', 'resolved'])
                 ->count(),
-            'range_new' => Workorder::where('created_at', '>=', $rangeStart)->count(),
-            'range_resolved' => Workorder::where('resolved_at', '>=', $rangeStart)->count(),
+            'range_new' => Workorder::whereBetween('created_at', [$rangeStart, $rangeEnd])->count(),
+            'range_resolved' => Workorder::whereBetween('resolved_at', [$rangeStart, $rangeEnd])->count(),
             'completion_rate' => round(Workorder::whereIn('status', ['resolved', 'closed'])->count() / max(Workorder::count(), 1) * 100, 1),
         ];
 
-        // 获取最近N天的工单统计（单次 GROUP BY 查询）
-        $recentStats = $this->getRecentStats($days);
+        // 获取工单趋势统计
+        $recentStats = $this->getRecentStats($days, $rangeStart, $rangeEnd);
 
         // 获取来源分布和优先级分布
         $sourceDistribution = $this->getSourceDistribution();
@@ -87,23 +97,30 @@ class ReportController extends Controller
     /**
      * 获取最近N天的统计
      */
-    private function getRecentStats($days = 7)
+    private function getRecentStats($days = 7, $rangeStart = null, $rangeEnd = null)
     {
+        $rangeStart = $rangeStart ?? now()->subDays($days - 1)->startOfDay();
+        $rangeEnd = $rangeEnd ?? now()->endOfDay();
+
+        $startDate = $rangeStart->format('Y-m-d');
+
+        // 3 条 GROUP BY 查询替代 days*5 条查询
+        $created  = Workorder::selectRaw("DATE(created_at) as d, COUNT(*) as c")->whereBetween('created_at', [$rangeStart, $rangeEnd])->groupByRaw("DATE(created_at)")->pluck('c', 'd');
+        $resolved = Workorder::selectRaw("DATE(resolved_at) as d, COUNT(*) as c")->whereBetween('resolved_at', [$rangeStart, $rangeEnd])->groupByRaw("DATE(resolved_at)")->pluck('c', 'd');
+        $emergency = Workorder::selectRaw("DATE(created_at) as d, COUNT(*) as c")->whereBetween('created_at', [$rangeStart, $rangeEnd])->where('is_emergency', true)->groupByRaw("DATE(created_at)")->pluck('c', 'd');
+
         $stats = [];
-        for ($i = $days - 1; $i >= 0; $i--) {
-            $date = now()->subDays($i)->format('Y-m-d');
+        $cursor = $rangeStart->copy();
+        while ($cursor <= $rangeEnd) {
+            $date = $cursor->format('Y-m-d');
             $stats[$date] = [
                 'date' => $date,
-                'display_date' => now()->subDays($i)->format('m-d'),
-                'total' => Workorder::whereDate('created_at', $date)->count(),
-                'completed' => Workorder::whereDate('resolved_at', $date)->count(),
-                'pending' => Workorder::whereDate('created_at', $date)
-                    ->whereIn('status', ['pending', 'assigned', 'processing'])
-                    ->count(),
-                'emergency' => Workorder::whereDate('created_at', $date)
-                    ->where('is_emergency', true)
-                    ->count(),
+                'display_date' => $cursor->format('m-d'),
+                'total' => $created->get($date, 0),
+                'completed' => $resolved->get($date, 0),
+                'emergency' => $emergency->get($date, 0),
             ];
+            $cursor->addDay();
         }
 
         return $stats;

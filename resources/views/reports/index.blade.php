@@ -10,6 +10,12 @@
         <a href="{{ route('reports.index', ['date_range' => $key]) }}" class="px-3 py-1.5 rounded-md text-sm font-medium transition-colors {{ $dateRange == $key ? 'text-white' : '' }}" {{ $dateRange == $key ? 'style="background-color: var(--c-brand);"' : 'style="color: var(--c-ink-muted);"' }}>{{ $label }}</a>
         @endforeach
     </div>
+    <div class="flex items-center gap-2">
+        <input type="date" id="customDateFrom" class="input" style="padding:0.3rem 0.5rem;font-size:0.8rem;width:auto;" value="{{ request('custom_from','') }}">
+        <span class="text-sm" style="color:var(--c-ink-muted);">~</span>
+        <input type="date" id="customDateTo" class="input" style="padding:0.3rem 0.5rem;font-size:0.8rem;width:auto;" value="{{ request('custom_to','') }}">
+        <button type="button" id="customRangeBtn" class="btn btn-primary btn-sm">应用</button>
+    </div>
 </div>
 
 {{-- Overview stats --}}
@@ -233,6 +239,17 @@
 <script src="{{ asset('js/chart.min.js') }}"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // 自定义时间范围
+    var btn = document.getElementById('customRangeBtn');
+    if (btn) btn.addEventListener('click', function() {
+        var from = document.getElementById('customDateFrom').value;
+        var to = document.getElementById('customDateTo').value;
+        var url = '{{ route('reports.index') }}?date_range=custom';
+        if (from) url += '&custom_from=' + from;
+        if (to) url += '&custom_to=' + to;
+        window.location.href = url;
+    });
+
     var cssVar = function(name){ return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); };
     var inkMuted = cssVar('--c-ink-muted') || '#888';
 
