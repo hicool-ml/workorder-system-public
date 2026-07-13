@@ -305,9 +305,9 @@
         @endif
 
         {{-- Mobile card list --}}
-        <div class="md:hidden divide-y divide-border">
+        <div class="md:hidden space-y-2 p-2 sm:p-0">
             @forelse($workorders as $workorder)
-            <div class="p-4 {{ $workorder->isOverdue() ? 'overdue-row' : '' }}">
+            <div class="p-3 rounded-lg border border-border {{ $workorder->isOverdue() ? 'overdue-row' : 'bg-surface-muted' }}">
                 <div class="flex items-start justify-between gap-3 mb-2">
                     <div class="flex-1 min-w-0">
                         <a href="{{ route('workorders.show', $workorder->id) }}" class="font-medium text-ink hover:text-brand-600">
@@ -357,7 +357,7 @@
                 </div>
 
                 {{-- Contact + assignee --}}
-                <div class="flex items-center justify-between text-xs text-ink-muted mb-3">
+                <div class="flex items-center justify-between text-xs text-ink-muted mb-2">
                     <div>
                         <span class="text-ink-subtle">报修: </span>
                         <span class="font-medium text-ink">{{ $workorder->contact_name }}</span>
@@ -369,7 +369,7 @@
                 </div>
 
                 {{-- Actions --}}
-                <div class="flex items-center gap-1.5 pt-2 border-t border-border">
+                <div class="flex items-center gap-1.5 pt-1.5 border-t border-border">
                     @if(auth()->user()->canHandleWorkorders())
                     <input type="checkbox" class="workorder-checkbox rounded border-border-strong shrink-0" value="{{ $workorder->id }}" autocomplete="off">
                     @endif
