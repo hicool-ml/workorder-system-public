@@ -417,10 +417,11 @@ class ReportController extends Controller
             
             // CSV数据
             foreach ($workorders as $workorder) {
-                // 计算处理时长（分钟，取整）
+                // 计算处理时长，格式 hh:mm
                 $processingDuration = '';
                 if ($workorder->resolved_at) {
-                    $processingDuration = (int)$workorder->created_at->diffInMinutes($workorder->resolved_at);
+                    $mins = (int)$workorder->created_at->diffInMinutes($workorder->resolved_at);
+                    $processingDuration = sprintf('%02d:%02d', intdiv($mins, 60), $mins % 60);
                 }
                 
                 // 获取回访信息
