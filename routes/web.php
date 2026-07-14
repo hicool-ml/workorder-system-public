@@ -225,6 +225,10 @@ Route::middleware(['auth'])->group(function () {
         Route::post('system-settings/update-version', [SystemSettingController::class, 'updateVersion'])->name('system-settings.update-version');
         Route::get('system-settings/version-history', [SystemSettingController::class, 'getVersionHistory'])->name('system-settings.version-history');
         Route::get('system-settings/notification-rules', function () { return view('system-settings.notification-rules'); })->name('system-settings.notification-rules');
+        Route::get('system-settings/sms', [SystemSettingController::class, 'sms'])->name('system-settings.sms');
+        Route::post('system-settings/sms', [SystemSettingController::class, 'updateSms'])->name('system-settings.update-sms');
+        Route::get('system-settings/cas', [SystemSettingController::class, 'cas'])->name('system-settings.cas');
+        Route::post('system-settings/cas', [SystemSettingController::class, 'updateCas'])->name('system-settings.update-cas');
         Route::delete('system-settings/{systemSetting}', [SystemSettingController::class, 'destroy'])->name('system-settings.destroy');
         
         // 工单来源管理（仅管理员）

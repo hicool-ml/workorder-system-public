@@ -343,5 +343,128 @@ class SystemSettingController extends Controller
 
         return response()->json($result);
     }
-}
+    /**
+     * 短信配置页面
+     */
+    public function sms()
+    {
+        if (!Auth::user() || !Auth::user()->isAdmin()) {
+            return redirect()->route('system-settings.index')->with('error', '无权操作');
+        }
 
+        $smsSettings = [
+            'enabled'    => (bool) SystemSetting::get('sms_enabled', false),
+            'provider'   => SystemSetting::get('sms_provider', 'aliyun'),
+            'sign_name'  => SystemSetting::get('sms_sign_name', ''),
+            'access_key' => SystemSetting::get('sms_access_key', ''),
+            'access_secret' => SystemSetting::get('sms_access_secret', ''),
+            'sdk_app_id' => SystemSetting::get('sms_sdk_app_id', ''),
+            'api_url'    => SystemSetting::get('sms_api_url', ''),
+            'method'     => SystemSetting::get('sms_method', 'POST'),
+            'api_key'    => SystemSetting::get('sms_api_key', ''),
+        ];
+
+        return view('system-settings.sms', compact('smsSettings'));
+    }
+
+    /**
+     * 更新短信配置
+     */
+    public function updateSms(Request $request)
+    {
+        if (!Auth::user() || !Auth::user()->isAdmin()) {
+            return redirect()->route('system-settings.index')->with('error', '无权操作');
+        }
+
+        $request->validate([
+            'sms_provider'   => 'required|in:aliyun,tencent,custom',
+            'sms_sign_name'  => 'nullable|string|max:100',
+            'sms_access_key' => 'nullable|string|max:200',
+            'sms_access_secret' => 'nullable|string|max:200',
+            'sms_sdk_app_id' => 'nullable|string|max:100',
+            'sms_api_url'    => 'nullable|string|max:500',
+            'sms_method'     => 'nullable|in:GET,POST',
+            'sms_api_key'    => 'nullable|string|max:200',
+        ]);
+
+        $fields = [
+            'sms_provider'   => $request->input('sms_provider'),
+            'sms_sign_name'  => $request->input('sms_sign_name'),
+            'sms_access_key' => $request->input('sms_access_key'),
+            'sms_access_secret' => $request->input('sms_access_secret'),
+            'sms_sdk_app_id' => $request->input('sms_sdk_app_id'),
+            'sms_api_url'    => $request->input('sms_api_url'),
+            'sms_method'     => $request->input('sms_method', 'POST'),
+            'sms_api_key'    => $request->input('sms_api_key'),
+        ];
+
+        foreach ($fields as $key => $value) {
+            SystemSetting::set($key, $value, 'string');
+        }
+
+        return back()->with('success', '短信配置已保存');
+    }
+
+    /**
+     * CAS / 统一身份认证配置页面
+     */
+    public function cas()
+    {
+        if (!Auth::user() || !Auth::user()->isAdmin()) {
+            return redirect()->route('system-settings.index')->with('error', '无权操作');
+        }
+
+        $casSettings = [
+            'enabled'    => (bool) SystemSetting::get('cas_enabled', false),
+            'base_url'   => SystemSetting::get('cas_base_url', config('services.cas.base_url')),
+            'service_id' => SystemSetting::get('cas_service_id', ''),
+            'attr_username' => SystemSetting::get('cas_attr_username', 'uid'),
+            'attr_name'  => SystemSetting::get('cas_attr_name', 'cn'),
+            'attr_phone' => SystemSetting::get('cas_attr_phone', 'mobile'),
+            'attr_email' => SystemSetting::get('cas_attr_email', 'mail'),
+            'attr_department' => SystemSetting::get('cas_attr_department', 'department'),
+        ];
+
+        return view('system-settings.cas', compact('casSettings'));
+    }
+
+    /**
+     * 更新 CAS 配置
+     */
+    public function updateCas(Request $request)
+    {
+        if (!Auth::user() || !Auth::user()->isAdmin()) {
+            return redirect()->route('system-settings.index')->with('error', '无权操作');
+        }
+
+        $request->validate([
+            'cas_base_url' => 'nullable|string|max:500',
+            'cas_service_id' => 'nullable|string|max:200',
+            'cas_attr_username' => 'required|string|max:50',
+            'cas_attr_name'  => 'required|string|max:50',
+            'cas_attr_phone' => 'nullable|string|max:50',
+            'cas_attr_email' => 'nullable|string|max:50',
+            'cas_attr_department' => 'nullable|string|max:50',
+        ]);
+
+        $fields = [
+            'cas_base_url'   => $request->input('cas_base_url'),
+            'cas_service_id' => $request->input('cas_service_id'),
+            'cas_attr_username' => $request->input('cas_attr_username'),
+            'cas_attr_name'  => $request->input('cas_attr_name'),
+            'cas_attr_phone' => $request->input('cas_attr_phone'),
+            'cas_attr_email' => $request->input('cas_attr_email'),
+            'cas_attr_department' => $request->input('cas_attr_department'),
+        ];
+
+        foreach ($fields as $key => $value) {
+            SystemSetting::set($key, $value, 'string');
+        }
+
+        // 启用/禁用
+        $enabled = $request->boolean('cas_enabled');
+        SystemSetting::set('cas_enabled', $enabled, 'boolean', '是否启用CAS统一身份认证', false);
+
+        return back()->with('success', 'CAS认证配置已保存' . ($enabled ? '（已启用）' : '（未启用）'));
+    }
+}
