@@ -106,11 +106,23 @@ class WorkorderCollaboration extends Model
             return false;
         }
 
-        $this->status = 'accepted';
-        $this->accepted_at = now();
-        $this->response_note = $note;
-        
-        return $this->save();
+        // 乐观锁：仅当邀请仍为 pending 时才能接受，防止并发重复接受
+        $affected = static::where('id', $this->id)
+            ->where('status', 'pending')
+            ->update([
+                'status' => 'accepted',
+                'accepted_at' => now(),
+                'response_note' => $note,
+            ]);
+
+        if ($affected > 0) {
+            $this->status = 'accepted';
+            $this->accepted_at = now();
+            $this->response_note = $note;
+            return true;
+        }
+
+        return false;
     }
 
     /**

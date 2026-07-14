@@ -783,11 +783,24 @@ class Workorder extends Model
         
         // 使用事务确保数据一致性
         return DB::transaction(function() use ($assigneeId, $note, $userId, $user) {
-            $this->update([
-                'assignee_id' => $assigneeId,
-                'status' => 'assigned',
-                'assigned_at' => now(),
-            ]);
+            // 乐观锁：仅当工单仍为 pending 时才能分配，防止并发重复接单
+            $affected = static::where('id', $this->id)
+                ->where('status', 'pending')
+                ->update([
+                    'assignee_id' => $assigneeId,
+                    'status' => 'assigned',
+                    'assigned_at' => now(),
+                ]);
+
+            if ($affected === 0) {
+                // 工单已被他人接单或状态已变更，放弃本次操作
+                return false;
+            }
+
+            // 同步内存中的模型状态，保证后续日志/通知读到正确值
+            $this->assignee_id = $assigneeId;
+            $this->status = 'assigned';
+            $this->assigned_at = now();
             
             $assigneeName = User::find($assigneeId)->name ?? '未知用户';
             $logContent = "分配给: {$assigneeName}";
