@@ -1,576 +1,412 @@
-@extends('layouts.app')
+﻿@extends('layouts.app')
 
-@section('title', '工单签单 - ' . $workorder->ticket_no)
+@section('title', '故障处理记录单 - ' . $workorder->ticket_no)
 
 @section('content')
-<!-- 全屏横屏签名界面 -->
-<div class="fullscreen-signature-modal" id="fullscreenSignatureModal">
-    <div class="signature-header">
-        <div class="signature-title">手写签名</div>
-        <button type="button" class="signature-close" id="closeSignatureModal">
-            <i class="fas fa-times"></i>
-        </button>
-    </div>
-    <div class="signature-body">
-        <div class="signature-canvas-container">
-            <canvas id="fullscreenSignatureCanvas" class="fullscreen-signature-canvas"></canvas>
-        </div>
-    </div>
-    <div class="signature-footer">
-        <button type="button" class="signature-btn signature-btn-clear" id="clearFullscreenSignature">
-            <i class="fas fa-eraser"></i> 清除
-        </button>
-        <button type="button" class="signature-btn signature-btn-undo" id="undoFullscreenSignature">
-            <i class="fas fa-undo"></i> 撤销
-        </button>
-        <button type="button" class="signature-btn signature-btn-cancel" id="cancelFullscreenSignature">
-            <i class="fas fa-times"></i> 取消
-        </button>
-        <button type="button" class="signature-btn signature-btn-confirm" id="confirmFullscreenSignature">
-            <i class="fas fa-check"></i> 确认签名
-        </button>
-    </div>
-</div>
+@php
+    $addressParts = [];
+    if($workorder->campus) {
+        $addressParts[] = is_object($workorder->campus) ? ($workorder->campus->name ?? '') : $workorder->campus;
+    }
+    if($workorder->building) {
+        if(is_numeric($workorder->building)) {
+            $bld = \App\Models\Location::find($workorder->building);
+            $addressParts[] = $bld ? $bld->name : $workorder->building;
+        } else {
+            $addressParts[] = $workorder->building;
+        }
+    }
+    if($workorder->location_detail) {
+        $addressParts[] = $workorder->location_detail;
+    }
+    $fullAddress = implode(' - ', $addressParts);
 
-<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
-    <h1 class="h2">工单签单</h1>
-    <div class="btn-toolbar mb-2 mb-md-0">
-        <a href="{{ route('workorders.show', $workorder->id) }}" class="btn btn-secondary">
-            <i class="fas fa-arrow-left"></i> 返回工单
+    $oldSatisfaction = old('satisfaction');
+    $oldVisit = old('visit_status');
+    $oldFeedback = old('feedback');
+@endphp
+
+<form method="POST" action="{{ route('workorders.signature.store', $workorder->id) }}" id="recordForm">
+    @csrf
+
+    {{-- 顶部栏 --}}
+    <div class="rc-topbar">
+        <a href="{{ route('workorders.show', $workorder->id) }}" class="rc-back">
+            <i class="fas fa-chevron-left"></i>
         </a>
+        <span class="rc-topbar-title">故障处理记录单</span>
     </div>
-</div>
 
-<div class="row">
-    <div class="col-md-8">
-        <div class="card">
-            <div class="card-header">
-                <h5 class="card-title mb-0">
-                    <i class="fas fa-signature"></i> 工单签单确认
-                    <span class="badge bg-primary ms-2">{{ $workorder->ticket_no }}</span>
-                </h5>
+    <div class="rc-wrap">
+
+        {{-- ========== 工单信息 ========== --}}
+        <section class="rc-card rc-card--ref">
+            <div class="rc-card-title"><i class="fas fa-clipboard-list"></i> 工单信息</div>
+            <div class="rc-info-grid">
+                <div class="rc-info-item">
+                    <span class="rc-info-label">故障单号</span>
+                    <span class="rc-info-value rc-mono">{{ $workorder->ticket_no }}</span>
+                </div>
+                <div class="rc-info-item">
+                    <span class="rc-info-label">报障日期</span>
+                    <span class="rc-info-value">{{ $workorder->created_at ? $workorder->created_at->format('Y/m/d') : '' }}</span>
+                </div>
+                <div class="rc-info-item">
+                    <span class="rc-info-label">报障人</span>
+                    <span class="rc-info-value">{{ $workorder->contact_name }}</span>
+                </div>
+                <div class="rc-info-item">
+                    <span class="rc-info-label">联系方式</span>
+                    <span class="rc-info-value">{{ $workorder->contact_phone ?: '' }}</span>
+                </div>
+                <div class="rc-info-item rc-col-full">
+                    <span class="rc-info-label">地址</span>
+                    <span class="rc-info-value">{{ $fullAddress }}</span>
+                </div>
+                <div class="rc-info-item">
+                    <span class="rc-info-label">处理人</span>
+                    <span class="rc-info-value">{{ $workorder->assignee_name }}</span>
+                </div>
+                <div class="rc-info-item">
+                    <span class="rc-info-label">处理日期</span>
+                    <span class="rc-info-value">{{ $workorder->resolved_at ? $workorder->resolved_at->format('Y/m/d') : '' }}</span>
+                </div>
             </div>
-            <div class="card-body">
-                <form method="POST" action="{{ route('workorders.signature.store', $workorder->id) }}" id="signatureForm">
-                    @csrf
-                    
-                    <!-- 工单基本信息 -->
-                    <div class="card mb-4">
-                        <div class="card-header bg-light">
-                            <h6 class="mb-0"><i class="fas fa-info-circle"></i> 工单基本信息</h6>
-                        </div>
-                        <div class="card-body">
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <div class="mb-3">
-                                        <label class="form-label">工单编号</label>
-                                        <div class="form-control-plaintext">{{ $workorder->ticket_no }}</div>
-                                    </div>
-                                </div>
-                                <div class="col-md-6">
-                                    <div class="mb-3">
-                                        <label class="form-label">地址</label>
-                                        <div class="form-control-plaintext">
-                                            @php
-                                                $addressParts = [];
-                                                
-                                                // 添加校区
-                                                if($workorder->campus) {
-                                                    $addressParts[] = $workorder->campus;
-                                                }
-                                                
-                                                // 添加楼栋
-                                                if($workorder->building) {
-                                                    $building = \App\Models\Location::find($workorder->building);
-                                                    if ($building) {
-                                                        $addressParts[] = $building->name;
-                                                    } else {
-                                                        $addressParts[] = $workorder->building;
-                                                    }
-                                                }
-                                                
-                                                // 添加门牌号
-                                                if($workorder->location_detail) {
-                                                    $addressParts[] = $workorder->location_detail;
-                                                }
-                                                
-                                                // 用"-"连接各部分
-                                                echo implode(' - ', $addressParts);
-                                            @endphp
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="col-12">
-                                    <div class="mb-3">
-                                        <label class="form-label">故障描述</label>
-                                        <div class="form-control-plaintext">{{ $workorder->description }}</div>
-                                    </div>
-                                </div>
-                                <div class="col-md-6">
-                                    <div class="mb-3">
-                                        <label class="form-label">解决方案</label>
-                                        <div class="form-control-plaintext">{{ $workorder->solution }}</div>
-                                    </div>
-                                </div>
-                                <div class="col-md-6">
-                                    <div class="mb-3">
-                                        <label class="form-label">处理人</label>
-                                        <div class="form-control-plaintext">{{ $workorder->assignee_name }}</div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- 满意度评分 -->
-                    <div class="card mb-4">
-                        <div class="card-header bg-light">
-                            <h6 class="mb-0"><i class="fas fa-star"></i> 满意度评分 <span class="text-danger">*</span></h6>
-                        </div>
-                        <div class="card-body">
-                            <div class="row">
-                                <div class="col-12">
-                                    <div class="star-rating-container">
-                                        <div class="star-rating" id="starRating">
-                                            @for($i = 1; $i <= 5; $i++)
-                                                <i class="far fa-star star" data-rating="{{ $i }}"></i>
-                                            @endfor
-                                        </div>
-                                        <div class="rating-text" id="ratingText">请选择满意度评分</div>
-                                        <input type="hidden" id="satisfaction" name="satisfaction" value="" required>
-                                    </div>
-                                    @error('satisfaction')
-                                        <div class="invalid-feedback d-block">{{ $message }}</div>
-                                    @enderror
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- 用户反馈 -->
-                    <div class="card mb-4">
-                        <div class="card-header bg-light">
-                            <h6 class="mb-0"><i class="fas fa-comment"></i> 用户反馈</h6>
-                        </div>
-                        <div class="card-body">
-                            <div class="mb-3">
-                                <label for="feedback" class="form-label">您的意见和建议（选填）</label>
-                                <textarea class="form-control" id="feedback" name="feedback" rows="4" 
-                                          placeholder="请输入您的意见和建议，帮助我们改进服务质量..."
-                                          maxlength="1000">{{ old('feedback') }}</textarea>
-                                <div class="form-text">
-                                    <span id="feedbackCount">0</span>/1000 字符
-                                </div>
-                                @error('feedback')
-                                    <div class="invalid-feedback d-block">{{ $message }}</div>
-                                @enderror
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- 手写签名 -->
-                    <div class="card mb-4">
-                        <div class="card-header bg-light">
-                            <h6 class="mb-0"><i class="fas fa-pen"></i> 手写签名 <span class="text-danger">*</span></h6>
-                        </div>
-                        <div class="card-body">
-                            <div class="text-center mb-3">
-                                <div class="signature-preview-container" id="signaturePreviewContainer">
-                                    <div class="signature-preview-placeholder" id="signaturePreviewPlaceholder">
-                                        <i class="fas fa-signature fa-3x text-muted mb-3"></i>
-                                        <p class="text-muted">尚未签名</p>
-                                        <button type="button" class="btn btn-primary btn-lg" id="startSignatureBtn">
-                                            <i class="fas fa-pen"></i> 开始签名
-                                        </button>
-                                    </div>
-                                    <div class="signature-preview-image d-none" id="signaturePreviewImage">
-                                        <img src="" alt="签名预览" class="img-fluid">
-                                        <div class="mt-3">
-                                            <button type="button" class="btn btn-outline-primary me-2" id="reSignBtn">
-                                                <i class="fas fa-redo"></i> 重新签名
-                                            </button>
-                                            <button type="button" class="btn btn-outline-danger" id="clearSignatureBtn">
-                                                <i class="fas fa-trash"></i> 清除签名
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <input type="hidden" id="signature" name="signature" required>
-                            @error('signature')
-                                <div class="invalid-feedback d-block">{{ $message }}</div>
-                            @enderror
-                        </div>
-                    </div>
-                    
-                    <!-- 提交按钮 -->
-                    <div class="d-flex justify-content-end">
-                        <a href="{{ route('workorders.show', $workorder->id) }}" class="btn btn-secondary me-2">
-                            <i class="fas fa-times"></i> 取消
-                        </a>
-                        <button type="submit" class="btn btn-primary" id="submitSignature">
-                            <i class="fas fa-check"></i> 确认签单
-                        </button>
-                    </div>
-                </form>
+        </section>
+
+        {{-- ========== 处理详情 ========== --}}
+        <section class="rc-card rc-card--ref">
+            <div class="rc-card-title"><i class="fas fa-tools"></i> 处理详情</div>
+            <div class="rc-body-list">
+                <div class="rc-body-item">
+                    <span class="rc-body-label">故障现象</span>
+                    <p class="rc-body-text">{{ $workorder->description }}</p>
+                </div>
+                <div class="rc-body-item">
+                    <span class="rc-body-label">处理方式</span>
+                    <p class="rc-body-text">{{ $workorder->solution }}</p>
+                </div>
+                <div class="rc-body-item">
+                    <span class="rc-body-label">解决方案</span>
+                    <p class="rc-body-text">{{ $workorder->remarks ?: '已恢复正常' }}</p>
+                </div>
+                @if($workorder->materials_usage && $workorder->materials_usage !== '无备件耗材使用')
+                <div class="rc-body-item">
+                    <span class="rc-body-label">备件耗材</span>
+                    <p class="rc-body-text">{{ $workorder->materials_usage }}</p>
+                </div>
+                @endif
             </div>
-        </div>
+        </section>
+
+        {{-- ========== 用户评价 ========== --}}
+        <div class="rc-fill-banner"><i class="fas fa-edit"></i> 以下内容需要您填写</div>
+
+        <section class="rc-card rc-card--form">
+            <div class="rc-card-title"><i class="fas fa-star"></i> 用户评价</div>
+
+            {{-- 满意度 --}}
+            <div class="rc-field">
+                <label class="rc-field-label">用户满意度 <span class="rc-req">*</span></label>
+                <div class="sat-pills">
+                    <label class="sat-pill sat-satisfied">
+                        <input type="radio" name="satisfaction" value="1" {{ $oldSatisfaction == '1' ? 'checked' : '' }}>
+                        <span class="sat-pill-inner"><i class="far fa-smile"></i> 满意</span>
+                    </label>
+                    <label class="sat-pill sat-neutral">
+                        <input type="radio" name="satisfaction" value="2" {{ $oldSatisfaction == '2' ? 'checked' : '' }}>
+                        <span class="sat-pill-inner"><i class="far fa-meh"></i> 一般</span>
+                    </label>
+                    <label class="sat-pill sat-unsatisfied">
+                        <input type="radio" name="satisfaction" value="3" {{ $oldSatisfaction == '3' ? 'checked' : '' }}>
+                        <span class="sat-pill-inner"><i class="far fa-frown"></i> 不满意</span>
+                    </label>
+                    <label class="sat-pill sat-other">
+                        <input type="radio" name="satisfaction" value="4" {{ $oldSatisfaction == '4' ? 'checked' : '' }}>
+                        <span class="sat-pill-inner"><i class="fas fa-pen"></i> 其它</span>
+                    </label>
+                </div>
+                @error('satisfaction')<div class="rc-field-error">{{ $message }}</div>@enderror
+                <div id="satOtherWrap" class="rc-other-wrap" style="display:none;">
+                    <input type="text" name="satisfaction_other" id="satisfactionOther" class="rc-input"
+                           value="{{ old('satisfaction_other') }}" placeholder="请填写其它满意度说明">
+                </div>
+            </div>
+
+            <div class="rc-divider"></div>
+
+            {{-- 回访情况 --}}
+            <div class="rc-field">
+                <label class="rc-field-label">回访情况</label>
+                <div class="sat-pills">
+                    <label class="sat-pill">
+                        <input type="radio" name="visit_status" value="needed" {{ $oldVisit == 'needed' ? 'checked' : '' }}>
+                        <span class="sat-pill-inner">需要回访</span>
+                    </label>
+                    <label class="sat-pill">
+                        <input type="radio" name="visit_status" value="not_needed" {{ $oldVisit == 'not_needed' ? 'checked' : '' }}>
+                        <span class="sat-pill-inner">不需要</span>
+                    </label>
+                    <label class="sat-pill">
+                        <input type="radio" name="visit_status" value="visited" {{ $oldVisit == 'visited' ? 'checked' : '' }}>
+                        <span class="sat-pill-inner">已回访</span>
+                    </label>
+                </div>
+                @error('visit_status')<div class="rc-field-error">{{ $message }}</div>@enderror
+            </div>
+
+            <div class="rc-divider"></div>
+
+            {{-- 意见和建议 --}}
+            <div class="rc-field">
+                <label class="rc-field-label">意见和建议 <span class="rc-req">*</span></label>
+                <textarea name="feedback" rows="4" class="rc-textarea" placeholder="请填写您的意见和建议（必填）">{{ $oldFeedback }}</textarea>
+                @error('feedback')<div class="rc-field-error">{{ $message }}</div>@enderror
+            </div>
+        </section>
+
+        {{-- ========== 用户签字 ========== --}}
+        <section class="rc-card rc-card--form">
+            <div class="rc-card-title"><i class="fas fa-signature"></i> 用户签字</div>
+
+            {{-- 签名预览区：签之前显示按钮，签之后显示缩略图 --}}
+            <div class="sig-preview-zone" id="sigPreviewZone">
+                @if($workorder->user_signature)
+                    <img src="{{ $workorder->user_signature }}" alt="签名" class="sig-preview-img">
+                @else
+                    <div id="sigEmptyState" class="sig-empty">
+                        <i class="fas fa-pen-nib"></i>
+                        <p>尚未签名</p>
+                    </div>
+                    <img id="sigPreviewImg" src="" alt="签名" class="sig-preview-img" style="display:none;">
+                @endif
+            </div>
+
+            <input type="hidden" name="signature" id="signatureInput" value="{{ $workorder->user_signature ?? '' }}">
+            @error('signature')<div class="rc-field-error">{{ $message }}</div>@enderror
+
+            <div class="sig-action-row">
+                <button type="button" class="rc-btn rc-btn-primary" id="openSignBtn">
+                    <i class="fas fa-pen-nib"></i> 点击签名
+                </button>
+                <button type="button" class="rc-btn rc-btn-light d-none" id="clearSignBtn">
+                    <i class="fas fa-redo"></i> 重新签
+                </button>
+            </div>
+            <div class="sig-date-line">签署日期：{{ date('Y/m/d') }}</div>
+        </section>
     </div>
-    
-    <div class="col-md-4">
-        <!-- 签单说明 -->
-        <div class="card mb-4">
-            <div class="card-header">
-                <h6 class="card-title mb-0">签单说明</h6>
+
+    {{-- 底部提交栏 --}}
+    <div class="rc-submit-bar">
+        <button type="submit" class="rc-submit-btn" id="submitBtn">
+            <i class="fas fa-check-circle"></i> 提交记录单
+        </button>
+    </div>
+</form>
+
+{{-- ======== 全屏横向签名画布 ======== --}}
+<div class="sig-overlay" id="sigOverlay">
+    {{-- 签名界面 --}}
+    <div class="sig-landscape-ui" id="sigLandscapeUI">
+        <div class="sig-canvas-section">
+            <div class="sig-overlay-top">
+                <span class="sig-overlay-title">手写签名</span>
+                <span class="sig-overlay-hint">请在白色区域签写您的姓名</span>
             </div>
-            <div class="card-body">
-                <ul class="mb-0">
-                    <li>请确认工单已按要求完成</li>
-                    <li>请对本次服务进行满意度评分</li>
-                    <li>请在签名区域手写签名</li>
-                    <li>签名完成后将生成故障处理记录单</li>
-                    <li>记录单包含完整的工单处理信息</li>
-                </ul>
-            </div>
-        </div>
-        
-        <!-- 满意度说明 -->
-        <div class="card mb-4">
-            <div class="card-header">
-                <h6 class="card-title mb-0">满意度说明</h6>
-            </div>
-            <div class="card-body">
-                <div class="mb-2">
-                    <span class="badge bg-danger">1星</span>
-                    <small>很不满意 - 服务质量很差</small>
-                </div>
-                <div class="mb-2">
-                    <span class="badge bg-warning">2星</span>
-                    <small>不满意 - 服务质量有待提高</small>
-                </div>
-                <div class="mb-2">
-                    <span class="badge bg-info">3星</span>
-                    <small>一般 - 服务质量一般</small>
-                </div>
-                <div class="mb-2">
-                    <span class="badge bg-primary">4星</span>
-                    <small>满意 - 服务质量良好</small>
-                </div>
-                <div class="mb-2">
-                    <span class="badge bg-success">5星</span>
-                    <small>非常满意 - 服务质量优秀</small>
-                </div>
+            <div class="sig-overlay-canvas-area">
+                <canvas id="sigCanvas"></canvas>
             </div>
         </div>
-        
-        <!-- 签名提示 -->
-        <div class="card">
-            <div class="card-header">
-                <h6 class="card-title mb-0">签名提示</h6>
-            </div>
-            <div class="card-body">
-                <ul class="mb-0">
-                    <li>使用鼠标或触摸屏进行签名</li>
-                    <li>签名应清晰可辨认</li>
-                    <li>可以点击"撤销"重新签名</li>
-                    <li>点击"清除"清空签名区域</li>
-                    <li>提交前请确保签名完整</li>
-                </ul>
-            </div>
+        <div class="sig-sidebar">
+            <button type="button" class="sig-ov-btn sig-ov-clear" id="clearCanvas">
+                <i class="fas fa-eraser"></i> 清除
+            </button>
+            <button type="button" class="sig-ov-btn sig-ov-undo" id="undoStroke">
+                <i class="fas fa-undo"></i> 撤销
+            </button>
+            <button type="button" class="sig-ov-btn sig-ov-cancel" id="cancelSig">
+                <i class="fas fa-times"></i> 取消
+            </button>
+            <button type="button" class="sig-ov-btn sig-ov-ok" id="confirmSig">
+                <i class="fas fa-check"></i> 确认签名
+            </button>
         </div>
     </div>
 </div>
 @endsection
 
-@section('styles')
+@section('head')
 <style>
-.signature-preview-container {
-    border: 2px dashed #ccc;
-    border-radius: 8px;
-    background-color: #f9f9f9;
-    padding: 20px;
-    min-height: 200px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+/* ===== 顶部栏 ===== */
+.rc-topbar { display:flex; align-items:center; gap:8px; height:52px; padding:0 14px; position:sticky; top:0; z-index:100; background:#fff; border-bottom:1px solid #eee; box-shadow:0 1px 4px rgba(0,0,0,.03); }
+.rc-back { width:36px; height:36px; display:flex; align-items:center; justify-content:center; color:#333; text-decoration:none; border-radius:10px; font-size:18px; transition:background .2s; }
+.rc-back:active { background:#f0f0f0; }
+.rc-topbar-title { font-size:18px; font-weight:700; color:#111; }
+
+/* ===== 容器 ===== */
+.rc-wrap { max-width:640px; margin:0 auto; padding:14px 12px 100px; }
+
+/* ===== 卡片 ===== */
+.rc-card { background:#fff; border-radius:16px; margin-bottom:14px; overflow:hidden; box-shadow:0 2px 8px rgba(0,0,0,.05); border:1px solid #f0f1f3; }
+.rc-card-title { display:flex; align-items:center; gap:8px; padding:16px 18px 12px; font-size:16px; font-weight:700; color:#111; }
+.rc-card-title i { color:#5b7cfa; font-size:18px; }
+/* 参考卡片：只读信息（工单信息、处理详情），弱化灰调文档风格 */
+.rc-card--ref { background:#f7f8fa; border:1px solid #e6e8eb; box-shadow:none; }
+.rc-card--ref .rc-card-title { color:#6b7280; font-size:14px; font-weight:600; }
+.rc-card--ref .rc-card-title i { color:#9ca3af; }
+/* 表单卡片：需用户填写，白底 + 蓝色顶边 + 更强阴影 */
+.rc-card--form { background:#fff; border:1px solid #d8e0ff; border-top:4px solid #5b7cfa; box-shadow:0 6px 20px rgba(91,124,250,.10); }
+.rc-card--form .rc-card-title { color:#1e293b; font-weight:700; }
+/* 填写提示横幅 */
+.rc-fill-banner { display:flex; align-items:center; justify-content:center; gap:8px; max-width:640px; margin:6px auto 14px; padding:11px 16px; background:linear-gradient(135deg,#eef2ff,#e0e7ff); border-radius:12px; color:#4263eb; font-size:14px; font-weight:700; }
+.rc-fill-banner i { font-size:16px; }
+
+/* ===== 信息网格 ===== */
+.rc-info-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px 16px; padding:0 18px 18px; }
+.rc-info-item { display:flex; flex-direction:column; gap:3px; }
+.rc-col-full { grid-column:1 / -1; }
+.rc-info-label { font-size:11px; color:#9ca3af; font-weight:500; letter-spacing:.3px; }
+.rc-info-value { font-size:14px; color:#334155; font-weight:400; word-break:break-all; line-height:1.5; padding-bottom:3px; border-bottom:1px dashed #d1d5db; }
+.rc-mono { font-family:'SF Mono','Consolas',monospace; font-size:13px; }
+
+/* ===== 处理详情 ===== */
+.rc-body-list { padding:0 18px 18px; }
+.rc-body-item { padding:12px 0; border-bottom:1px solid #f5f5f5; }
+.rc-body-item:last-child { border-bottom:none; }
+.rc-body-label { display:block; font-size:12px; font-weight:500; color:#9ca3af; margin-bottom:6px; }
+.rc-body-text { font-size:14px; color:#334155; line-height:1.6; margin:0; background:#fff; border:1px solid #e2e6ea; border-radius:8px; padding:10px 12px; word-break:break-all; }
+
+/* ===== 表单字段 ===== */
+.rc-field { padding:16px 18px; }
+.rc-divider { height:1px; background:#f5f5f5; margin:0 18px; }
+.rc-divider { height:1px; background:#eef0f3; margin:0 18px; }
+.rc-field-label { display:flex; align-items:center; gap:2px; font-size:15px; font-weight:700; color:#0f172a; margin-bottom:12px; }
+.rc-req { color:#ef4444; font-size:16px; }
+
+/* ===== 满意度胶囊按钮 ===== */
+.sat-pills { display:flex; gap:8px; flex-wrap:wrap; }
+.sat-pill { position:relative; cursor:pointer; user-select:none; flex:1; min-width:72px; }
+.sat-pill input[type="radio"] { position:absolute; opacity:0; pointer-events:none; }
+.sat-pill-inner {
+    display:flex; align-items:center; justify-content:center; gap:5px;
+    padding:12px 6px; border-radius:12px; border:2px solid #e8eaed; background:#fff;
+    font-size:13px; color:#666; transition:all .2s; text-align:center; font-weight:500;
+}
+.sat-pill-inner i { font-size:16px; }
+.sat-pill:active .sat-pill-inner { transform:scale(.96); }
+.sat-satisfied input:checked + .sat-pill-inner { border-color:#22c55e; background:#f0fdf4; color:#15803d; }
+.sat-neutral input:checked + .sat-pill-inner { border-color:#f59e0b; background:#fffbeb; color:#b45309; }
+.sat-unsatisfied input:checked + .sat-pill-inner { border-color:#ef4444; background:#fef2f2; color:#b91c1c; }
+.sat-other input:checked + .sat-pill-inner { border-color:#5b7cfa; background:#eff5ff; color:#3730a3; }
+.sat-pill input:checked + .sat-pill-inner { border-color:#5b7cfa; background:#eff5ff; color:#3730a3; box-shadow:0 2px 8px rgba(0,0,0,.06); font-weight:600; }
+
+.rc-other-wrap { margin-top:12px; }
+
+/* ===== 输入框 ===== */
+.rc-input {
+    width:100%; border:2.5px solid #94a3b8; border-radius:10px; padding:14px 16px;
+    font-size:16px; color:#0f172a; background:#fff; transition:all .2s; box-sizing:border-box;
+    -webkit-appearance:none; font-weight:500;
+}
+.rc-input:focus { outline:none; border-color:#5b7cfa; box-shadow:0 0 0 4px rgba(91,124,250,.15); }
+.rc-input::placeholder { color:#94a3b8; font-weight:400; }
+
+.rc-textarea {
+    width:100%; border:2.5px solid #94a3b8; border-radius:10px; padding:14px 16px;
+    font-size:16px; color:#0f172a; background:#fff; resize:none; min-height:100px; line-height:1.6;
+    transition:all .2s; box-sizing:border-box; -webkit-appearance:none; font-weight:500;
+}
+.rc-textarea:focus { outline:none; border-color:#5b7cfa; box-shadow:0 0 0 4px rgba(91,124,250,.15); }
+.rc-textarea::placeholder { color:#94a3b8; font-weight:400; }
+
+.rc-field-error { color:#ef4444; font-size:13px; margin-top:8px; font-weight:500; }
+
+/* ===== 签名区 ===== */
+.sig-preview-zone {
+    min-height:80px; margin:0 18px; border-radius:12px;
+    display:flex; align-items:center; justify-content:center;
+    background:linear-gradient(135deg,#f8f9fb,#f0f2f5);
+    border:2px dashed #d6dae0; position:relative; overflow:hidden;
+    transition:border-color .2s;
+}
+.sig-preview-zone.has-sig { border-style:solid; border-color:#e0e4ea; }
+.sig-empty { display:flex; flex-direction:column; align-items:center; gap:6px; color:#c0c6cc; }
+.sig-empty i { font-size:32px; }
+.sig-empty p { font-size:13px; margin:0; }
+.sig-preview-img { max-height:72px; max-width:100%; object-fit:contain; }
+
+.sig-action-row { display:flex; gap:8px; padding:12px 18px; }
+.sig-date-line { padding:0 18px 16px; font-size:12px; color:#9aa0a6; text-align:right; }
+
+/* ===== 按钮 ===== */
+.rc-btn {
+    flex:1; display:flex; align-items:center; justify-content:center; gap:6px;
+    padding:13px 18px; border-radius:12px; border:none; font-size:15px; font-weight:600;
+    cursor:pointer; transition:all .15s;
+}
+.rc-btn:active { transform:scale(.97); }
+.rc-btn-primary { background:linear-gradient(135deg,#5b7cfa,#4263eb); color:#fff; box-shadow:0 3px 10px rgba(91,124,250,.25); }
+.rc-btn-light { background:#f3f4f6; color:#666; border:1px solid #e5e7eb; }
+.d-none { display:none !important; }
+
+/* ===== 底部提交栏 ===== */
+.rc-submit-bar { position:fixed; bottom:0; left:0; right:0; z-index:100; background:#fff; border-top:1px solid #eee; padding:12px 16px; padding-bottom:max(12px,env(safe-area-inset-bottom)); box-shadow:0 -2px 12px rgba(0,0,0,.04); }
+.rc-submit-btn {
+    width:100%; max-width:612px; margin:0 auto; display:flex; align-items:center; justify-content:center;
+    gap:8px; padding:16px; border-radius:14px; border:none;
+    background:linear-gradient(135deg,#22c55e,#16a34a); color:#fff; font-size:17px; font-weight:700;
+    cursor:pointer; box-shadow:0 4px 16px rgba(34,197,94,.3); transition:all .15s;
+}
+.rc-submit-btn:active { transform:scale(.98); }
+
+/* ===== 小屏适配 ===== */
+@media (max-width:380px) {
+    .rc-info-grid { grid-template-columns:1fr; }
+    .sat-pill { min-width:calc(50% - 4px); }
 }
 
-.signature-preview-placeholder {
-    text-align: center;
-    color: #999;
+/* ===== 横向全屏签名 ===== */
+.sig-overlay {
+    position:fixed; inset:0; background:#1a1a2e; z-index:9999;
+    display:none; flex-direction:column;
+}
+.sig-overlay.active { display:flex; }
+
+/* 签名 UI：左=画布区域，右=按钮侧栏 */
+.sig-landscape-ui { display:flex; flex-direction:row; width:100%; height:100%; }
+.sig-canvas-section { flex:1; display:flex; flex-direction:column; min-width:0; }
+
+.sig-overlay-top { display:flex; justify-content:space-between; align-items:center; padding:10px 20px; background:rgba(255,255,255,.04); flex-shrink:0; }
+.sig-overlay-title { color:#fff; font-size:16px; font-weight:600; }
+.sig-overlay-hint { color:rgba(255,255,255,.4); font-size:13px; }
+
+.sig-overlay-canvas-area { flex:1; display:flex; align-items:center; justify-content:center; padding:16px; min-height:0; }
+.sig-overlay-canvas-area canvas {
+    width:100%; height:100%; background:#fff; border-radius:8px; cursor:crosshair;
+    touch-action:none; display:block; box-shadow:0 4px 24px rgba(0,0,0,.3);
 }
 
-.signature-preview-image {
-    text-align: center;
-    width: 100%;
+/* 右侧按钮栏：纵向排列 */
+.sig-sidebar { display:flex; flex-direction:column; gap:10px; padding:16px 12px; padding-bottom:max(16px,env(safe-area-inset-bottom)); flex-shrink:0; background:rgba(255,255,255,.06); justify-content:center; }
+.sig-ov-btn {
+    width:80px; display:flex; flex-direction:column; align-items:center; gap:5px;
+    padding:16px 8px; border:none; border-radius:12px; font-size:13px; font-weight:600;
+    cursor:pointer; transition:opacity .15s;
 }
+.sig-ov-btn i { font-size:20px; }
+.sig-ov-btn:active { opacity:.7; }
+.sig-ov-clear { background:#495057; color:#fff; }
+.sig-ov-undo { background:#ffc107; color:#222; }
+.sig-ov-cancel { background:#dc3545; color:#fff; }
+.sig-ov-ok { background:#22c55e; color:#fff; }
 
-.signature-preview-image img {
-    max-height: 150px;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    padding: 10px;
-    background-color: #fff;
-}
-
-/* 全屏横屏签名界面 */
-.fullscreen-signature-modal {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
-    background-color: rgba(0, 0, 0, 0.95);
-    z-index: 9999;
-    display: none;
-    flex-direction: column;
-}
-
-.fullscreen-signature-modal.active {
-    display: flex;
-}
-
-.signature-header {
-    background-color: rgba(255, 255, 255, 0.1);
-    padding: 15px 20px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    color: white;
-}
-
-.signature-title {
-    font-size: 18px;
-    font-weight: bold;
-}
-
-.signature-close {
-    background: none;
-    border: none;
-    color: white;
-    font-size: 24px;
-    cursor: pointer;
-    padding: 0;
-    width: 40px;
-    height: 40px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 50%;
-    transition: background-color 0.3s;
-}
-
-.signature-close:hover {
-    background-color: rgba(255, 255, 255, 0.2);
-}
-
-.signature-body {
-    flex: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 20px;
-}
-
-.signature-canvas-container {
-    background-color: white;
-    border-radius: 8px;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-    width: 90%;
-    max-width: 800px;
-    height: 400px;
-    position: relative;
-}
-
-.fullscreen-signature-canvas {
-    width: 100%;
-    height: 100%;
-    border-radius: 8px;
-    cursor: crosshair;
-    touch-action: none;
-}
-
-.signature-footer {
-    background-color: rgba(255, 255, 255, 0.1);
-    padding: 15px 20px;
-    display: flex;
-    justify-content: center;
-    gap: 15px;
-}
-
-.signature-btn {
-    min-width: 120px;
-    padding: 10px 20px;
-    border: none;
-    border-radius: 4px;
-    font-size: 16px;
-    cursor: pointer;
-    transition: all 0.3s;
-}
-
-.signature-btn-clear {
-    background-color: #6c757d;
-    color: white;
-}
-
-.signature-btn-clear:hover {
-    background-color: #5a6268;
-}
-
-.signature-btn-undo {
-    background-color: #ffc107;
-    color: #212529;
-}
-
-.signature-btn-undo:hover {
-    background-color: #e0a800;
-}
-
-.signature-btn-confirm {
-    background-color: #28a745;
-    color: white;
-}
-
-.signature-btn-confirm:hover {
-    background-color: #218838;
-}
-
-.signature-btn-cancel {
-    background-color: #dc3545;
-    color: white;
-}
-
-.signature-btn-cancel:hover {
-    background-color: #c82333;
-}
-
-/* 横屏优化 */
-@media (orientation: landscape) {
-    .signature-canvas-container {
-        height: 300px;
-    }
-}
-
-/* 移动设备适配 */
-@media (max-width: 768px) {
-    .signature-canvas-container {
-        width: 95%;
-        height: 250px;
-    }
-    
-    .signature-btn {
-        min-width: 100px;
-        font-size: 14px;
-        padding: 8px 15px;
-    }
-    
-    .signature-footer {
-        flex-wrap: wrap;
-        gap: 10px;
-    }
-}
-
-/* 满意度评分样式 */
-.star-rating-container {
-    text-align: center;
-}
-
-.star-rating {
-    display: inline-flex;
-    font-size: 48px;
-    cursor: pointer;
-    margin-bottom: 15px;
-}
-
-.star {
-    color: #ddd;
-    transition: color 0.2s ease;
-    margin: 0 5px;
-}
-
-.star:hover,
-.star.hover {
-    color: #ffc107;
-}
-
-.star.selected {
-    color: #ffc107;
-}
-
-.rating-text {
-    font-size: 16px;
-    color: #666;
-    margin-top: 10px;
-    min-height: 24px;
-}
-
-/* 全屏签名模式样式 */
-.fullscreen-signature {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
-    background-color: rgba(0, 0, 0, 0.9);
-    z-index: 9999;
-    display: flex;
-    flex-direction: column;
-    padding: 20px;
-}
-
-.fullscreen-signature-title {
-    padding: 15px 0;
-    text-align: center;
-}
-
-.fullscreen-signature .signature-container {
-    flex: 1;
-    border: 3px solid #fff;
-    background-color: #fff;
-    margin-bottom: 20px;
-    position: relative;
-}
-
-.fullscreen-signature .signature-canvas {
-    width: 100%;
-    height: 100%;
-    cursor: crosshair;
-}
-
-.fullscreen-signature .signature-overlay {
-    color: #666;
-}
-
-.fullscreen-signature-controls {
-    display: flex;
-    justify-content: center;
-    gap: 15px;
-    padding: 15px;
-    background-color: rgba(255, 255, 255, 0.1);
-    border-radius: 10px;
-}
-
-.fullscreen-signature-controls button {
-    min-width: 120px;
-}
-
-@media (max-width: 768px) {
-    .satisfaction-rating {
-        flex-direction: column;
-        gap: 10px;
-    }
-    
-    .signature-canvas {
-        height: 150px;
-    }
-    
-    .fullscreen-signature-controls {
-        flex-wrap: wrap;
-    }
-    
-    .fullscreen-signature-controls button {
-        min-width: 100px;
-        font-size: 14px;
+/* 竖屏：整体旋转90deg CW 模拟横屏，锁死避免陀螺仪混乱 */
+@media (orientation:portrait) {
+    .sig-overlay.active .sig-landscape-ui {
+        width:100vh; height:100vw;
+        position:absolute; top:50%; left:50%;
+        transform:translate(-50%,-50%) rotate(90deg);
     }
 }
 </style>
@@ -578,317 +414,240 @@
 
 @section('scripts')
 <script>
-$(document).ready(function() {
-    // 满意度评分功能
-    const stars = document.querySelectorAll('.star');
-    const ratingText = document.getElementById('ratingText');
-    const satisfactionInput = document.getElementById('satisfaction');
-    const ratingTexts = [
-        '请选择满意度评分',
-        '很不满意 - 服务质量很差',
-        '不满意 - 服务质量有待提高',
-        '一般 - 服务质量一般',
-        '满意 - 服务质量良好',
-        '非常满意 - 服务质量优秀'
-    ];
-    
-    // 设置星星评分
-    function setRating(rating) {
-        // 更新星星显示
-        stars.forEach((star, index) => {
-            if (index < rating) {
-                star.classList.remove('far');
-                star.classList.add('fas', 'selected');
-            } else {
-                star.classList.remove('fas', 'selected');
-                star.classList.add('far');
-            }
-        });
-        
-        // 更新评分文本
-        ratingText.textContent = ratingTexts[rating];
-        
-        // 更新隐藏字段值
-        satisfactionInput.value = rating;
+document.addEventListener('DOMContentLoaded', function() {
+
+    // ---- 满意度"其它"联动 ----
+    var satRadios = document.querySelectorAll('input[name="satisfaction"]');
+    var satOtherWrap = document.getElementById('satOtherWrap');
+    function toggleSatOther() {
+        var checked = document.querySelector('input[name="satisfaction"]:checked');
+        satOtherWrap.style.display = (checked && checked.value === '4') ? '' : 'none';
     }
-    
-    // 星星点击事件
-    stars.forEach(star => {
-        star.addEventListener('click', function() {
-            const rating = parseInt(this.dataset.rating);
-            setRating(rating);
-        });
-        
-        // 星星悬停效果
-        star.addEventListener('mouseenter', function() {
-            const rating = parseInt(this.dataset.rating);
-            stars.forEach((s, index) => {
-                if (index < rating) {
-                    s.classList.add('hover');
-                } else {
-                    s.classList.remove('hover');
-                }
-            });
-            ratingText.textContent = ratingTexts[rating];
-        });
-    });
-    
-    // 鼠标离开星级评分区域时恢复当前评分状态
-    document.querySelector('.star-rating').addEventListener('mouseleave', function() {
-        const currentRating = parseInt(satisfactionInput.value) || 0;
-        setRating(currentRating);
-    });
-    
-    // 签名相关变量
-    const signatureModal = document.getElementById('fullscreenSignatureModal');
-    const signatureCanvas = document.getElementById('fullscreenSignatureCanvas');
-    const signatureCtx = signatureCanvas.getContext('2d');
-    const signatureInput = document.getElementById('signature');
-    const signaturePreviewContainer = document.getElementById('signaturePreviewContainer');
-    const signaturePreviewPlaceholder = document.getElementById('signaturePreviewPlaceholder');
-    const signaturePreviewImage = document.getElementById('signaturePreviewImage');
-    const signaturePreviewImg = signaturePreviewImage.querySelector('img');
-    
-    let isDrawing = false;
-    let strokes = [];
-    let currentStroke = [];
-    
-    // 设置画布大小
+    satRadios.forEach(function(r) { r.addEventListener('change', toggleSatOther); });
+    toggleSatOther();
+
+    // ---- 签名画布逻辑 ----
+    var overlay     = document.getElementById('sigOverlay');
+    var canvas      = document.getElementById('sigCanvas');
+    var ctx         = canvas.getContext('2d');
+    var sigInput    = document.getElementById('signatureInput');
+    var previewZone = document.getElementById('sigPreviewZone');
+    var previewImg  = document.getElementById('sigPreviewImg');
+    var emptyState  = document.getElementById('sigEmptyState');
+    var clearBtn    = document.getElementById('clearSignBtn');
+    var openBtn     = document.getElementById('openSignBtn');
+
+    var strokes = [];
+    var currentStroke = [];
+    var isDrawing = false;
+    var isRotated = false;
+
     function resizeCanvas() {
-        const container = signatureCanvas.parentElement;
-        const rect = container.getBoundingClientRect();
-        signatureCanvas.width = rect.width;
-        signatureCanvas.height = rect.height;
-        redrawCanvas();
+        var area = canvas.parentElement;
+        var rect = area.getBoundingClientRect();
+        var w = rect.width - 32;   // padding
+        var h = rect.height - 32;
+        if (isRotated) {
+            // 旋转后 boundingBox 宽高互换，需要还原为逻辑尺寸
+            canvas.width  = h;
+            canvas.height = w;
+        } else {
+            canvas.width  = w;
+            canvas.height = h;
+        }
+        redraw();
     }
-    
-    // 重绘画布
-    function redrawCanvas() {
-        signatureCtx.clearRect(0, 0, signatureCanvas.width, signatureCanvas.height);
-        signatureCtx.strokeStyle = '#000';
-        signatureCtx.lineWidth = 2;
-        signatureCtx.lineCap = 'round';
-        signatureCtx.lineJoin = 'round';
-        
-        strokes.forEach(stroke => {
+
+    function redraw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.strokeStyle = '#1a1a2e';
+        ctx.lineWidth = 3;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        strokes.forEach(function(stroke) {
             if (stroke.length > 0) {
-                signatureCtx.beginPath();
-                signatureCtx.moveTo(stroke[0].x, stroke[0].y);
-                stroke.forEach(point => {
-                    signatureCtx.lineTo(point.x, point.y);
-                });
-                signatureCtx.stroke();
+                ctx.beginPath();
+                ctx.moveTo(stroke[0].x, stroke[0].y);
+                stroke.forEach(function(p) { ctx.lineTo(p.x, p.y); });
+                ctx.stroke();
             }
         });
     }
-    
-    // 获取鼠标/触摸位置
-    function getPosition(e) {
-        const rect = signatureCanvas.getBoundingClientRect();
-        const x = (e.clientX || e.touches[0].clientX) - rect.left;
-        const y = (e.clientY || e.touches[0].clientY) - rect.top;
-        return { x, y };
+
+    function getPos(e) {
+        var rect = canvas.getBoundingClientRect();
+        var cx = e.clientX || (e.touches && e.touches[0].clientX);
+        var cy = e.clientY || (e.touches && e.touches[0].clientY);
+        var sx = cx - rect.left;
+        var sy = cy - rect.top;
+        if (!isRotated) {
+            return { x: sx, y: sy };
+        }
+        // 90deg CW: screen-left→canvas-bottom, screen-top→canvas-left
+        return {
+            x: sy * canvas.width / rect.height,
+            y: (rect.width - sx) * canvas.height / rect.width
+        };
     }
-    
-    // 开始绘制
-    function startDrawing(e) {
+
+    function startDraw(e) {
         e.preventDefault();
         isDrawing = true;
-        currentStroke = [getPosition(e)];
+        currentStroke = [getPos(e)];
     }
-    
-    // 绘制
+
     function draw(e) {
         e.preventDefault();
         if (!isDrawing) return;
-        
-        const point = getPosition(e);
-        currentStroke.push(point);
-        
-        signatureCtx.beginPath();
-        signatureCtx.moveTo(currentStroke[0].x, currentStroke[0].y);
-        currentStroke.forEach(p => {
-            signatureCtx.lineTo(p.x, p.y);
-        });
-        signatureCtx.stroke();
+        var p = getPos(e);
+        currentStroke.push(p);
+        ctx.beginPath();
+        ctx.moveTo(currentStroke[0].x, currentStroke[0].y);
+        currentStroke.forEach(function(pt) { ctx.lineTo(pt.x, pt.y); });
+        ctx.stroke();
     }
-    
-    // 结束绘制
-    function stopDrawing(e) {
+
+    function endDraw(e) {
         e.preventDefault();
         if (!isDrawing) return;
-        
         isDrawing = false;
         if (currentStroke.length > 0) {
             strokes.push(currentStroke);
             currentStroke = [];
         }
     }
-    
-    // 清除签名
-    function clearSignature() {
+
+    function openOverlay() {
         strokes = [];
         currentStroke = [];
-        redrawCanvas();
-    }
-    
-    // 撤销最后一笔
-    function undoSignature() {
-        if (strokes.length > 0) {
-            strokes.pop();
-            redrawCanvas();
-        }
-    }
-    
-    // 验证签名
-    function validateSignature() {
-        if (strokes.length === 0) {
-            alert('请先完成签名');
-            return false;
-        }
-        return true;
-    }
-    
-    // 显示签名预览
-    function showSignaturePreview() {
-        if (strokes.length === 0) return;
-        
-        // 创建临时画布生成签名图片
-        const tempCanvas = document.createElement('canvas');
-        const tempCtx = tempCanvas.getContext('2d');
-        tempCanvas.width = signatureCanvas.width;
-        tempCanvas.height = signatureCanvas.height;
-        
-        // 复制签名到临时画布
-        tempCtx.strokeStyle = '#000';
-        tempCtx.lineWidth = 2;
-        tempCtx.lineCap = 'round';
-        tempCtx.lineJoin = 'round';
-        
-        strokes.forEach(stroke => {
-            if (stroke.length > 0) {
-                tempCtx.beginPath();
-                tempCtx.moveTo(stroke[0].x, stroke[0].y);
-                stroke.forEach(point => {
-                    tempCtx.lineTo(point.x, point.y);
-                });
-                tempCtx.stroke();
-            }
-        });
-        
-        // 转换为图片并显示
-        const dataURL = tempCanvas.toDataURL();
-        signaturePreviewImg.src = dataURL;
-        signatureInput.value = dataURL;
-        
-        // 切换显示
-        signaturePreviewPlaceholder.classList.add('d-none');
-        signaturePreviewImage.classList.remove('d-none');
-    }
-    
-    // 清除签名预览
-    function clearSignaturePreview() {
-        signaturePreviewPlaceholder.classList.remove('d-none');
-        signaturePreviewImage.classList.add('d-none');
-        signatureInput.value = '';
-        clearSignature();
-    }
-    
-    // 打开签名模态框
-    function openSignatureModal() {
-        signatureModal.classList.add('active');
-        resizeCanvas();
-        
-        // 防止页面滚动
+        isRotated = window.matchMedia('(orientation:portrait)').matches;
+        overlay.classList.add('active');
         document.body.style.overflow = 'hidden';
+        setTimeout(resizeCanvas, 150);
     }
-    
-    // 关闭签名模态框
-    function closeSignatureModal() {
-        signatureModal.classList.remove('active');
-        
-        // 恢复页面滚动
+
+    function closeOverlay() {
+        overlay.classList.remove('active');
         document.body.style.overflow = '';
     }
-    
-    // 绑定画布事件
-    signatureCanvas.addEventListener('mousedown', startDrawing);
-    signatureCanvas.addEventListener('mousemove', draw);
-    signatureCanvas.addEventListener('mouseup', stopDrawing);
-    signatureCanvas.addEventListener('mouseout', stopDrawing);
-    
-    // 触摸事件
-    signatureCanvas.addEventListener('touchstart', startDrawing);
-    signatureCanvas.addEventListener('touchmove', draw);
-    signatureCanvas.addEventListener('touchend', stopDrawing);
-    
-    // 绑定按钮事件
-    document.getElementById('startSignatureBtn').addEventListener('click', openSignatureModal);
-    document.getElementById('closeSignatureModal').addEventListener('click', closeSignatureModal);
-    document.getElementById('clearFullscreenSignature').addEventListener('click', clearSignature);
-    document.getElementById('undoFullscreenSignature').addEventListener('click', undoSignature);
-    document.getElementById('cancelFullscreenSignature').addEventListener('click', closeSignatureModal);
-    document.getElementById('confirmFullscreenSignature').addEventListener('click', function() {
-        if (validateSignature()) {
-            showSignaturePreview();
-            closeSignatureModal();
-        }
-    });
-    
-    // 重新签名按钮
-    document.getElementById('reSignBtn').addEventListener('click', function() {
-        clearSignaturePreview();
-        openSignatureModal();
-    });
-    
-    // 清除签名按钮
-    document.getElementById('clearSignatureBtn').addEventListener('click', clearSignaturePreview);
-    
-    // 表单提交验证
-    document.getElementById('signatureForm').addEventListener('submit', function(e) {
-        if (!signatureInput.value) {
-            e.preventDefault();
-            alert('请先完成签名');
-            return false;
-        }
-        
-        // 显示加载状态
-        const submitBtn = document.getElementById('submitSignature');
-        const originalText = submitBtn.innerHTML;
-        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 提交中...';
-        submitBtn.disabled = true;
-        
-        // 如果提交失败，恢复按钮状态
-        setTimeout(() => {
-            if (submitBtn.disabled) {
-                submitBtn.innerHTML = originalText;
-                submitBtn.disabled = false;
+
+    // 确认签名：裁剪空白后生成 PNG，关闭遮罩，显示缩略图
+    function confirmSignature() {
+        if (strokes.length === 0) { alert('请先签名'); return; }
+
+        // 渲染到临时画布并裁剪空白边界
+        var tmp = document.createElement('canvas');
+        tmp.width  = canvas.width;
+        tmp.height = canvas.height;
+        var tctx = tmp.getContext('2d');
+        tctx.fillStyle = '#fff';
+        tctx.fillRect(0, 0, tmp.width, tmp.height);
+        tctx.strokeStyle = '#1a1a2e';
+        tctx.lineWidth = 3;
+        tctx.lineCap = 'round';
+        tctx.lineJoin = 'round';
+        strokes.forEach(function(stroke) {
+            if (stroke.length > 0) {
+                tctx.beginPath();
+                tctx.moveTo(stroke[0].x, stroke[0].y);
+                stroke.forEach(function(p) { tctx.lineTo(p.x, p.y); });
+                tctx.stroke();
             }
-        }, 5000);
-    });
-    
-    // 反馈字符计数
-    const feedbackTextarea = document.getElementById('feedback');
-    const feedbackCount = document.getElementById('feedbackCount');
-    
-    feedbackTextarea.addEventListener('input', function() {
-        const length = this.value.length;
-        feedbackCount.textContent = length;
-        
-        if (length > 1000) {
-            this.value = this.value.substring(0, 1000);
-            feedbackCount.textContent = 1000;
+        });
+
+        // 裁剪空白
+        var imgData = tctx.getImageData(0, 0, tmp.width, tmp.height);
+        var minX = tmp.width, minY = tmp.height, maxX = 0, maxY = 0;
+        var found = false;
+        for (var y = 0; y < tmp.height; y++) {
+            for (var x = 0; x < tmp.width; x++) {
+                var idx = (y * tmp.width + x) * 4;
+                if (imgData.data[idx] < 200 || imgData.data[idx+1] < 200 || imgData.data[idx+2] < 200) {
+                    found = true;
+                    if (x < minX) minX = x;
+                    if (x > maxX) maxX = x;
+                    if (y < minY) minY = y;
+                    if (y > maxY) maxY = y;
+                }
+            }
+        }
+        if (!found) { alert('请先签名'); return; }
+
+        var pad = 8;
+        minX = Math.max(0, minX - pad);
+        minY = Math.max(0, minY - pad);
+        maxX = Math.min(tmp.width, maxX + pad);
+        maxY = Math.min(tmp.height, maxY + pad);
+        var cropW = maxX - minX;
+        var cropH = maxY - minY;
+
+        var cropped = document.createElement('canvas');
+        cropped.width = cropW;
+        cropped.height = cropH;
+        var cctx = cropped.getContext('2d');
+        cctx.drawImage(tmp, minX, minY, cropW, cropH, 0, 0, cropW, cropH);
+
+        var dataURL = cropped.toDataURL('image/png');
+        sigInput.value = dataURL;
+
+        // 显示缩略图
+        if (previewImg) {
+            previewImg.src = dataURL;
+            previewImg.style.display = '';
+        }
+        if (emptyState) emptyState.style.display = 'none';
+        previewZone.classList.add('has-sig');
+        if (clearBtn) clearBtn.classList.remove('d-none');
+        if (openBtn) openBtn.innerHTML = '<i class="fas fa-redo"></i> 重新签名';
+
+        closeOverlay();
+    }
+
+    // 清除签名
+    function clearSignature() {
+        sigInput.value = '';
+        if (previewImg) { previewImg.src = ''; previewImg.style.display = 'none'; }
+        if (emptyState) emptyState.style.display = '';
+        previewZone.classList.remove('has-sig');
+        if (clearBtn) clearBtn.classList.add('d-none');
+        if (openBtn) openBtn.innerHTML = '<i class="fas fa-pen-nib"></i> 点击签名';
+    }
+
+    // ---- 事件绑定 ----
+    canvas.addEventListener('mousedown', startDraw);
+    canvas.addEventListener('mousemove', draw);
+    canvas.addEventListener('mouseup', endDraw);
+    canvas.addEventListener('mouseleave', endDraw);
+    canvas.addEventListener('touchstart', startDraw, { passive: false });
+    canvas.addEventListener('touchmove', draw, { passive: false });
+    canvas.addEventListener('touchend', endDraw, { passive: false });
+
+    openBtn.addEventListener('click', openOverlay);
+    document.getElementById('clearCanvas').addEventListener('click', function() { strokes = []; redraw(); });
+    document.getElementById('undoStroke').addEventListener('click', function() { strokes.pop(); redraw(); });
+    document.getElementById('cancelSig').addEventListener('click', closeOverlay);
+    document.getElementById('confirmSig').addEventListener('click', confirmSignature);
+    if (clearBtn) clearBtn.addEventListener('click', clearSignature);
+
+    // 旋转 / resize 时如果遮罩打开则重设画布
+    window.addEventListener('orientationchange', function() {
+        if (overlay.classList.contains('active')) {
+            isRotated = window.matchMedia('(orientation:portrait)').matches;
+            setTimeout(resizeCanvas, 300);
         }
     });
-    
-    // 初始化字符计数
-    feedbackCount.textContent = feedbackTextarea.value.length;
-    
-    // ESC键关闭模态框
-    document.addEventListener('keydown', function(e) {
-        if (e.key === 'Escape' && signatureModal.classList.contains('active')) {
-            closeSignatureModal();
+    window.addEventListener('resize', function() {
+        if (overlay.classList.contains('active')) {
+            isRotated = window.matchMedia('(orientation:portrait)').matches;
+            setTimeout(resizeCanvas, 300);
         }
+    });
+
+    // 表单提交校验
+    document.getElementById('recordForm').addEventListener('submit', function(e) {
+        var sat = document.querySelector('input[name="satisfaction"]:checked');
+        if (!sat) { e.preventDefault(); alert('请选择用户满意度'); return false; }
+        if (!sigInput.value) { e.preventDefault(); alert('请完成手写签名'); return false; }
     });
 });
 </script>

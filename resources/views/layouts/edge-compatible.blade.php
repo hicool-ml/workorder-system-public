@@ -172,7 +172,8 @@
                     @if(auth()->user()->canManageDepartments())
                     <li class="nav-item">
                         <a class="nav-link {{ request()->routeIs('locations.*') ? 'active' : '' }}"
-                           href="{{ route('locations.index') }}">
+                        href="{{ route('locations.index') }}">
+                        href="{{ route('locations.campuses') }}">
                             <i class="fas fa-map-marker-alt"></i> 地址管理
                         </a>
                     </li>

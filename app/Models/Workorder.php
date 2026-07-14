@@ -53,6 +53,13 @@ class Workorder extends Model
        'is_emergency',
        'phone_assisted',
        'other_reason',
+        'requires_signature',
+        'is_user_signed',
+        'user_signature',
+        'user_satisfaction',
+        'user_feedback',
+        'user_signed_at',
+        'visit_status',
     ];
 
     protected $casts = [
@@ -69,6 +76,10 @@ class Workorder extends Model
         'need_visit' => 'boolean',
         'is_emergency' => 'boolean',
         'phone_assisted' => 'boolean',
+        'requires_signature' => 'boolean',
+        'is_user_signed' => 'boolean',
+        'user_satisfaction' => 'integer',
+        'user_signed_at' => 'datetime',
     ];
 
     /**
@@ -122,6 +133,13 @@ class Workorder extends Model
         return '未分配';
     }
 
+    /**
+     * 检查是否已签单
+     */
+    public function hasSignature(): bool
+    {
+        return (bool) ($this->is_user_signed && $this->user_signature);
+    }
     /**
      * 获取部门
      */

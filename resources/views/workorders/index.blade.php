@@ -524,4 +524,206 @@ var listCategoryData = @json($categories);
 })();
 </script>
 
+
+<script>
+// 工单列表：模态框系统 + 批量操作
+document.addEventListener('DOMContentLoaded', function() {
+    var csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '{{ csrf_token() }}';
+
+    // -- 模态框系统 --
+    function openModal(id) {
+        var m = document.getElementById(id);
+        if (m) { m.classList.remove('hidden'); m.classList.add('flex'); document.body.classList.add('overflow-hidden'); }
+    }
+    function closeModal(id) {
+        var m = document.getElementById(id);
+        if (m) { m.classList.add('hidden'); m.classList.remove('flex'); document.body.classList.remove('overflow-hidden'); }
+    }
+    window.openModal = openModal;
+    window.closeModal = closeModal;
+
+    // data-modal-close 按钮
+    document.querySelectorAll('[data-modal-close]').forEach(function(btn) {
+        btn.addEventListener('click', function() { closeModal(this.getAttribute('data-modal-close')); });
+    });
+    // 背景点击关闭
+    document.querySelectorAll('[data-modal]').forEach(function(modal) {
+        modal.addEventListener('click', function(e) { if (e.target === this) closeModal(this.id); });
+    });
+    // ESC 关闭
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') document.querySelectorAll('[data-modal]').forEach(function(m) { if (!m.classList.contains('hidden')) closeModal(m.id); });
+    });
+
+    // -- 分配按钮：data-assign-workorder --
+    document.querySelectorAll('[data-assign-workorder]').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            var id = this.getAttribute('data-assign-workorder');
+            var form = document.getElementById('assignForm');
+            var idInput = document.getElementById('assignWorkorderId');
+            if (idInput) idInput.value = id;
+            if (form) {
+                var action = form.getAttribute('action');
+                form.setAttribute('action', action.replace(/\/workorders\/\d+\/assign/, '/workorders/' + id + '/assign'));
+            }
+            openModal('assignModal');
+        });
+    });
+
+    // -- 解决按钮：data-resolve-workorder --
+    document.querySelectorAll('[data-resolve-workorder]').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            var id = this.getAttribute('data-resolve-workorder');
+            var form = document.getElementById('resolveForm');
+            var idInput = document.getElementById('resolveWorkorderId');
+            if (idInput) idInput.value = id;
+            if (form) {
+                var action = form.getAttribute('action');
+                form.setAttribute('action', action.replace(/\/workorders\/\d+\/resolve/, '/workorders/' + id + '/resolve'));
+            }
+            // 重置表单
+            if (form) form.reset();
+            var matsDiv = document.getElementById('materials_usage_div');
+            if (matsDiv) matsDiv.style.display = '';
+            openModal('resolveModal');
+        });
+    });
+
+    // 解决模态框：无备件勾选
+    var noMats = document.getElementById('no_materials');
+    if (noMats) noMats.addEventListener('change', function() {
+        var div = document.getElementById('materials_usage_div');
+        if (div) div.style.display = this.checked ? 'none' : 'block';
+    });
+
+    // -- 复选框选择 --
+    var selectedWorkorders = [];
+    function updateSelection() {
+        var ids = new Set();
+        document.querySelectorAll('.workorder-checkbox:checked').forEach(function(cb) { ids.add(cb.value); });
+        selectedWorkorders = Array.from(ids);
+        var countEl = document.getElementById('selectedCount');
+        if (countEl) countEl.textContent = selectedWorkorders.length;
+        var bar = document.getElementById('batchBar');
+        if (bar) bar.classList.toggle('hidden', selectedWorkorders.length === 0);
+    }
+
+    // 全选
+    var selectAll = document.getElementById('selectAll');
+    if (selectAll) selectAll.addEventListener('change', function() {
+        document.querySelectorAll('.workorder-checkbox').forEach(function(cb) { cb.checked = selectAll.checked; });
+        updateSelection();
+    });
+    document.querySelectorAll('.workorder-checkbox').forEach(function(cb) { cb.addEventListener('change', updateSelection); });
+
+    // -- 批量分配 --
+    var batchAssignBtn = document.getElementById('batchAssignBtn');
+    if (batchAssignBtn) batchAssignBtn.addEventListener('click', function() {
+        if (selectedWorkorders.length === 0) { alert('请先选择工单'); return; }
+        var idsInput = document.getElementById('batchAssignIds');
+        if (idsInput) idsInput.value = selectedWorkorders.join(',');
+        openModal('batchAssignModal');
+    });
+
+    // 批量分配表单提交
+    var batchAssignForm = document.getElementById('batchAssignForm');
+    if (batchAssignForm) batchAssignForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        var assignee = document.getElementById('batch_assignee_id');
+        if (!assignee || !assignee.value) { alert('请选择工程师'); return; }
+        var note = document.getElementById('batch_assign_note');
+        fetch('{{ route("workorders.batch.assign") }}', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken, 'X-Requested-With': 'XMLHttpRequest' },
+            body: JSON.stringify({ workorder_ids: selectedWorkorders.join(','), assignee_id: assignee.value, note: note ? note.value : '' })
+        }).then(function(r) { return r.json(); }).then(function(data) {
+            if (data.success) { closeModal('batchAssignModal'); location.reload(); }
+            else { alert('分配失败：' + (data.message || '未知错误')); }
+        }).catch(function() { alert('请求失败，请检查网络'); });
+    });
+
+    // -- 批量解决 --
+    var batchResolveBtn = document.getElementById('batchResolveBtn');
+    if (batchResolveBtn) batchResolveBtn.addEventListener('click', function() {
+        if (selectedWorkorders.length === 0) { alert('请先选择工单'); return; }
+        var idsInput = document.getElementById('batchResolveIds');
+        if (idsInput) idsInput.value = selectedWorkorders.join(',');
+        openModal('batchResolveModal');
+    });
+
+    // 批量解决表单提交
+    var batchResolveForm = document.getElementById('batchResolveForm');
+    if (batchResolveForm) batchResolveForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        var solution = document.getElementById('batch_solution');
+        if (!solution || !solution.value.trim()) { alert('请填写解决方案'); return; }
+        var noMatsChk = document.getElementById('batch_no_materials');
+        var matsUsage = document.getElementById('batch_materials_usage');
+        if (!noMatsChk || !noMatsChk.checked) {
+            if (!matsUsage || !matsUsage.value.trim()) { alert('请填写备件耗材使用情况或勾选无备件耗材使用'); return; }
+        }
+        fetch('{{ route("workorders.batch.resolve") }}', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken, 'X-Requested-With': 'XMLHttpRequest' },
+            body: JSON.stringify({
+                workorder_ids: selectedWorkorders.join(','),
+                solution_type: 'common',
+                solution: solution.value,
+                no_materials: noMatsChk ? noMatsChk.checked : false,
+                materials_usage: matsUsage ? matsUsage.value : '',
+                no_materials_array: {}, materials_usage_array: {}, solutions: {}
+            })
+        }).then(function(r) { return r.json(); }).then(function(data) {
+            if (data.success) { closeModal('batchResolveModal'); location.reload(); }
+            else { alert('解决失败：' + (data.message || '未知错误')); }
+        }).catch(function() { alert('请求失败，请检查网络'); });
+    });
+
+    // 批量解决：无备件勾选
+    var batchNoMats = document.getElementById('batch_no_materials');
+    if (batchNoMats) batchNoMats.addEventListener('change', function() {
+        var div = document.getElementById('batch_materials_usage_div');
+        if (div) div.style.display = this.checked ? 'none' : '';
+    });
+
+    // -- 批量开始 --
+    var batchStartBtn = document.getElementById('batchStartBtn');
+    if (batchStartBtn) batchStartBtn.addEventListener('click', function() {
+        if (selectedWorkorders.length === 0) { alert('请先选择工单'); return; }
+        if (!confirm('确认开始处理选中的 ' + selectedWorkorders.length + ' 个工单？')) return;
+        fetch('{{ route("workorders.batch.start") }}', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken, 'X-Requested-With': 'XMLHttpRequest' },
+            body: JSON.stringify({ workorder_ids: selectedWorkorders.join(',') })
+        }).then(function(r) { return r.json(); }).then(function(data) {
+            if (data.success) location.reload();
+            else { alert('操作失败：' + (data.message || '未知错误')); }
+        }).catch(function() { alert('请求失败，请检查网络'); });
+    });
+
+    // -- 批量关闭 --
+    var batchCloseBtn = document.getElementById('batchCloseBtn');
+    if (batchCloseBtn) batchCloseBtn.addEventListener('click', function() {
+        if (selectedWorkorders.length === 0) { alert('请先选择工单'); return; }
+        if (!confirm('确认关闭选中的 ' + selectedWorkorders.length + ' 个工单？此操作不可撤销！')) return;
+        fetch('{{ route("workorders.batch.close") }}', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken, 'X-Requested-With': 'XMLHttpRequest' },
+            body: JSON.stringify({ workorder_ids: selectedWorkorders.join(',') })
+        }).then(function(r) { return r.json(); }).then(function(data) {
+            if (data.success) location.reload();
+            else { alert('操作失败：' + (data.message || '未知错误')); }
+        }).catch(function() { alert('请求失败，请检查网络'); });
+    });
+
+    // -- 清除选择 --
+    var clearBtn = document.getElementById('clearSelectionBtn');
+    if (clearBtn) clearBtn.addEventListener('click', function() {
+        document.querySelectorAll('.workorder-checkbox').forEach(function(cb) { cb.checked = false; });
+        if (selectAll) selectAll.checked = false;
+        updateSelection();
+    });
+});
+</script>
+
 @endsection

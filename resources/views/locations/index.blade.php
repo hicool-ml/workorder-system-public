@@ -19,8 +19,8 @@
 
 {{-- Tabs --}}
 <div class="flex gap-1 mb-4">
-    <a href="{{ route('locations.index') }}" class="px-4 py-2 text-sm font-medium rounded-lg bg-brand-600 text-white">楼宇地址</a>
     <a href="{{ route('locations.campuses') }}" class="px-4 py-2 text-sm font-medium rounded-lg text-ink-muted hover:bg-surface-muted">校区管理</a>
+    <a href="{{ route('locations.index') }}" class="px-4 py-2 text-sm font-medium rounded-lg bg-brand-600 text-white">楼宇地址</a>
 </div>
 
 {{-- Search filters --}}

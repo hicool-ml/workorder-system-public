@@ -100,9 +100,9 @@
                                         <div class="text-xs text-red-600 mt-1">{{ $message }}</div>
                                     @enderror
                                 </div>
-                                <div>
+                                <div class="sm:col-span-2">
                                     <label for="priority_low" class="label">优先级 <span class="text-red-500">*</span></label>
-                                    <div class="flex flex-wrap gap-3">
+                                    <div class="flex flex-nowrap items-center gap-4">
                                         <div class="flex items-center gap-2">
                                             <input class="rounded border-border-strong w-4 h-4" type="radio" name="priority" id="priority_low" value="low"
                                                    {{ old('priority', 'medium') == 'low' ? 'checked' : '' }} autocomplete="off" required>
@@ -196,17 +196,13 @@
                                 </div>
                                 <div>
                                     <label for="appointment_time_start" class="label">预约时间</label>
-                                    <div class="grid grid-cols-2 gap-2">
-                                        <div>
-                                            <input type="datetime-local" class="input" id="appointment_time_start" name="appointment_time_start"
-                                                   value="{{ old('appointment_time_start') }}" placeholder="开始时间" autocomplete="off">
-                                        </div>
-                                        <div>
-                                            <input type="datetime-local" class="input" id="appointment_time_end" name="appointment_time_end"
-                                                   value="{{ old('appointment_time_end') }}" placeholder="结束时间" autocomplete="off">
-                                        </div>
+                                    <div class="flex gap-2">
+                                        <input type="datetime-local" class="input flex-1" id="appointment_time_start" name="appointment_time_start"
+                                               value="{{ old('appointment_time_start') }}" placeholder="开始" autocomplete="off">
+                                        <input type="datetime-local" class="input flex-1" id="appointment_time_end" name="appointment_time_end"
+                                               value="{{ old('appointment_time_end') }}" placeholder="结束" autocomplete="off">
                                     </div>
-                                    <div class="text-xs text-ink-muted mt-1">请选择具体的预约时间段，如：12月15日 14:00 - 12月15日 16:00</div>
+
                                     @error('appointment_time_start')
                                         <div class="text-xs text-red-600 mt-1">{{ $message }}</div>
                                     @enderror
@@ -301,9 +297,9 @@
                                             需签单
                                         </label>
                                     </div>
-                                    <div class="form-text text-blue-600 small mt-1">
-                                        <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z M12 16v-4 M12 8h.01"/></svg> 勾选此选项后，工单解决前需要报修人签字确认
-                                    </div>
+
+
+
                                 </div>
                                 @if(auth()->user()->canUsePhoneAssist())
                                 <div>
@@ -320,17 +316,18 @@
                             
                             <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
                                 <div>
-                                    <label for="assignee_id" class="label">指定接单工程师</label>
-                                    <select class="input" id="assignee_id" name="assignee_id">
-                                        <option value="">不指定（工程师自行接单）</option>
-                                        @foreach(\App\Models\User::getAssignableEngineers() as $engineer)
-                                        <option value="{{ $engineer->id }}" {{ old('assignee_id') == $engineer->id ? 'selected' : '' }}>
-                                            {{ $engineer->name }} - {{ $engineer->department?->name }}
-                                        </option>
-                                        @endforeach
-                                        <option value="other">其他部门</option>
-                                    </select>
-                                    <div class="text-xs text-ink-muted mt-1">可以选择指定工程师，或不指定由工程师自行接单</div>
+                                    <div class="flex items-center gap-2">
+                                        <label for="assignee_id" class="label whitespace-nowrap shrink-0">指定接单工程师</label>
+                                        <select class="input" id="assignee_id" name="assignee_id">
+                                            <option value="">不指定（工程师自行接单）</option>
+                                            @foreach(\App\Models\User::getAssignableEngineers() as $engineer)
+                                            <option value="{{ $engineer->id }}" {{ old('assignee_id') == $engineer->id ? 'selected' : '' }}>
+                                                {{ $engineer->name }} - {{ $engineer->department?->name }}
+                                            </option>
+                                            @endforeach
+                                            <option value="other">其他部门</option>
+                                        </select>
+                                    </div>
                                 </div>
                                 <div id="other_reason_div" style="display: none;">
                                     <label for="other_reason" class="label">其他部门原因</label>
@@ -363,11 +360,11 @@
                                 <input type="file" class="sr-only" id="attachments" name="attachments[]" multiple accept=".jpg,.jpeg,.png,.gif,.pdf,.doc,.docx,.txt" onchange="document.getElementById('attCreateName').textContent=this.files.length? '已选择 '+this.files.length+' 个文件':'未选择文件'">
 
                                 <div id="attCreateName" class="text-xs mt-1" style="color: var(--c-ink-subtle);">未选择文件</div>
-                                       multiple accept=".jpg,.jpeg,.png,.gif,.pdf,.doc,.docx,.txt" autocomplete="off">
-                                <div class="text-xs text-ink-muted mt-1">
-                                    支持上传图片、文档等文件，单个文件最大10MB，最多5个文件<br>
-                                    <small class="text-blue-600">大图片将自动压缩以减少文件大小，提高上传成功率</small>
-                                </div>
+
+
+
+
+
                                 <div id="attachmentPreview" class="mt-2"></div>
                             </div>
                         </div>

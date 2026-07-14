@@ -123,9 +123,9 @@ class AttachmentController extends Controller
             abort(403, '您没有权限删除此附件');
         }
         
-        // 只有未分配或处理中的工单可以删除附件
-        if (!in_array($attachment->workorder->status, ['pending', 'processing'])) {
-            return back()->with('error', '当前工单状态不允许删除附件');
+        // 已关闭（closed）的工单不允许删除附件，其余状态均可
+        if ($attachment->workorder->status === 'closed') {
+            return back()->with('error', '已关闭的工单不允许删除附件');
         }
         
         if ($attachment->deleteFile()) {

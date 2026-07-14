@@ -15,87 +15,117 @@ use Illuminate\Support\Facades\DB;
 class ReportController extends Controller
 {
     /**
-     * 统计报表页面
+     * 统计报表页面（周期筛选驱动所有图表）
      */
     public function index(Request $request)
     {
-       // 获取时间范围
-        $dateRange = $request->input('date_range', '7days');
-        $customFrom = $request->input('custom_from');
-        $customTo = $request->input('custom_to');
-        $rangeEnd = now()->endOfDay();
+        $periodInfo = $this->computeReportPeriods($request);
+        $rangeStart = $periodInfo['rangeStart'];
+        $rangeEnd = $periodInfo['rangeEnd'];
 
-        if ($dateRange === 'custom' && $customFrom) {
-            $rangeStart = \Carbon\Carbon::parse($customFrom)->startOfDay();
-            if ($customTo) { $rangeEnd = \Carbon\Carbon::parse($customTo)->endOfDay(); }
-            $days = max($rangeStart->diffInDays($rangeEnd) + 1, 1);
-        } else {
-            $days = $dateRange === '30days' ? 30 : ($dateRange === '90days' ? 90 : 7);
-            $rangeStart = now()->subDays($days - 1)->startOfDay();
-        }
-
-        // 统计概览
+        $rangeTotal = Workorder::whereBetween('created_at', [$rangeStart, $rangeEnd])->count();
         $stats = [
-            'total_workorders' => Workorder::count(),
-            'pending_workorders' => Workorder::whereIn('status', ['pending', 'assigned', 'processing'])->count(),
-            'completed_workorders' => Workorder::whereIn('status', ['resolved', 'closed'])->count(),
+            'total_workorders' => $rangeTotal,
+            'pending_workorders' => Workorder::whereIn('status', ['pending', 'assigned', 'processing'])->whereBetween('created_at', [$rangeStart, $rangeEnd])->count(),
+            'completed_workorders' => Workorder::whereIn('status', ['resolved', 'closed'])->whereBetween('created_at', [$rangeStart, $rangeEnd])->count(),
             'total_users' => User::count(),
             'total_departments' => Department::count(),
             'total_categories' => WorkorderCategorySimplified::count(),
-            'overdue_workorders' => Workorder::whereNotNull('expected_complete_at')
-                ->where('expected_complete_at', '<', now())
-                ->whereNotIn('status', ['closed', 'resolved'])
-                ->count(),
-            'emergency_workorders' => Workorder::where('is_emergency', true)
-                ->whereNotIn('status', ['closed', 'resolved'])
-                ->count(),
-            'range_new' => Workorder::whereBetween('created_at', [$rangeStart, $rangeEnd])->count(),
+            'overdue_workorders' => Workorder::whereNotNull('expected_complete_at')->where('expected_complete_at', '<', now())->whereNotIn('status', ['closed', 'resolved'])->whereBetween('created_at', [$rangeStart, $rangeEnd])->count(),
+            'emergency_workorders' => Workorder::where('is_emergency', true)->whereNotIn('status', ['closed', 'resolved'])->whereBetween('created_at', [$rangeStart, $rangeEnd])->count(),
+            'range_new' => $rangeTotal,
             'range_resolved' => Workorder::whereBetween('resolved_at', [$rangeStart, $rangeEnd])->count(),
-            'completion_rate' => round(Workorder::whereIn('status', ['resolved', 'closed'])->count() / max(Workorder::count(), 1) * 100, 1),
+            'completion_rate' => round(Workorder::whereIn('status', ['resolved', 'closed'])->whereBetween('created_at', [$rangeStart, $rangeEnd])->count() / max($rangeTotal, 1) * 100, 1),
         ];
 
-        // 获取工单趋势统计
+        $days = max($rangeStart->diffInDays($rangeEnd) + 1, 1);
         $recentStats = $this->getRecentStats($days, $rangeStart, $rangeEnd);
-
-        // 获取网络/多媒体二级工单类型 Top10 分布
-        $networkSubDistribution = $this->getSubCategoryDistribution(1);
-        $mediaSubDistribution = $this->getSubCategoryDistribution(2);
-        $sourceDistribution = $this->getSourceDistribution();
-
-        // 获取工单状态分布
-        $statusDistribution = $this->getStatusDistribution();
-
-        // 获取工单分类分布
-        $categoryDistribution = $this->getCategoryDistribution();
-
-        // 获取校区工单统计
-        $campusStats = $this->getCampusStats();
-
-        // 获取工程师处理统计
-        $engineerStats = $this->getEngineerStats();
-
-        // 获取处理时长统计
-        $processingTimeStats = $this->getProcessingTimeStats();
-
-        // 获取满意度统计
-        $satisfactionStats = $this->getSatisfactionStats();
+        $networkSubDistribution = $this->getSubCategoryDistribution(1, $rangeStart, $rangeEnd);
+        $mediaSubDistribution = $this->getSubCategoryDistribution(2, $rangeStart, $rangeEnd);
+        $sourceDistribution = $this->getSourceDistribution($rangeStart, $rangeEnd);
+        $statusDistribution = $this->getStatusDistribution($rangeStart, $rangeEnd);
+        $categoryDistribution = $this->getCategoryDistribution($rangeStart, $rangeEnd);
+        $campusStats = $this->getCampusStats($rangeStart, $rangeEnd);
+        $engineerStats = $this->getEngineerStats($rangeStart, $rangeEnd);
+        $processingTimeStats = $this->getProcessingTimeStats($rangeStart, $rangeEnd);
+        $satisfactionStats = $this->getSatisfactionStats($rangeStart, $rangeEnd);
+        $categoryTrend = $this->getCategoryTrendByPeriod($request);
 
         return view('reports.index', compact(
-            'stats',
-            'recentStats',
-            'statusDistribution',
-            'categoryDistribution',
-            'campusStats',
-            'engineerStats',
-            'processingTimeStats',
-           'satisfactionStats',
-            'dateRange',
-            'networkSubDistribution',
-            'mediaSubDistribution',
-            'sourceDistribution'
+            'stats', 'recentStats', 'statusDistribution', 'categoryDistribution',
+            'campusStats', 'engineerStats', 'processingTimeStats', 'satisfactionStats',
+            'sourceDistribution', 'networkSubDistribution', 'mediaSubDistribution', 'categoryTrend'
         ));
     }
 
+    /**
+     * 计算报告周期（起始日期 + 周期数 → 时间范围）
+     */
+
+    /**
+     * 计算报告周期（起始日期 + 周期数 → 时间范围）
+     * 自定义模式下，周期起始日从起始日期的天数自动推导，无需额外输入
+     */
+    private function computeReportPeriods(Request $request)
+    {
+        $mode = $request->input('cat_mode', 'custom');
+        $periodCount = max(1, min((int) $request->input('cat_periods', 6), 24));
+        $startInput = $request->input('cat_start');
+
+        // 周期起始日从起始日期的天数推导（如4月13日 → 每月13日起）
+        if ($startInput) {
+            $cycleDay = \Carbon\Carbon::parse($startInput)->day;
+        } else {
+            $cycleDay = now()->day;
+        }
+        $cycleDay = max(1, min($cycleDay, 28));
+
+        if ($startInput) {
+            $probeStart = \Carbon\Carbon::parse($startInput)->startOfDay();
+            if ($mode === 'natural') $probeStart = $probeStart->copy()->startOfMonth();
+            for ($pc = $periodCount; $pc >= 1; $pc--) {
+                $lastEnd = $probeStart->copy()->addMonths($pc - 1);
+                $lastEnd = ($mode === 'custom') ? $lastEnd->copy()->addMonth()->subDay()->endOfDay() : $lastEnd->copy()->endOfMonth()->endOfDay();
+                if ($lastEnd <= now()->endOfDay()) { $periodCount = $pc; break; }
+            }
+        }
+
+        if ($startInput) {
+            $firstStart = \Carbon\Carbon::parse($startInput)->startOfDay();
+            if ($mode === 'natural') $firstStart = $firstStart->copy()->startOfMonth();
+        } else {
+            $today = now();
+            if ($mode === 'custom') {
+                if ($today->day >= $cycleDay) {
+                    $latestCompleted = $today->copy()->startOfMonth()->subMonth()->addDays($cycleDay - 1)->startOfDay();
+                } else {
+                    $latestCompleted = $today->copy()->startOfMonth()->subMonths(2)->addDays($cycleDay - 1)->startOfDay();
+                }
+                $firstStart = $latestCompleted->subMonths($periodCount - 1);
+            } else {
+                $firstStart = $today->copy()->startOfMonth()->subMonths($periodCount - 1);
+            }
+        }
+
+        $periods = [];
+        for ($i = 0; $i < $periodCount; $i++) {
+            $start = $firstStart->copy()->addMonths($i);
+            if ($mode === 'custom') {
+                $end = $start->copy()->addMonth()->subDay()->endOfDay();
+                $periods[] = ['label' => $start->format('m/d') . '-' . $end->format('m/d'), 'start' => $start, 'end' => $end];
+            } else {
+                $periods[] = ['label' => $start->format('m/d') . '-' . $start->copy()->endOfMonth()->format('m/d'), 'start' => $start->copy()->startOfDay(), 'end' => $start->copy()->endOfMonth()->endOfDay()];
+            }
+        }
+
+        return [
+            'periods' => $periods,
+            'rangeStart' => $periods[0]['start'],
+            'rangeEnd' => $periods[count($periods) - 1]['end'],
+            'mode' => $mode, 'periodCount' => $periodCount, 'cycleDay' => $cycleDay,
+            'startStr' => $firstStart->format('Y-m-d'),
+        ];
+    }
     /**
      * 获取最近N天的统计
      */
@@ -103,317 +133,183 @@ class ReportController extends Controller
     {
         $rangeStart = $rangeStart ?? now()->subDays($days - 1)->startOfDay();
         $rangeEnd = $rangeEnd ?? now()->endOfDay();
-
-        // 构建 category_id → 一级分类ID 的映射
         $allCats = WorkorderCategorySimplified::select('id', 'parent_id')->get()->keyBy('id');
         $catToRoot = [];
         foreach ($allCats as $id => $cat) {
-            $current = $id;
-            $guard = 0;
-            while ($allCats->has($current) && $allCats[$current]->parent_id && $guard++ < 10) {
-                $current = $allCats[$current]->parent_id;
-            }
+            $current = $id; $guard = 0;
+            while ($allCats->has($current) && $allCats[$current]->parent_id && $guard++ < 10) { $current = $allCats[$current]->parent_id; }
             $catToRoot[$id] = $current;
         }
-
-        // 获取一级分类名称
         $topCats = WorkorderCategorySimplified::whereNull('parent_id')->orderBy('sort_order')->orderBy('name')->get();
         $topCatNames = $topCats->pluck('name', 'id')->toArray();
-
-        // 每日新建数（总量）
-        $created = Workorder::selectRaw("DATE(created_at) as d, COUNT(*) as c")
-            ->whereBetween('created_at', [$rangeStart, $rangeEnd])
-            ->groupByRaw("DATE(created_at)")
-            ->pluck('c', 'd');
-
-        // 每日按一级分类的新建数
+        $created = Workorder::selectRaw("DATE(created_at) as d, COUNT(*) as c")->whereBetween('created_at', [$rangeStart, $rangeEnd])->groupByRaw("DATE(created_at)")->pluck('c', 'd');
         $byCat = [];
         foreach ($topCatNames as $rootId => $rootName) {
             $subIds = array_keys(array_filter($catToRoot, function($v) use ($rootId) { return $v == $rootId; }));
             if (!empty($subIds)) {
-                $byCat[$rootId] = Workorder::selectRaw("DATE(created_at) as d, COUNT(*) as c")
-                    ->whereBetween('created_at', [$rangeStart, $rangeEnd])
-                    ->whereIn('category_id', $subIds)
-                    ->groupByRaw("DATE(created_at)")
-                    ->pluck('c', 'd');
+                $byCat[$rootId] = Workorder::selectRaw("DATE(created_at) as d, COUNT(*) as c")->whereBetween('created_at', [$rangeStart, $rangeEnd])->whereIn('category_id', $subIds)->groupByRaw("DATE(created_at)")->pluck('c', 'd');
             }
         }
-
         $stats = [];
         $cursor = $rangeStart->copy();
         while ($cursor <= $rangeEnd) {
             $date = $cursor->format('Y-m-d');
-            $row = [
-                'date' => $date,
-                'display_date' => $cursor->format('m-d'),
-                'total' => $created->get($date, 0),
-            ];
-            foreach ($topCatNames as $rootId => $rootName) {
-                $row['cat_' . $rootId] = isset($byCat[$rootId]) ? $byCat[$rootId]->get($date, 0) : 0;
-            }
+            $row = ['date' => $date, 'display_date' => $cursor->format('m-d'), 'total' => $created->get($date, 0)];
+            foreach ($topCatNames as $rootId => $rootName) { $row['cat_' . $rootId] = isset($byCat[$rootId]) ? $byCat[$rootId]->get($date, 0) : 0; }
             $stats[$date] = $row;
             $cursor->addDay();
         }
-
         return ['stats' => $stats, 'topCats' => $topCatNames];
     }
 
-    /**
-     * 获取工单状态分布
-     */
-    private function getStatusDistribution()
+    private function getStatusDistribution($rs = null, $re = null)
     {
-        $statuses = ['pending', 'assigned', 'processing', 'resolved', 'verifying', 'closed', 'rejected'];
         $distribution = [];
-
-        foreach ($statuses as $status) {
-            $distribution[$status] = Workorder::where('status', $status)->count();
+        foreach (['pending', 'assigned', 'processing', 'resolved', 'verifying', 'closed', 'rejected'] as $status) {
+            $q = Workorder::where('status', $status);
+            if ($rs && $re) $q->whereBetween('created_at', [$rs, $re]);
+            $distribution[$status] = $q->count();
         }
-
         return $distribution;
     }
 
-    /**
-     * 获取工单分类分布
-     */
-    private function getCategoryDistribution()
+    private function getCategoryDistribution($rs = null, $re = null)
     {
-        // 统计每个一级分类下所有工单（含子分类）
-        $topCats = WorkorderCategorySimplified::whereNull('parent_id')
-            ->orderBy('sort_order')
-            ->orderBy('name')
-            ->get();
-
+        $topCats = WorkorderCategorySimplified::whereNull('parent_id')->orderBy('sort_order')->orderBy('name')->get();
         $allDescendantIds = function($parentId) use (&$allDescendantIds) {
             $ids = WorkorderCategorySimplified::where('parent_id', $parentId)->pluck('id')->toArray();
             $result = $ids;
             foreach ($ids as $id) { $result = array_merge($result, $allDescendantIds($id)); }
             return $result;
         };
-
-         foreach ($topCats as $cat) {
-             $subIds = $allDescendantIds($cat->id);
-             $allIds = array_merge([$cat->id], $subIds);
-            $cat->workorders_count = Workorder::whereIn('category_id', $allIds)->count();
+        foreach ($topCats as $cat) {
+            $allIds = array_merge([$cat->id], $allDescendantIds($cat->id));
+            $q = Workorder::whereIn('category_id', $allIds);
+            if ($rs && $re) $q->whereBetween('created_at', [$rs, $re]);
+            $cat->workorders_count = $q->count();
         }
+        return $topCats->sortByDesc('workorders_count')->values();
+    }
 
-         return $topCats->sortByDesc('workorders_count')->values();
-     }
     /**
-     * 获取一级分类下二级工单类型 Top10
+     * 获取一级分类按周期趋势（百分比堆积，固定排序：网络→多媒体→专项→其它）
      */
-    private function getSubCategoryDistribution($rootId)
+    private function getCategoryTrendByPeriod(Request $request)
     {
-        $subs = WorkorderCategorySimplified::where('parent_id', $rootId)
-            ->orderBy('sort_order')
-            ->orderBy('name')
-            ->get(['id', 'name']);
+        $periodInfo = $this->computeReportPeriods($request);
+        $periods = $periodInfo['periods'];
+        $allCats = WorkorderCategorySimplified::select('id', 'parent_id')->get()->keyBy('id');
+        $catToRoot = [];
+        foreach ($allCats as $id => $cat) {
+            $current = $id; $guard = 0;
+            while ($allCats->has($current) && $allCats[$current]->parent_id && $guard++ < 10) { $current = $allCats[$current]->parent_id; }
+            $catToRoot[$id] = $current;
+        }
+        $topCats = WorkorderCategorySimplified::whereNull('parent_id')->orderBy('sort_order')->orderBy('name')->get();
+        $catOrder = ['网络' => 1, '多媒体' => 2, '专项' => 3, '其它' => 4];
+        $topCats = $topCats->sortBy(function ($c) use ($catOrder) { return $catOrder[$c->name] ?? 99; })->values();
 
+        $categories = [];
+        foreach ($topCats as $cat) {
+            $allIds = array_merge([$cat->id], array_keys(array_filter($catToRoot, function ($v) use ($cat) { return $v == $cat->id; })));
+            $counts = [];
+            foreach ($periods as $p) {
+                $counts[] = Workorder::whereIn('category_id', $allIds)->whereBetween('created_at', [$p['start'], $p['end']])->count();
+            }
+            $categories[] = ['name' => $cat->name, 'counts' => $counts];
+        }
+        foreach ($categories as &$info) { $info['counts'][] = array_sum($info['counts']); }
+        unset($info);
+        $periodLabels = array_map(function ($p) { return $p['label']; }, $periods);
+        $periodLabels[] = '汇总';
+        $numCols = count($periodLabels);
+        $colTotals = array_fill(0, $numCols, 0);
+        foreach ($categories as $info) { for ($c = 0; $c < $numCols; $c++) { $colTotals[$c] += $info['counts'][$c]; } }
+        foreach ($categories as &$info) {
+            $percents = [];
+            for ($c = 0; $c < $numCols; $c++) { $percents[] = $colTotals[$c] > 0 ? round($info['counts'][$c] / $colTotals[$c] * 100, 1) : 0; }
+            $info['percents'] = $percents;
+        }
+        unset($info);
+        return [
+            'periodLabels' => $periodLabels, 'categories' => $categories,
+            'mode' => $periodInfo['mode'], 'periodCount' => $periodInfo['periodCount'],
+            'cycleDay' => $periodInfo['cycleDay'], 'startStr' => $periodInfo['startStr'],
+        ];
+    }
+
+    private function getSubCategoryDistribution($rootId, $rs = null, $re = null)
+    {
+        $subs = WorkorderCategorySimplified::where('parent_id', $rootId)->orderBy('sort_order')->orderBy('name')->get(['id', 'name']);
         $result = [];
         foreach ($subs as $sub) {
-            $descendantIds = [$sub->id];
-            $queue = [$sub->id];
-            while (!empty($queue)) {
-                $children = WorkorderCategorySimplified::whereIn('parent_id', $queue)->pluck('id')->toArray();
-                $descendantIds = array_merge($descendantIds, $children);
-                $queue = $children;
-            }
-            $cnt = Workorder::whereIn('category_id', $descendantIds)->count();
-            if ($cnt > 0) {
-                $result[] = ['name' => $sub->name, 'count' => $cnt];
-            }
+            $descendantIds = [$sub->id]; $queue = [$sub->id];
+            while (!empty($queue)) { $children = WorkorderCategorySimplified::whereIn('parent_id', $queue)->pluck('id')->toArray(); $descendantIds = array_merge($descendantIds, $children); $queue = $children; }
+            $q = Workorder::whereIn('category_id', $descendantIds);
+            if ($rs && $re) $q->whereBetween('created_at', [$rs, $re]);
+            $cnt = $q->count();
+            if ($cnt > 0) $result[] = ['name' => $sub->name, 'count' => $cnt];
         }
-
-        usort($result, function ($a, $b) {
-            return $b['count'] <=> $a['count'];
-        });
-
+        usort($result, function ($a, $b) { return $b['count'] <=> $a['count']; });
         return array_slice($result, 0, 10);
     }
 
-    /**
-     * 获取校区工单统计
-     */
-    private function getCampusStats()
+    private function getCampusStats($rs = null, $re = null)
     {
         return \App\Models\Campus::leftJoin('workorders', 'campuses.id', '=', 'workorders.campus_id')
             ->whereNull('workorders.deleted_at')
-            ->selectRaw("campuses.id, campuses.name,
-                COUNT(workorders.id) as total,
-                SUM(CASE WHEN workorders.status IN ('pending','assigned','processing') THEN 1 ELSE 0 END) as pending,
-                SUM(CASE WHEN workorders.status IN ('resolved','closed') THEN 1 ELSE 0 END) as completed")
-            ->groupBy('campuses.id', 'campuses.name')
-            ->orderBy('campuses.sort_order')
-            ->orderBy('campuses.name')
-            ->get()
-            ->keyBy('id')
-            ->map(function($item) {
-                return ['name' => $item->name, 'total' => (int)$item->total, 'pending' => (int)$item->pending, 'completed' => (int)$item->completed];
-            })
-            ->toArray();
+            ->when($rs && $re, function ($q) use ($rs, $re) { $q->whereBetween('workorders.created_at', [$rs, $re]); })
+            ->selectRaw("campuses.id, campuses.name, COUNT(workorders.id) as total, SUM(CASE WHEN workorders.status IN ('pending','assigned','processing') THEN 1 ELSE 0 END) as pending, SUM(CASE WHEN workorders.status IN ('resolved','closed') THEN 1 ELSE 0 END) as completed")
+            ->groupBy('campuses.id', 'campuses.name')->orderBy('campuses.sort_order')->orderBy('campuses.name')
+            ->get()->keyBy('id')->map(function($item) { return ['name' => $item->name, 'total' => (int)$item->total, 'pending' => (int)$item->pending, 'completed' => (int)$item->completed]; })->toArray();
     }
 
-    /**
-     * 获取校区名称
-     */
-    private function getCampusName($campus)
-    {
-        $campusModel = \App\Models\Campus::find($campus);
-        return $campusModel ? $campusModel->name : $campus;
-    }
+    private function getCampusName($campus) { $m = \App\Models\Campus::find($campus); return $m ? $m->name : $campus; }
 
-    /**
-     * 获取楼栋名称
-     */
-    private function getBuildingName($buildingId): string
-    {
-        if (!$buildingId) {
-            return '';
-        }
+    private function getBuildingName($buildingId): string { if (!$buildingId) return ''; $l = Location::find($buildingId); return $l ? $l->name : $buildingId; }
 
-        $location = Location::find($buildingId);
-        return $location ? $location->name : $buildingId;
-    }
-
-    /**
-     * 获取处理时长统计
-     */
-    private function getProcessingTimeStats()
+    private function getProcessingTimeStats($rs = null, $re = null)
     {
-        $r = Workorder::whereIn('status', ['resolved', 'closed'])
-            ->whereNotNull('resolved_at')
-            ->whereNotNull('started_at')
-            ->selectRaw("COUNT(*) as total,
-                AVG(TIMESTAMPDIFF(MINUTE, started_at, resolved_at)) as avg_time,
-                MIN(TIMESTAMPDIFF(MINUTE, started_at, resolved_at)) as min_time,
-                MAX(TIMESTAMPDIFF(MINUTE, started_at, resolved_at)) as max_time")
-            ->first();
-        if (!$r || $r->total == 0) {
-            return ['average_time' => 0, 'min_time' => 0, 'max_time' => 0, 'total_completed' => 0];
-        }
+        $q = Workorder::whereIn('status', ['resolved', 'closed'])->whereNotNull('resolved_at')->whereNotNull('started_at');
+        if ($rs && $re) $q->whereBetween('created_at', [$rs, $re]);
+        $r = $q->selectRaw("COUNT(*) as total, AVG(TIMESTAMPDIFF(MINUTE, started_at, resolved_at)) as avg_time, MIN(TIMESTAMPDIFF(MINUTE, started_at, resolved_at)) as min_time, MAX(TIMESTAMPDIFF(MINUTE, started_at, resolved_at)) as max_time")->first();
+        if (!$r || $r->total == 0) return ['average_time' => 0, 'min_time' => 0, 'max_time' => 0, 'total_completed' => 0];
         return ['average_time' => round($r->avg_time), 'min_time' => (int)$r->min_time, 'max_time' => (int)$r->max_time, 'total_completed' => (int)$r->total];
     }
 
-    /**
-     * 获取满意度统计
-     */
-    private function getSatisfactionStats()
+    private function getSatisfactionStats($rs = null, $re = null)
     {
-        $visits = \App\Models\WorkorderVisit::with('workorder')
-            ->whereNotNull('satisfaction_score')
-            ->get();
-
-        if ($visits->isEmpty()) {
-            return [
-                'average_score' => 0,
-                'total_visits' => 0,
-                'distribution' => [],
-            ];
-        }
-
+        $q = \App\Models\WorkorderVisit::with('workorder')->whereNotNull('satisfaction_score');
+        if ($rs && $re) { $q->whereHas('workorder', function ($sq) use ($rs, $re) { $sq->whereBetween('created_at', [$rs, $re]); }); }
+        $visits = $q->get();
+        if ($visits->isEmpty()) return ['average_score' => 0, 'total_visits' => 0, 'distribution' => []];
         $scores = $visits->pluck('satisfaction_score')->toArray();
-        $distribution = [
-            '5' => 0,
-            '4' => 0,
-            '3' => 0,
-            '2' => 0,
-            '1' => 0,
-        ];
-
-        foreach ($scores as $score) {
-            if (isset($distribution[$score])) {
-                $distribution[$score]++;
-            }
-        }
-
-        return [
-            'average_score' => round(array_sum($scores) / count($scores), 2),
-            'total_visits' => count($scores),
-            'distribution' => $distribution,
-        ];
+        $distribution = ['5' => 0, '4' => 0, '3' => 0, '2' => 0, '1' => 0];
+        foreach ($scores as $score) { if (isset($distribution[$score])) $distribution[$score]++; }
+        return ['average_score' => round(array_sum($scores) / count($scores), 2), 'total_visits' => count($scores), 'distribution' => $distribution];
     }
 
-    /**
-     * 获取部门工单统计
-     */
-    /**
-     * 获取来源分布
-     */
-    private function getSourceDistribution()
+    private function getSourceDistribution($rs = null, $re = null)
     {
-        // 兼容代码值(phone/web/scene)和中文值(电话报修/现场报修等)
-        $raw = Workorder::selectRaw("COALESCE(NULLIF(source,''),'unknown') as src, COUNT(*) as cnt")
-            ->groupByRaw("COALESCE(NULLIF(source,''),'unknown')")
-            ->pluck('cnt', 'src');
-
-        $map = [
-            'phone' => '电话', '电话报修' => '电话',
-            'web' => '网络', '在线平台' => '网络',
-            'scene' => '现场', '现场报修' => '现场',
-            'email' => '邮件',
-            'other' => '其他', '其他来源' => '其他',
-            '巡检发现' => '巡检',
-        ];
-
+        $q = Workorder::selectRaw("COALESCE(NULLIF(source,''),'unknown') as src, COUNT(*) as cnt");
+        if ($rs && $re) $q->whereBetween('created_at', [$rs, $re]);
+        $raw = $q->groupByRaw("COALESCE(NULLIF(source,''),'unknown')")->pluck('cnt', 'src');
+        $map = ['phone' => '电话', '电话报修' => '电话', 'web' => '网络', '在线平台' => '网络', 'scene' => '现场', '现场报修' => '现场', 'email' => '邮件', 'other' => '其他', '其他来源' => '其他', '巡检发现' => '巡检'];
         $result = ['电话' => 0, '网络' => 0, '现场' => 0, '邮件' => 0, '其他' => 0, '巡检' => 0];
-        foreach ($raw as $src => $cnt) {
-            $label = $map[$src] ?? '其他';
-            $result[$label] = ($result[$label] ?? 0) + $cnt;
-        }
-        // 移除为0的类别
+        foreach ($raw as $src => $cnt) { $label = $map[$src] ?? '其他'; $result[$label] = ($result[$label] ?? 0) + $cnt; }
         return array_filter($result, function($v) { return $v > 0; });
     }
 
-    /**
-     * 获取优先级分布
-     */
-    private function getPriorityDistribution()
-    {
-        $raw = Workorder::selectRaw("priority, COUNT(*) as cnt")
-            ->groupBy('priority')
-            ->pluck('cnt', 'priority');
-        return [
-            'high' => $raw->get('high', 0),
-            'medium' => $raw->get('medium', 0),
-            'low' => $raw->get('low', 0),
-        ];
-    }
-
-    /**
-     * 获取部门工单统计
-     */
-    private function getDepartmentStats()
-    {
-        return Department::withCount(['workorders', 'workorders as pending_workorders' => function($query) {
-                $query->whereIn('status', ['pending', 'assigned', 'processing']);
-            }])
-            ->withCount(['workorders as completed_workorders' => function($query) {
-                $query->whereIn('status', ['resolved', 'closed']);
-            }])
-            ->orderBy('completed_workorders_count', 'desc')
-            ->limit(10)
-            ->get();
-    }
-
-    /**
-     * 获取工程师处理统计
-     */
-    private function getEngineerStats()
+    private function getEngineerStats($rs = null, $re = null)
     {
         return User::whereIn('role', ['admin', 'workorder_manager', 'engineer'])
-            ->withCount(['assignedWorkorders'])
-            ->withCount(['assignedWorkorders as pending_workorders_count' => function($query) {
-                $query->whereIn('status', ['pending', 'assigned', 'processing']);
-            }])
-            ->withCount(['assignedWorkorders as completed_workorders_count' => function($query) {
-                $query->whereIn('status', ['resolved', 'closed']);
-            }])
-            ->orderBy('completed_workorders_count', 'desc')
-            ->limit(10)
-            ->get();
+            ->withCount(['assignedWorkorders' => function($query) use ($rs, $re) { if ($rs && $re) $query->whereBetween('created_at', [$rs, $re]); }])
+            ->withCount(['assignedWorkorders as pending_workorders_count' => function($query) use ($rs, $re) { $query->whereIn('status', ['pending', 'assigned', 'processing']); if ($rs && $re) $query->whereBetween('created_at', [$rs, $re]); }])
+            ->withCount(['assignedWorkorders as completed_workorders_count' => function($query) use ($rs, $re) { $query->whereIn('status', ['resolved', 'closed']); if ($rs && $re) $query->whereBetween('created_at', [$rs, $re]); }])
+            ->orderBy('completed_workorders_count', 'desc')->limit(10)->get();
     }
 
-    /**
+/**
      * 导出工单报表
      */
     public function export(Request $request)

@@ -209,6 +209,14 @@ class User extends Authenticatable
     }
 
     /**
+     * 检查是否可以接单（工程师、工单管理员、系统管理员）
+     */
+    public function canAcceptWorkorders(): bool
+    {
+        return in_array($this->role, ['admin', 'workorder_manager', 'engineer']);
+    }
+
+    /**
      * 检查是否可以关闭工单
      */
     public function canCloseWorkorders(): bool

@@ -203,17 +203,36 @@ class WorkorderCategoryController extends Controller
      */
     public function destroy(WorkorderCategorySimplified $workorderCategory)
     {
-        // 检查是否有子分类
         if ($workorderCategory->children()->count() > 0) {
             return back()->with('error', '该分类下还有子分类，无法删除');
         }
-        
+
         try {
             $workorderCategory->delete();
-            return redirect()->route('workorder-categories.index', $request->query())
+            return redirect()->route('workorder-categories.index', request()->query())
                 ->with('success', '分类删除成功');
         } catch (\Exception $e) {
             return back()->with('error', '分类删除失败：' . $e->getMessage());
+        }
+    }
+
+    /**
+     * 快速切换分类启用/停用状态
+     */
+    public function toggleStatus(WorkorderCategorySimplified $workorderCategory)
+    {
+        try {
+            $workorderCategory->status = !$workorderCategory->status;
+            $workorderCategory->save();
+
+            // 停用一级分类时同时停用其所有子分类
+            if (!$workorderCategory->status && $workorderCategory->parent_id === null) {
+                WorkorderCategorySimplified::where('parent_id', $workorderCategory->id)->update(['status' => false]);
+            }
+
+            return back()->with('success', '状态已切换为' . ($workorderCategory->status ? '启用' : '停用'));
+        } catch (\Exception $e) {
+            return back()->with('error', '操作失败：' . $e->getMessage());
         }
     }
 

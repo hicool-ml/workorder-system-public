@@ -95,7 +95,7 @@
             <p class="px-3 pt-4 pb-1 text-xs font-medium text-brand-300 uppercase tracking-wide">系统管理</p>
             @endif
 
-            <a href="{{ route('locations.index') }}" class="nav-item {{ request()->routeIs('locations.*') ? 'nav-active' : 'text-brand-100 hover:bg-brand-700' }}">
+            <a href="{{ route('locations.campuses') }}" class="nav-item {{ request()->routeIs('locations.*') ? 'nav-active' : 'text-brand-100 hover:bg-brand-700' }}">
                 <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z M12 13a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/></svg>
                 <span>地址管理</span>
             </a>

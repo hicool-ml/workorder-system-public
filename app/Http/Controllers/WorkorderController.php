@@ -783,6 +783,13 @@ class WorkorderController extends Controller
             ]);
         }
 
+
+        // 签单阻断：需要签单但尚未签名的工单不能完结
+        // 用户必须先填写故障处理记录单并签字，然后才能完结此工单
+        if ($workorder->requires_signature && !$workorder->hasSignature()) {
+            return redirect()->route('workorders.signature.create', $workorder->id)
+                ->with('warning', '此工单需要报障人签单确认后才能完结，请先完成故障处理记录单签单流程');
+        }
         if ($workorder->complete()) {
             // 发送通知
             $workorder->sendNotification('completed');

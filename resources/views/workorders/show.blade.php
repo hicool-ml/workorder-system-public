@@ -70,6 +70,18 @@
             <span>解决</span>
         </button>
         @endif
+        @if($workorder->requires_signature && !$workorder->hasSignature() && in_array($workorder->status, ["processing", "resolved"]))
+        <a href="{{ route("workorders.signature.create", $workorder->id) }}" class="btn btn-primary btn-sm">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-5m-1.414-9.414a2 2 0 1 1 2.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+            <span>签单</span>
+        </a>
+        @endif
+        @if($workorder->hasSignature())
+        <a href="{{ route("workorders.signature.html", $workorder->id) }}" target="_blank" class="btn btn-secondary btn-sm">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5.586a1 1 0 0 1 .707.293l5.414 5.414a1 1 0 0 1 .293.707V19a2 2 0 0 1-2 2z"/></svg>
+            <span>处理单</span>
+        </a>
+        @endif
         @if(canInviteCollaboration($workorder))
         <button type="button" onclick="openModal('inviteModal')" class="btn btn-secondary btn-sm">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2 M9 7a4 4 0 1 0 0-8 4 4 0 0 0 0 8z M19 8v6 M22 11h-6"/></svg>

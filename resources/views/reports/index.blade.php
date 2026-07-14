@@ -5,16 +5,17 @@
 @section('content')
 <div class="flex items-center justify-between mb-6 gap-3 flex-wrap">
     <h1 class="text-xl font-semibold text-ink">统计报表</h1>
-    <div class="flex items-center gap-1 p-1 rounded-lg" style="background-color: var(--c-muted);">
-        @foreach(['7days' => '7天', '30days' => '30天', '90days' => '90天'] as $key => $label)
-        <a href="{{ route('reports.index', ['date_range' => $key]) }}" class="px-3 py-1.5 rounded-md text-sm font-medium transition-colors {{ $dateRange == $key ? 'text-white' : '' }}" {{ $dateRange == $key ? 'style="background-color: var(--c-brand);"' : 'style="color: var(--c-ink-muted);"' }}>{{ $label }}</a>
-        @endforeach
-    </div>
-    <div class="flex items-center gap-2">
-        <input type="date" id="customDateFrom" class="input" style="padding:0.3rem 0.5rem;font-size:0.8rem;width:auto;" value="{{ request('custom_from','') }}">
-        <span class="text-sm" style="color:var(--c-ink-muted);">~</span>
-        <input type="date" id="customDateTo" class="input" style="padding:0.3rem 0.5rem;font-size:0.8rem;width:auto;" value="{{ request('custom_to','') }}">
-        <button type="button" id="customRangeBtn" class="btn btn-primary btn-sm">应用</button>
+    <div class="flex flex-wrap items-center gap-2 text-sm">
+        <div class="flex items-center gap-1 p-1 rounded-lg" style="background-color: var(--c-muted);">
+            <button type="button" id="catModeNatural" class="px-3 py-1 rounded-md text-sm font-medium transition-colors" style="color: var(--c-ink-muted);">自然月</button>
+            <button type="button" id="catModeCustom" class="px-3 py-1 rounded-md text-sm font-medium transition-colors" style="color: var(--c-ink-muted);">自定义周期</button>
+        </div>
+        <span style="color:var(--c-ink-muted);">起始日期</span>
+        <input type="date" id="catStart" value="{{ $categoryTrend['startStr'] }}" class="input" style="padding:0.3rem 0.5rem;font-size:0.8rem;width:auto;">
+        <span style="color:var(--c-ink-muted);">周期数</span>
+        <input type="number" id="catPeriods" min="1" max="24" value="{{ $categoryTrend['periodCount'] }}" class="input" style="width:72px;padding:0.3rem 0.5rem;font-size:0.8rem;">
+
+        <button type="button" id="catApplyBtn" class="btn btn-primary btn-sm">应用</button>
     </div>
 </div>
 
@@ -58,19 +59,19 @@
 
 {{-- Trend chart (full width) --}}
 <div class="card p-5 mb-6">
-    <h3 class="text-sm font-semibold text-ink mb-4">工单趋势（新建 vs 完成）</h3>
+    <h3 class="text-sm font-semibold text-ink mb-4">工单量趋势</h3>
     <div style="position:relative;height:300px;"><canvas id="trendChart"></canvas></div>
 </div>
 
 {{-- Charts row: network + media sub-category top10 --}}
-<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+<div class="grid grid-cols-1 gap-6 mb-6">
     <div class="card p-5">
         <h3 class="text-sm font-semibold text-ink mb-4">网络</h3>
-        <div class="flex items-center justify-center" style="height:260px;"><canvas id="networkSubChart"></canvas></div>
+        <div id="networkSubChart" class="treemap" style="aspect-ratio:4/3;"></div>
     </div>
     <div class="card p-5">
         <h3 class="text-sm font-semibold text-ink mb-4">多媒体</h3>
-        <div class="flex items-center justify-center" style="height:260px;"><canvas id="mediaSubChart"></canvas></div>
+        <div id="mediaSubChart" class="treemap" style="aspect-ratio:4/3;"></div>
     </div>
 </div>
 
@@ -104,6 +105,12 @@
     </div>
 </div>
 
+
+{{-- 故障类型占比（百分比堆积柱形图） --}}
+<div class="card p-5 mb-6">
+    <h3 class="text-sm font-semibold text-ink mb-4">故障类型占比</h3>
+    <div style="position:relative;height:520px;max-width:1100px;margin:0 auto;"><canvas id="categoryTrendChart"></canvas></div>
+</div>
 {{-- Campus + processing time --}}
 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
     <div class="card p-5">
@@ -224,17 +231,6 @@
 <script src="{{ asset('js/chart.min.js') }}"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // 自定义时间范围
-    var btn = document.getElementById('customRangeBtn');
-    if (btn) btn.addEventListener('click', function() {
-        var from = document.getElementById('customDateFrom').value;
-        var to = document.getElementById('customDateTo').value;
-        var url = '{{ route('reports.index') }}?date_range=custom';
-        if (from) url += '&custom_from=' + from;
-        if (to) url += '&custom_to=' + to;
-        window.location.href = url;
-    });
-
     var cssVar = function(name){ return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); };
     var inkMuted = cssVar('--c-ink-muted') || '#888';
 
@@ -242,6 +238,9 @@ document.addEventListener('DOMContentLoaded', function() {
     <?php
         $trendStats = $recentStats['stats'];
         $trendCats = $recentStats['topCats'];
+        // 固定排序：网络→多媒体→专项，其它放最后
+        $ctOrder = ['网络' => 1, '多媒体' => 2, '专项' => 3, '其它' => 4];
+        $trendCats = collect($trendCats)->sortBy(function ($n, $id) use ($ctOrder) { return $ctOrder[$n] ?? 99; })->toArray();
         $catColors = ['#2563eb', '#dc2626', '#16a34a', '#f59e0b', '#8b5cf6', '#ec4899'];
         $catColorIdx = 0;
     ?>
@@ -268,27 +267,276 @@ document.addEventListener('DOMContentLoaded', function() {
         options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top' } }, scales: { x: { ticks: { color: inkMuted, maxTicksLimit: 12 } }, y: { beginAtZero: true, ticks: { color: inkMuted } } } }
     });
 
-    // Network sub-category top10 chart
-    var netSubCtx = document.getElementById('networkSubChart');
-    if (netSubCtx) new Chart(netSubCtx, {
-        type: 'doughnut',
-        data: {
-            labels: [@foreach($networkSubDistribution as $item)'{{ $item['name'] }}',@endforeach],
-            datasets: [{ data: [@foreach($networkSubDistribution as $item){{ $item['count'] }},@endforeach], backgroundColor: ['#2563EB','#3B82F6','#60A5FA','#93C5FD','#1D4ED8','#1E40AF','#3730A3','#EF4444','#F59E0B','#22C55E'] }]
+    @php
+        $treemapNetwork = collect($networkSubDistribution)->map(function ($i) { return ['name' => $i['name'], 'count' => (int)$i['count']]; })->values();
+        $treemapMedia = collect($mediaSubDistribution)->map(function ($i) { return ['name' => $i['name'], 'count' => (int)$i['count']]; })->values();
+    @endphp
+    var networkData = {!! json_encode($treemapNetwork, JSON_UNESCAPED_UNICODE) !!};
+    var mediaData = {!! json_encode($treemapMedia, JSON_UNESCAPED_UNICODE) !!};
+
+    // 矩形树图（squarified treemap）：面积映射数值，颜色区分类别
+    var TM_PALETTE = ['#2563eb', '#4f46e5', '#0891b2', '#7c3aed', '#db2777', '#dc2626', '#d97706', '#16a34a', '#0d9488', '#64748b'];
+
+    function squarify(items, x, y, w, h) {
+        var rects = [];
+        if (!items.length || w <= 0 || h <= 0) return rects;
+        var total = 0;
+        for (var i = 0; i < items.length; i++) total += items[i].value;
+        if (total <= 0) return rects;
+        var area = w * h;
+        var scaled = items.map(function (it) { return { name: it.name, value: it.value, area: (it.value / total) * area }; });
+        var c = { x: x, y: y, w: w, h: h };
+        var row = [], idx = 0, side = Math.min(c.w, c.h);
+
+        function worstRatio(r, s) {
+            var sum = 0, rmax = 0, rmin = Infinity;
+            for (var k = 0; k < r.length; k++) { var a = r[k].area; sum += a; if (a > rmax) rmax = a; if (a < rmin) rmin = a; }
+            var s2 = s * s;
+            return Math.max((s2 * rmax) / (sum * sum), (sum * sum) / (s2 * rmin));
+        }
+        function layoutRow(r) {
+            var sum = 0;
+            for (var k = 0; k < r.length; k++) sum += r[k].area;
+            if (c.w >= c.h) {
+                var colW = sum / c.h, oy = 0;
+                for (var k = 0; k < r.length; k++) { var ih = r[k].area / colW; rects.push({ x: c.x, y: c.y + oy, w: colW, h: ih, item: r[k] }); oy += ih; }
+                c.x += colW; c.w -= colW;
+            } else {
+                var rowH = sum / c.w, ox = 0;
+                for (var k = 0; k < r.length; k++) { var iw = r[k].area / rowH; rects.push({ x: c.x + ox, y: c.y, w: iw, h: rowH, item: r[k] }); ox += iw; }
+                c.y += rowH; c.h -= rowH;
+            }
+        }
+        while (idx < scaled.length) {
+            var candidate = row.concat([scaled[idx]]);
+            if (row.length === 0 || worstRatio(candidate, side) <= worstRatio(row, side)) { row = candidate; idx++; }
+            else { layoutRow(row); row = []; side = Math.min(c.w, c.h); }
+        }
+        if (row.length) layoutRow(row);
+        return rects;
+    }
+
+    // 文字测量：用 canvas 量取指定字号下文字宽度
+    var _tmMeasureCtx;
+    function tmTextWidth(text, fontSize, weight) {
+        if (!_tmMeasureCtx) _tmMeasureCtx = document.createElement('canvas').getContext('2d');
+        _tmMeasureCtx.font = (weight || '600') + ' ' + fontSize + 'px ' + getComputedStyle(document.body).fontFamily;
+        return _tmMeasureCtx.measureText(text).width;
+    }
+    // 逐级缩小字号直到文字适配宽度，最低不低于 minSize
+    function tmFitSize(text, maxWidth, base, minSize, weight) {
+        var s = base;
+        while (s > minSize && tmTextWidth(text, s, weight) > maxWidth) s = Math.max(minSize, s - 0.5);
+        return s;
+    }
+
+    function renderTreemap(container, data, palette) {
+        if (!container) return;
+        container.innerHTML = '';
+        var total = 0;
+        for (var i = 0; i < data.length; i++) total += data[i].count;
+        if (!data.length || total <= 0) {
+            var empty = document.createElement('div');
+            empty.className = 'treemap-empty';
+            empty.textContent = '暂无数据';
+            container.appendChild(empty);
+            return;
+        }
+        var items = data.map(function (d) { return { name: d.name, value: d.count }; });
+        items.sort(function (a, b) { return b.value - a.value; });
+        var W = container.clientWidth || container.offsetWidth;
+        var H = container.clientHeight;
+        var rects = squarify(items, 0, 0, W, H);
+        var gap = 3, frag = document.createDocumentFragment();
+        for (var r = 0; r < rects.length; r++) {
+            var rect = rects[r];
+            var cell = document.createElement('div');
+            cell.className = 'treemap-cell';
+            var cw = Math.max(rect.w - gap, 0);
+            var ch = Math.max(rect.h - gap, 0);
+            cell.style.left = (rect.x + gap / 2) + 'px';
+            cell.style.top = (rect.y + gap / 2) + 'px';
+            cell.style.width = cw + 'px';
+            cell.style.height = ch + 'px';
+            cell.style.backgroundColor = palette[r % palette.length];
+            var pct = Math.round(rect.item.value / total * 100);
+            cell.title = rect.item.name + '：' + rect.item.value + ' 起（' + pct + '%）';
+
+            // 字号直接按占比比例缩放：占比越大字号越大，占比越小字号越小
+            var ratio = rect.item.value / total;         // 0-1
+            var nameSize = Math.max(8, Math.round(9 + ratio * 22));   // 9px(最小) ~ 31px(最大)
+            var countText = rect.item.value + '起 ' + pct + '%';
+            var countSize = Math.max(7, Math.round(nameSize * 0.75));
+            var padW = Math.max(cw - 8, 12);
+
+            // 保证完整显示：超宽时逐级缩小至可容纳
+            nameSize = tmFitSize(rect.item.name, padW, nameSize, 8, '600');
+            countSize = tmFitSize(countText, padW, countSize, 7, '400');
+
+            var nm = document.createElement('div'); nm.className = 'tm-name';
+            nm.textContent = rect.item.name;
+            nm.style.fontSize = nameSize + 'px';
+            nm.style.lineHeight = '1.15';
+            nm.style.whiteSpace = 'normal';
+            nm.style.wordBreak = 'break-all';
+            cell.appendChild(nm);
+
+            var ct = document.createElement('div'); ct.className = 'tm-count';
+            ct.textContent = countText;
+            ct.style.fontSize = countSize + 'px';
+            ct.style.lineHeight = '1.15';
+            ct.style.marginTop = '2px';
+            ct.style.whiteSpace = 'normal';
+            ct.style.wordBreak = 'break-all';
+            cell.appendChild(ct);
+            frag.appendChild(cell);
+        }
+        container.appendChild(frag);
+    }
+
+    var networkEl = document.getElementById('networkSubChart');
+    var mediaEl = document.getElementById('mediaSubChart');
+    function drawTreemaps() {
+        renderTreemap(networkEl, networkData, TM_PALETTE);
+        renderTreemap(mediaEl, mediaData, TM_PALETTE);
+    }
+    drawTreemaps();
+    var tmResizeTimer;
+    window.addEventListener('resize', function () { clearTimeout(tmResizeTimer); tmResizeTimer = setTimeout(drawTreemaps, 200); });
+
+    // 故障类型占比：百分比堆积柱形图（含汇总列，标注数量+百分比）
+    @php
+        $ctColors = ['#2563eb', '#7c3aed', '#f59e0b', '#64748b', '#dc2626', '#16a34a'];
+    @endphp
+    var ctLabels = @json($categoryTrend['periodLabels']);
+    var ctDatasets = [];
+    var ctCounts = [];
+    @foreach($categoryTrend['categories'] as $ctIdx => $ctCat)
+    ctDatasets.push({
+        label: @json($ctCat['name']),
+        data: @json($ctCat['percents']),
+        backgroundColor: @json($ctColors[$ctIdx % count($ctColors)]),
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.45)',
+        barPercentage: 0.6,
+        categoryPercentage: 0.7
+    });
+    ctCounts.push(@json($ctCat['counts']));
+    @endforeach
+
+    // 标注插件：高色块内标注数量+百分比；矮色块改为外部标注+引导线，保证打印/截图都能看到每项数据
+    // 标注插件：大色块内标注数量+百分比；矮色块统一在柱顶上方分层标注，避免重叠
+    var catLabelPlugin = {
+        id: 'catLabels',
+        afterDatasetsDraw: function (chart) {
+            var ctx = chart.ctx;
+            var fontFamily = getComputedStyle(document.body).fontFamily;
+            ctx.save();
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            var smallByBar = {};
+            chart.data.datasets.forEach(function (ds, di) {
+                var meta = chart.getDatasetMeta(di);
+                meta.data.forEach(function (el, bi) {
+                    var cnt = ctCounts[di][bi];
+                    var pct = ds.data[bi];
+                    if (!cnt) return;
+                    var h = Math.abs(el.base - el.y);
+                    var topY = Math.min(el.base, el.y);
+                    if (h >= 18) {
+                        // 色块内居中标注（白字）
+                        ctx.fillStyle = '#fff';
+                        ctx.font = '600 11px ' + fontFamily;
+                        var cy = (el.base + el.y) / 2;
+                        ctx.fillText(cnt + '起', el.x, cy - 7);
+                        if (h >= 34) ctx.fillText(pct + '%', el.x, cy + 8);
+                    } else {
+                        if (!smallByBar[bi]) smallByBar[bi] = { x: el.x, top: Infinity, segs: [] };
+                        if (topY < smallByBar[bi].top) smallByBar[bi].top = topY;
+                        smallByBar[bi].segs.push({ cnt: cnt, pct: pct, color: ds.backgroundColor, topY: topY });
+                    }
+                });
+            });
+            // 矮色块：统一在柱顶上方分层标注（自上而下排列，间距16px），引导线连接
+            Object.keys(smallByBar).forEach(function (bi) {
+                var info = smallByBar[bi];
+                var segs = info.segs.sort(function (a, b) { return a.topY - b.topY; });
+                var baseY = info.top - 24;
+                ctx.font = '600 10px ' + fontFamily;
+                for (var si = 0; si < segs.length; si++) {
+                    var s = segs[si];
+                    var labelY = baseY - si * 16;
+                    ctx.strokeStyle = s.color;
+                    ctx.lineWidth = 1;
+                    ctx.beginPath();
+                    ctx.moveTo(info.x, s.topY - 1);
+                    ctx.lineTo(info.x, labelY + 5);
+                    ctx.stroke();
+                    ctx.fillStyle = s.color;
+                    ctx.fillText(s.cnt + '起 ' + s.pct + '%', info.x, labelY);
+                }
+            });
+            ctx.restore();
+        }
+    };
+
+    var ctCtx = document.getElementById('categoryTrendChart');
+    if (ctCtx) new Chart(ctCtx, {
+        type: 'bar',
+        data: { labels: ctLabels, datasets: ctDatasets },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            layout: { padding: { top: 70 } },
+            interaction: { mode: 'index', intersect: false },
+            plugins: {
+                legend: { position: 'right', labels: { color: inkMuted, boxWidth: 14, padding: 12, font: { size: 13 } } },
+                tooltip: {
+                    callbacks: {
+                        label: function (c) {
+                            var cnt = ctCounts[c.datasetIndex][c.dataIndex];
+                            return c.dataset.label + '：' + cnt + ' 起（' + c.parsed.y + '%）';
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: { stacked: true, ticks: { color: inkMuted, autoSkip: false, maxRotation: 45, minRotation: 25 } },
+                y: { stacked: true, max: 100, beginAtZero: true, ticks: { color: inkMuted, callback: function (v) { return v + '%'; } } }
+            }
         },
-        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { color: inkMuted, boxWidth: 12, font: { size: 11 } } } } }
+        plugins: [catLabelPlugin]
     });
 
-    // Media sub-category top10 chart
-    var medSubCtx = document.getElementById('mediaSubChart');
-    if (medSubCtx) new Chart(medSubCtx, {
-        type: 'doughnut',
-        data: {
-            labels: [@foreach($mediaSubDistribution as $item)'{{ $item['name'] }}',@endforeach],
-            datasets: [{ data: [@foreach($mediaSubDistribution as $item){{ $item['count'] }},@endforeach], backgroundColor: ['#7C3AED','#8B5CF6','#A78BFA','#C4B5FD','#6D28D9','#5B21B6','#4C1D95','#EF4444','#F59E0B','#22C55E'] }]
-        },
-        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { color: inkMuted, boxWidth: 12, font: { size: 11 } } } } }
-    });
+    // 周期控件交互
+    var catMode = @json($categoryTrend['mode']);
+    var catModeNatural = document.getElementById('catModeNatural');
+    var catModeCustom = document.getElementById('catModeCustom');
+
+    var catApplyBtn = document.getElementById('catApplyBtn');
+    function refreshCatModeUI() {
+        var isCustom = (catMode === 'custom');
+        var activeStyle = 'background-color: var(--c-brand); color:#fff;';
+        var inactiveStyle = 'color: var(--c-ink-muted);';
+        catModeNatural.setAttribute('style', isCustom ? inactiveStyle : activeStyle);
+        catModeCustom.setAttribute('style', isCustom ? activeStyle : inactiveStyle);
+
+    }
+    catModeNatural.addEventListener('click', function () { catMode = 'natural'; refreshCatModeUI(); });
+    catModeCustom.addEventListener('click', function () { catMode = 'custom'; refreshCatModeUI(); });
+    refreshCatModeUI();
+    function catApply() {
+        var params = [];
+        var catStartVal = document.getElementById('catStart').value;
+        params.push('cat_mode=' + catMode);
+        if (catStartVal) params.push('cat_start=' + catStartVal);
+        params.push('cat_periods=' + document.getElementById('catPeriods').value);
+
+        window.location.href = '{{ route('reports.index') }}?' + params.join('&');
+    }
+    catApplyBtn.addEventListener('click', catApply);
+    // Auto-apply on input change: no need to click button manually
+    document.getElementById('catStart').addEventListener('change', catApply);
+    document.getElementById('catPeriods').addEventListener('change', catApply);
 
     // Category chart
     var catCtx = document.getElementById('categoryChart');
