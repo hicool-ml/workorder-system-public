@@ -55,6 +55,17 @@
                 <span>筛选</span>
             </button>
             <a href="{{ route('notifications.index') }}" class="btn btn-secondary btn-sm">重置</a>
+            @if ($notifications->count() > 0)
+            <div class="w-px h-6 bg-border mx-1"></div>
+            <button type="button" id="batchDeleteBtn" class="btn btn-secondary btn-sm">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 6h18 M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                <span>批量删除</span>
+            </button>
+            <button type="button" id="batchReadBtn" class="btn btn-secondary btn-sm">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                <span>批量已读</span>
+            </button>
+            @endif
         </div>
     </form>
 </div>
@@ -120,18 +131,8 @@
         </table>
     </div>
 
-    {{-- Batch actions + pagination --}}
-    <div class="flex flex-col sm:flex-row items-center justify-between gap-3 p-4 border-t border-border">
-        <div class="flex items-center gap-2">
-            <button type="button" id="batchDeleteBtn" class="btn btn-secondary btn-sm">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 6h18 M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-                <span>批量删除</span>
-            </button>
-            <button type="button" id="batchReadBtn" class="btn btn-secondary btn-sm">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
-                <span>批量已读</span>
-            </button>
-        </div>
+    {{-- Pagination --}}
+    <div class="flex items-center justify-end gap-3 p-4 border-t border-border">
         <div>{{ $notifications->appends(request()->query())->links() }}</div>
     </div>
     @else

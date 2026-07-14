@@ -179,16 +179,51 @@ class NotificationDispatcher
     {
         $eventLabels = self::getEventLabels();
         $label = $eventLabels[$event] ?? $event;
-        $title = "[{$workorder->workorder_number}] {$label}";
+
+        // Build content in same format as old system: address - description - status - assignee
         $content = $this->buildContent($workorder, $event);
+
+        // Title matches old system style: e.g. "新工单创建", "工单开始处理"
+        $titleMap = [
+            'created'   => '新工单创建',
+            'assigned'  => '工单已分配',
+            'started'   => '工单开始处理',
+            'resolved'  => '工单已解决',
+            'completed' => '工单已完结',
+            'closed'    => '工单已关闭',
+            'overdue'   => '工单超时提醒',
+        ];
+        $title = $titleMap[$event] ?? $label;
+
+        // CAS / self-service workorder gets a source prefix
+        $sourcePrefix = '';
+        if ($workorder->source === '本台') {
+            $sourcePrefix = '[自助报修] ';
+        }
+
+        // Rich data matching old system
+        $addressParts = $this->buildAddress($workorder);
+        $data = [
+            'workorder_id'  => $workorder->id,
+            'ticket_no'     => $workorder->ticket_no,
+            'description'   => $workorder->description,
+            'priority'      => $workorder->priority,
+            'creator_name'  => $workorder->creator ? $workorder->creator->name : '未知用户',
+            'address'       => $addressParts,
+            'fault_type'    => $workorder->description ?: '',
+            'status'        => $workorder->status_text,
+            'event'         => $event,
+            'source'        => $workorder->source,
+            'action_url'    => '/workorders/' . $workorder->id,
+        ];
 
         foreach ($recipients as $user) {
             try {
                 NotificationModel::create([
                     'type'          => 'workorder_' . $event,
-                    'title'         => $title,
+                    'title'         => $sourcePrefix . $title,
                     'content'       => $content,
-                    'data'          => ['workorder_id' => $workorder->id, 'event' => $event],
+                    'data'          => $data,
                     'user_id'       => $user->id,
                     'workorder_id'  => $workorder->id,
                     'is_read'       => false,
@@ -217,7 +252,7 @@ class NotificationDispatcher
 
         $template = config("services.sms.templates.{$event}", 'SMS_' . strtoupper($event));
         $params = [
-            'workorder_number' => $workorder->workorder_number,
+            'workorder_number' => $workorder->ticket_no,
             'title'            => $workorder->title,
             'content'          => $this->buildSmsContent($workorder, $event),
         ];
@@ -239,16 +274,40 @@ class NotificationDispatcher
     /**
      * 构建站内通知内容
      */
+    /**
+     * Build address string from workorder campus/building/location
+     */
+    private function buildAddress(Workorder $workorder): string
+    {
+        $parts = [];
+        if ($workorder->campus && trim($workorder->campus)) {
+            $parts[] = trim($workorder->campus);
+        }
+        if ($workorder->building && trim($workorder->building)) {
+            $b = trim($workorder->building);
+            $b = preg_replace('/^(new_|old_|asean_)campus\s*[-_]?\s*/i', '', $b);
+            $parts[] = $b;
+        }
+        if ($workorder->location_detail && trim($workorder->location_detail)) {
+            $parts[] = trim($workorder->location_detail);
+        }
+        $address = implode(' ', array_unique(array_filter($parts)));
+        return $address ?: '未知地址';
+    }
+
+    /**
+     * Build in-app notification content
+     * Format matches old system: address - description - status - assignee
+     */
     private function buildContent(Workorder $workorder, string $event): string
     {
-        $eventLabels = self::getEventLabels();
-        $label = $eventLabels[$event] ?? $event;
+        $address = $this->buildAddress($workorder);
+        $description = $workorder->description ?: $workorder->title ?: '未知故障';
+        $status = $workorder->status_text ?: '未知状态';
+        $assigneeName = $workorder->assignee ? $workorder->assignee->name : '未分配';
 
-        $parts = ["工单「{$workorder->title}」{$label}"];
-        if ($workorder->assignee) {
-            $parts[] = "处理人：{$workorder->assignee->name}";
-        }
-        return implode('，', $parts);
+        $content = trim("{$address}-{$description}-{$status}-{$assigneeName}");
+        return $content;
     }
 
     /**
@@ -259,6 +318,7 @@ class NotificationDispatcher
         $eventLabels = self::getEventLabels();
         $label = $eventLabels[$event] ?? $event;
         $systemName = SystemSetting::get('system_name', '工单系统');
-        return "【{$systemName}】您的工单「{$workorder->title}」{$label}，编号：{$workorder->workorder_number}";
+        return "【{$systemName}】您的工单「{$workorder->title}」{$label}，编号：{$workorder->ticket_no}";
     }
 }
+
