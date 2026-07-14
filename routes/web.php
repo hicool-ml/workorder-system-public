@@ -21,9 +21,6 @@ Route::get('/', function () {
 });
 
 // 连接测试页面
-Route::get('/test_connection', function () {
-    return view('test_connection');
-});
 
 // 认证路由
 Route::middleware('guest')->group(function () {
