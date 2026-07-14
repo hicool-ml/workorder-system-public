@@ -1,94 +1,157 @@
-# 校园网工单系统
+# CDU 校园网络工单系统
 
-## 项目概述
+基于 Laravel 12 + Tailwind CSS 4 构建的校园网络运维工单管理平台，覆盖从故障申报、智能分配、工程师处理到满意度回访的全流程闭环，支持统一身份认证接入、短信通知、PWA 离线访问。
 
-校园网工单系统是一个基于 Laravel 12 框架开发的 Web 应用程序，旨在实现校园网络维护任务的全流程管理，涵盖工单创建、处理、跟踪与统计分析等功能。系统支持多角色协作（管理员、工程师、普通用户），提升故障响应效率和管理透明度。
+## 功能概览
 
-## 功能特性
+### 工单全生命周期
 
-### 核心功能
-- ✅ **工单管理**：创建、分配、处理、解决、关闭工单
-- ✅ **多源接入**：支持电话、网络、邮件、现场等多种上报方式
-- ✅ **智能分类**：根据工单类型自动设置优先级和处理时限
-- ✅ **闭环管理**：从报修到回访形成完整闭环
-- ✅ **数据分析**：提供可视化报表，助力决策优化
+| 状态 | 说明 |
+|------|------|
+| `pending` 待处理 | 新建工单（含 CAS 自助报修），等待分配或工程师自行接单 |
+| `assigned` 已分配 | 管理员分配给指定工程师 |
+| `processing` 处理中 | 工程师接单并开始处理 |
+| `resolved` 已解决 | 工程师完成修复，等待用户确认 |
+| `completed` 已完结 | 用户确认问题已解决 |
+| `closed` 已关闭 | 工单流程结束 |
+
+### 核心模块
+
+- **工单管理** — 创建、分配、接单、处理、解决、完结、关闭，支持批量操作
+- **自助报修** — CAS 用户通过简化表单快速报修，提交后进入工单池，工程师可就近自行接单
+- **故障处理记录单** — 需签单工单现场填写记录单 + 手写签名，生成 HTML 附件存档，支持 A4 打印
+- **协作处理** — 工程师可邀请他人协作，支持邀请接受/拒绝流程
+- **回访管理** — 工单解决后自动发起满意度调查
+- **统计报表** — 矩形树图（面积占比）、百分比堆积柱形图（按周期趋势）、工单量趋势对比，支持自定义起止日期和周期数
+- **通知中心** — 站内通知、系统公告、批量操作、多通道调度
+- **分类管理** — 支持停用/启用（保留历史数据）、排序、级联选择
+- **校区/地址管理** — 校区 + 楼栋 + 门牌号三级地址体系
+- **部门管理** — 多级组织架构树
+- **用户管理** — 角色权限、状态切换、批量操作、统计数据
+- **工单模板** — 预设模板快速创建常见工单
+- **PWA** — Service Worker 离线缓存、推送通知、添加到主屏幕
 
 ### 角色权限
-- **管理员**：拥有最高权限，负责系统配置、用户管理、数据备份等
-- **工程师**：可查看、接单、处理、回访工单
-- **普通用户**：只能提交工单、查看进度、参与回访
 
-### 工单流程
-1. **问题提交** → 用户通过多种渠道提交工单
-2. **工单分配** → 管理员分配给合适的工程师
-3. **开始处理** → 工程师接单并开始处理
-4. **问题解决** → 工程师完成问题修复
-5. **用户验证** → 用户确认问题是否解决
-6. **满意度回访** → 系统自动或手动进行满意度调查
-7. **工单关闭** → 完成整个工单流程
+| 角色 | 职责 |
+|------|------|
+| `admin` 管理员 | 全部权限：系统配置、用户管理、工单管理、数据备份 |
+| `workorder_manager` 工单管理员 | 工单分配、分类/地址/模板管理、报表导出 |
+| `engineer` 工程师 | 接单、处理、回访，可查看工单池自行接单 |
+| `user` 普通用户 | 提交工单、查看进度、参与回访 |
 
-## 技术架构
+### 集成扩展
 
-### 后端技术栈
+- **统一身份认证（CAS / LinkID）** — 与本地认证共存，CAS 用户自动创建并登录，通过简化报修表单提交工单
+- **短信通知** — 通用短信网关（阿里云 / 腾讯云 / 自定义），按事件 x 通道规则矩阵控制发送，后台可开关
+- **通知调度器** — 站内通知 + 短信统一调度，规则化配置哪些事件触发哪些通道
+
+## 技术栈
+
+### 后端
+
 - **框架**：Laravel 12
+- **语言**：PHP 8.2+
 - **数据库**：MySQL 8.0+
-- **PHP版本**：PHP 8.2+
-- **认证**：Laravel Auth
-- **中间件**：角色权限控制
+- **认证**：Laravel Auth + CAS 3.0 协议
+- **队列/缓存/Session**：database 驱动
+- **文件存储**：local disk（`storage/app/public`）
 
-### 前端技术栈
-- **UI框架**：Bootstrap 5.3
-- **图标库**：Font Awesome 6.4
-- **JavaScript**：jQuery 3.6
+### 前端
+
+- **CSS 框架**：Tailwind CSS 4（已移除 Bootstrap 依赖）
+- **构建工具**：Vite 7
 - **模板引擎**：Blade
+- **图表**：ECharts（矩形树图、堆积柱形图、趋势图）
+- **PWA**：Service Worker + Web App Manifest
 
-### 数据库设计
+## 项目结构
 
-详细的数据库设计文档请参阅：[DATABASE_DESIGN.md](DATABASE_DESIGN.md)
-
-#### 核心数据表
-- **users**：用户表（扩展了Laravel默认用户表）
-- **departments**：部门表（支持多级部门结构）
-- **workorder_types**：工单类型表（支持来源和子类别）
-- **workorders**：工单主表（核心业务表）
-- **workorder_logs**：工单处理记录表
-- **workorder_attachments**：工单附件表
-- **workorder_visits**：回访记录表
-- **workorder_collaborations**：工单协作表
-- **workorder_templates**：工单模板表
-- **notifications**：通知表
-- **locations**：位置表
+```
+app/
+├── Http/Controllers/
+│   ├── Auth/                      # 认证（本地登录 + CAS）
+│   │   ├── AuthenticatedSessionController.php
+│   │   ├── CasAuthController.php  # CAS/LinkID 统一身份认证
+│   │   └── RegisteredUserController.php
+│   ├── Traits/
+│   │   └── HandlesReport.php      # CAS 用户简化报修逻辑
+│   ├── WorkorderController.php    # 工单主控制器
+│   ├── AttachmentController.php   # 附件预览/下载/删除
+│   ├── ReportController.php       # 统计报表
+│   ├── SystemSettingController.php# 系统设置 + SMS/CAS 配置
+│   ├── WorkorderSignatureController.php # 故障处理记录单 + 签名
+│   └── ...
+├── Models/
+│   ├── Workorder.php              # 工单模型（含通知调度、日志、状态流转）
+│   ├── WorkorderAttachment.php    # 附件模型（图片压缩、缩略图、预览）
+│   ├── WorkorderSignatureDocument.php # 签名文档模型
+│   ├── Notification.php           # 通知模型（工单事件通知）
+│   ├── SystemSetting.php          # 系统设置（键值对）
+│   ├── Campus.php / Location.php  # 校区/地址
+│   └── ...
+├── Services/
+│   ├── Notification/
+│   │   └── NotificationDispatcher.php # 多通道通知调度器
+│   ├── Sms/
+│   │   ├── SmsManager.php         # 短信管理器（读取 system_settings）
+│   │   ├── AliyunSmsDriver.php
+│   │   ├── TencentSmsDriver.php
+│   │   └── CustomSmsDriver.php
+│   ├── WorkorderPermissionService.php
+│   └── WorkorderSignaturePDFService.php
+config/
+└── services.php                   # CAS/SMS 第三方服务配置
+resources/
+├── views/
+│   ├── workorders/                # 工单相关视图（创建/详情/报表/签名）
+│   ├── reports/                   # 统计报表视图
+│   ├── system-settings/           # 系统设置（通知规则/短信/CAS）
+│   ├── notifications/             # 通知中心
+│   └── layouts/app.blade.php      # 主布局（PWA/主题切换）
+├── css/app.css                    # Tailwind CSS 4 入口
+└── js/
+    ├── app.js
+    └── pwa.js                     # PWA 注册 + 推送通知
+public/
+├── sw.js                          # Service Worker
+└── offline.html                   # 离线回退页
+```
 
 ## 安装部署
 
 ### 环境要求
-- PHP >= 8.2
+
+- PHP >= 8.2（已测试 8.4）
 - MySQL >= 8.0
 - Composer
-- Node.js & NPM（用于前端资源编译）
+- Node.js >= 18 + NPM
 
 ### 安装步骤
 
 1. **克隆项目**
+
 ```bash
 git clone <repository-url>
-cd workorder
+cd workorder-system
 ```
 
 2. **安装依赖**
+
 ```bash
 composer install
 npm install
 ```
 
 3. **环境配置**
+
 ```bash
 cp .env.example .env
 php artisan key:generate
 ```
 
-4. **数据库配置**
-编辑 `.env` 文件，配置数据库连接：
+编辑 `.env`，配置数据库连接：
+
 ```env
 DB_CONNECTION=mysql
 DB_HOST=127.0.0.1
@@ -98,283 +161,82 @@ DB_USERNAME=your_username
 DB_PASSWORD=your_password
 ```
 
-5. **运行迁移**
+4. **数据库初始化**
+
 ```bash
 php artisan migrate
-```
-
-6. **创建初始数据**
-```bash
 php artisan db:seed
 ```
 
-## 默认管理员账户
+5. **创建存储符号链接**
 
-系统安装完成后，会自动创建以下默认账户：
+```bash
+php artisan storage:link
+```
 
-| 角色 | 邮箱 | 密码 | 说明 |
+6. **构建前端资源**
+
+```bash
+npm run build      # 生产构建
+# 或
+npm run dev        # 开发模式（热更新）
+```
+
+7. **启动服务**
+
+```bash
+php artisan serve --host=127.0.0.1 --port=8000
+```
+
+### CAS / LinkID 配置
+
+在 **系统设置 > 统一身份认证** 页面配置，或编辑 `.env`：
+
+```env
+CAS_ENABLED=true
+CAS_BASE_URL=https://linkid.example.com/cas
+CAS_SERVICE_ID=workorder
+```
+
+CAS 用户属性映射在 `config/services.php` 的 `cas` 节配置。
+
+### 短信配置
+
+在 **系统设置 > 短信配置** 页面选择服务商并填写凭证。通知发送规则在 **系统设置 > 通知规则** 页面按事件 x 通道矩阵开关。
+
+## 默认账号
+
+| 角色 | 登录名 | 密码 | 说明 |
 |------|--------|------|------|
-| 管理员 | admin@workorder.com | admin123 | 系统管理员，拥有所有权限 |
-| 工程师 | engineer@workorder.com | engineer123 | 测试工程师，可处理工单 |
-| 普通用户 | user@workorder.com | user123 | 测试用户，可提交工单 |
+| 管理员 | admin | admin123 | 全部权限 |
+| 工程师 | engineer | engineer123 | 接单处理 |
+| 普通用户 | user | user123 | 提交工单 |
 
-**重要**：请在首次登录后立即修改默认密码，确保系统安全！
+## 数据库表
 
-7. **编译前端资源**
-```bash
-npm run build
-```
+系统共 26 张数据表，核心业务表：
 
-8. **启动服务**
-```bash
-php artisan serve
-```
+- `workorders` — 工单主表
+- `workorder_logs` — 处理记录
+- `workorder_attachments` — 附件
+- `workorder_visits` — 回访记录
+- `workorder_collaborations` — 协作记录
+- `workorder_templates` — 工单模板
+- `workorder_signature_documents` — 故障处理记录单
+- `workorder_categories` / `workorder_categories_simplified` — 故障分类
+- `notifications` — 站内通知
+- `users` / `departments` — 用户/部门
+- `campuses` / `locations` — 校区/地址
+- `system_settings` — 系统配置（键值对）
+- `workorder_sources` — 工单来源
 
-### Web服务器配置
+## License
 
-#### Apache配置
-```apache
-<VirtualHost *:80>
-    ServerName your-domain.com
-    DocumentRoot /path/to/workorder/public
-    
-    <Directory /path/to/workorder/public>
-        AllowOverride All
-        Require all granted
-    </Directory>
-</VirtualHost>
-```
+Copyright (c) 2025-2026 hicool (hicool.ml@gmail.com). All rights reserved.
 
-#### Nginx配置
-```nginx
-server {
-    listen 80;
-    server_name your-domain.com;
-    root /path/to/workorder/public;
-    index index.php;
-
-    location / {
-        try_files $uri $uri/ /index.php?$query_string;
-    }
-
-    location ~ \.php$ {
-        fastcgi_pass unix:/var/run/php/php8.2-fpm.sock;
-        fastcgi_index index.php;
-        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
-        include fastcgi_params;
-    }
-}
-```
-
-## 使用指南
-
-### 管理员操作
-
-#### 用户管理
-1. 访问 `/users` 进入用户管理页面
-2. 点击"创建用户"添加新用户
-3. 设置用户角色和所属部门
-4. 管理用户状态和权限
-
-#### 部门管理
-1. 访问 `/departments` 进入部门管理页面
-2. 支持多级部门结构
-3. 设置部门负责人和联系方式
-4. 管理部门状态
-
-#### 工单类型管理
-1. 访问 `/workorder-types` 进入工单类型管理
-2. 配置工单来源和子类别
-3. 设置默认优先级和处理时限
-4. 管理工单类型状态
-
-### 工程师操作
-
-#### 工单处理
-1. 登录系统查看分配给自己的工单
-2. 点击"开始处理"开始工单处理
-3. 添加处理记录和上传附件
-4. 完成后填写解决方案
-5. 进行用户回访和满意度调查
-
-### 普通用户操作
-
-#### 提交工单
-1. 访问 `/workorders/create` 创建工单
-2. 填写工单基本信息和问题描述
-3. 提供准确的联系方式和位置信息
-4. 上传相关附件（可选）
-5. 提交工单等待处理
-
-#### 查看进度
-1. 访问工单列表查看自己的工单
-2. 点击工单号查看详细信息
-3. 查看处理记录和当前状态
-4. 参与满意度回访
-
-## API文档
-
-### 认证接口
-所有API接口需要通过Laravel的认证机制。
-
-### 工单相关接口
-
-#### 获取工单列表
-```
-GET /api/workorders
-参数：
-- keyword: 关键词搜索
-- status: 状态筛选
-- priority: 优先级筛选
-- type_id: 类型筛选
-- assignee_id: 处理人筛选
-- date_from: 开始日期
-- date_to: 结束日期
-```
-
-#### 创建工单
-```
-POST /api/workorders
-参数：
-- title: 工单标题（必填）
-- description: 问题描述（必填）
-- type_id: 工单类型ID（必填）
-- contact_name: 联系人（必填）
-- contact_phone: 联系电话（必填）
-- location: 故障地点（必填）
-- priority: 优先级
-- source: 工单来源
-- attachments: 附件文件
-```
-
-### 部门相关接口
-
-#### 获取部门树形结构
-```
-GET /api/departments/tree
-返回：部门树形JSON数据
-```
-
-#### 获取部门统计
-```
-GET /api/departments/{id}/statistics
-返回：部门用户数、工单数等统计信息
-```
-
-### 工单类型相关接口
-
-#### 获取工单类型选项
-```
-GET /api/workorder-types/options
-参数：
-- source: 来源筛选
-返回：工单类型列表
-```
-
-## 系统维护
-
-### 数据备份
-```bash
-# 数据库备份
-mysqldump -u username -p workorder_db > backup.sql
-
-# 文件备份
-tar -czf workorder_backup.tar.gz /path/to/workorder
-```
-
-### 日志管理
-```bash
-# 查看Laravel日志
-tail -f storage/logs/laravel.log
-
-# 清理旧日志
-php artisan log:clear
-```
-
-### 性能优化
-```bash
-# 清理缓存
-php artisan cache:clear
-php artisan config:clear
-php artisan route:clear
-php artisan view:clear
-
-# 优化自动加载
-composer dump-autoload --optimize
-```
-
-## 常见问题
-
-### Q: 工单编号如何生成？
-A: 系统自动生成，格式为 WO + 日期 + 序号，如 WO202411170001
-
-### Q: 如何设置工单优先级？
-A: 可以在工单类型中设置默认优先级，也可以在创建工单时手动调整
-
-### Q: 支持哪些文件类型的附件？
-A: 支持图片（jpg、png、gif）、文档（pdf、doc、docx、txt）等，单个文件最大10MB
-
-### Q: 如何重置管理员密码？
-A: 使用以下命令：
-```bash
-php artisan tinker
-User::where('email', 'admin@example.com')->update(['password' => Hash::make('newpassword')]);
-```
-
-### Q: 系统支持多语言吗？
-A: 当前版本仅支持中文，后续版本会考虑多语言支持
-
-## 开发指南
-
-### 代码规范
-- 遵循 PSR-12 编码规范
-- 使用 Laravel 的编码约定
-- 所有数据库操作使用 Eloquent ORM
-- 控制器方法保持简洁，业务逻辑放在 Service 层
-
-### 测试
-```bash
-# 运行单元测试
-php artisan test
-
-# 运行特定测试
-php artisan test --filter WorkorderTest
-```
-
-### 贡献指南
-1. Fork 项目
-2. 创建功能分支
-3. 提交代码
-4. 创建 Pull Request
-
-## 版本历史
-
-### v2.0.0 (2025-12-16)
-- 优化登录页面显示，避免重复系统名称
-- 将第二个系统名称改为"系统登录"
-- 提升用户体验和界面一致性
-
-### v1.0.0 (2024-11-17)
-- 初始版本发布
-- 实现基础工单管理功能
-- 支持多角色权限控制
-- 完成前后端基础界面
-
-## 许可证
-
-本项目采用 MIT 许可证，详情请参阅 LICENSE 文件。
+本项目为私有项目，仅限内部使用，未经作者书面许可不得复制、传播或用于商业用途。
 
 ## 联系方式
 
-- 项目维护者：开发团队
-- 邮箱：support@example.com
-- 问题反馈：请使用 GitHub Issues
-
-## 更新日志
-
-### 2024-11-17
-- 完成系统基础架构搭建
-- 实现用户认证和权限管理
-- 完成工单核心功能
-- 实现部门和工单类型管理
-- 完成前端界面开发
+- **项目维护者**：hicool
+- **邮箱**：[hicool.ml@gmail.com](mailto:hicool.ml@gmail.com)
