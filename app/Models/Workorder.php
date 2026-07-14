@@ -897,6 +897,18 @@ class Workorder extends Model
     public function sendNotification(string $type, array $data = [], array $userIds = null): void
     {
         try {
+            // 多通道调度：根据通知规则决定站内/短信是否发送
+            try {
+                app(\App\Services\Notification\NotificationDispatcher::class)
+                    ->dispatch($this, $type);
+            } catch (\Exception $dispatchEx) {
+                \Log::warning('多通道通知调度异常', [
+                    'workorder_id' => $this->id,
+                    'type' => $type,
+                    'error' => $dispatchEx->getMessage(),
+                ]);
+            }
+
             switch ($type) {
                 case 'created':
                     \App\Models\Notification::createWorkorderCreated($this);

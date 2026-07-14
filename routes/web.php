@@ -35,6 +35,26 @@ Route::middleware('guest')->group(function () {
     Route::post('register', [App\Http\Controllers\Auth\RegisteredUserController::class, 'store']);
 });
 
+// CAS / LinkID 统一身份认证路由
+Route::prefix('cas')->group(function () {
+    Route::get('login', [App\Http\Controllers\Auth\CasAuthController::class, 'login'])->name('cas.login');
+    Route::get('callback', [App\Http\Controllers\Auth\CasAuthController::class, 'callback'])->name('cas.callback');
+    Route::get('logout', [App\Http\Controllers\Auth\CasAuthController::class, 'logout'])->name('cas.logout')->middleware('auth');
+});
+
+// 通知规则 & 短信测试 API
+Route::middleware(['auth'])->group(function () {
+    Route::get('api/notification-rules', [App\Http\Controllers\SystemSettingController::class, 'getNotificationRules'])->name('api.notification-rules');
+    Route::put('api/notification-rules', [App\Http\Controllers\SystemSettingController::class, 'updateNotificationRules'])->name('api.notification-rules.update');
+    Route::post('api/sms/test', [App\Http\Controllers\SystemSettingController::class, 'testSms'])->name('api.sms.test');
+});
+
+// PWA manifest
+Route::get('/manifest.json', function () {
+    $m = \App\Helpers\SystemHelper::getSystemName();
+    return response()->json(['name' => $m, 'short_name' => '工单系统', 'description' => '校园网工单管理系统', 'start_url' => '/', 'display' => 'standalone', 'orientation' => 'portrait', 'background_color' => '#1e3a5f', 'theme_color' => '#2563eb', 'icons' => [['src' => '/icons/icon-192.png', 'sizes' => '192x192', 'type' => 'image/png', 'purpose' => 'any maskable'], ['src' => '/icons/icon-512.png', 'sizes' => '512x512', 'type' => 'image/png', 'purpose' => 'any maskable']]])->header('Content-Type', 'application/manifest+json');
+})->name('manifest.json');
+
 Route::middleware('auth')->group(function () {
     Route::post('logout', [App\Http\Controllers\Auth\AuthenticatedSessionController::class, 'destroy'])->name('logout');
     Route::get('logout', [App\Http\Controllers\Auth\AuthenticatedSessionController::class, 'destroy'])->name('logout.get');
@@ -43,7 +63,11 @@ Route::middleware('auth')->group(function () {
 // 需要登录的路由
 Route::middleware(['auth'])->group(function () {
     
-    // 批量操作 - 必须放在资源路由之前，避免路由冲突
+    // CAS 用户简化报修路由
+    Route::get('report', [WorkorderController::class, 'reportCreate'])->name('workorders.report.create');
+    Route::post('report', [WorkorderController::class, 'reportStore'])->name('workorders.report.store');
+
+        // 批量操作 - 必须放在资源路由之前，避免路由冲突
     Route::post('workorders/batch/assign', [WorkorderController::class, 'batchAssign'])->name('workorders.batch.assign');
     Route::post('workorders/batch/start', [WorkorderController::class, 'batchStart'])->name('workorders.batch.start');
     Route::post('workorders/batch/resolve', [WorkorderController::class, 'batchResolve'])->name('workorders.batch.resolve');
@@ -200,6 +224,7 @@ Route::middleware(['auth'])->group(function () {
         Route::post('system-settings/initialize-defaults', [SystemSettingController::class, 'initializeDefaults'])->name('system-settings.initialize-defaults');
         Route::post('system-settings/update-version', [SystemSettingController::class, 'updateVersion'])->name('system-settings.update-version');
         Route::get('system-settings/version-history', [SystemSettingController::class, 'getVersionHistory'])->name('system-settings.version-history');
+        Route::get('system-settings/notification-rules', function () { return view('system-settings.notification-rules'); })->name('system-settings.notification-rules');
         Route::delete('system-settings/{systemSetting}', [SystemSettingController::class, 'destroy'])->name('system-settings.destroy');
         
         // 工单来源管理（仅管理员）

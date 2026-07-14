@@ -482,7 +482,8 @@ class User extends Authenticatable
             return Workorder::query();
         }
 
-        // 工程师：可见自己创建的、分配给自己的，或自己已接受协作的工单
+        // 工程师：可见自己创建的、分配给自己的、协作的，以及所有待处理工单（工单池）
+        // 工单池模式：CAS 用户提交的工单进入 pending 状态，工程师可就近自行接单
         if ($this->role === 'engineer') {
             return Workorder::where(function ($q) {
                 $q->where('creator_id', $this->id)
@@ -490,7 +491,8 @@ class User extends Authenticatable
                   ->orWhereHas('collaborations', function ($collabQ) {
                       $collabQ->where('collaborator_id', $this->id)
                               ->where('status', 'accepted');
-                  });
+                  })
+                  ->orWhere('status', 'pending');
             });
         }
 

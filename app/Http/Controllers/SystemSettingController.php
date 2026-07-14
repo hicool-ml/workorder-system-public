@@ -286,6 +286,62 @@ class SystemSettingController extends Controller
             ];
         }
 
-        return response()->json($versionHistory);
+       return response()->json($versionHistory);
+    }
+
+    /**
+     * 通知规则配置页面
+     */
+    public function notificationRules()
+    {
+        return view('system-settings.notification-rules');
+    }
+
+
+    /**
+     * 获取通知规则
+     */
+    public function getNotificationRules()
+    {
+        return response()->json([
+            'success' => true,
+            'rules' => \App\Services\Notification\NotificationDispatcher::getRules(),
+            'events' => \App\Services\Notification\NotificationDispatcher::getEventLabels(),
+        ]);
+    }
+
+    /**
+     * 更新通知规则
+     */
+    public function updateNotificationRules(Request $request)
+    {
+        if (!Auth::user() || !Auth::user()->isAdmin()) {
+            return response()->json(['success' => false, 'message' => '无权操作'], 403);
+        }
+
+        $rules = $request->input('rules', []);
+        \App\Services\Notification\NotificationDispatcher::updateRules($rules);
+
+        return response()->json(['success' => true, 'message' => '通知规则已更新']);
+    }
+
+    /**
+     * 测试短信发送
+     */
+    public function testSms(Request $request)
+    {
+        if (!Auth::user() || !Auth::user()->isAdmin()) {
+            return response()->json(['success' => false, 'message' => '无权操作'], 403);
+        }
+
+        $request->validate(['phone' => 'required|string']);
+
+        $sms = app(\App\Services\Sms\SmsManager::class);
+        $result = $sms->send($request->input('phone'), 'SMS_TEST', [
+            'content' => '【测试】这是一条来自工单系统的测试短信',
+        ]);
+
+        return response()->json($result);
     }
 }
+
