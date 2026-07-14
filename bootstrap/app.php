@@ -13,13 +13,19 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
             'role' => \App\Http\Middleware\RoleMiddleware::class,
+            'password.changed' => \App\Http\Middleware\ForcePasswordChange::class,
         ]);
-        
+
         // 全局注册TrustProxies中间件
         $middleware->append(\App\Http\Middleware\TrustProxies::class);
-        
+
+        // 强制修改默认密码：所有 web 请求都会经过，仅对已登录且未修改密码的用户生效
+        $middleware->web(append: [
+            \App\Http\Middleware\ForcePasswordChange::class,
+        ]);
+
         // 完全移除ForceHttps中间件，因为使用Cloudflare隧道不需要本地HTTPS
-        // Cloudflare隧道已经提供了加密：[用户浏览器] ←HTTPS→ [Cloudflare隧道] ←HTTP→ [内网服务器]
+        // Cloudflare隧道已经提供了加密：[用户浏览器] <-HTTPS-> [Cloudflare隧道] <-HTTP-> [内网服务器>
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

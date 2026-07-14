@@ -32,6 +32,7 @@ class User extends Authenticatable
         'location',
         'remarks',
         'account_type',
+        'password_changed_at',
     ];
 
     /**
@@ -56,6 +57,7 @@ class User extends Authenticatable
             'password' => 'hashed',
             'role' => 'string',
             'status' => 'string',
+            'password_changed_at' => 'datetime',
         ];
     }
 

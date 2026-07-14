@@ -220,7 +220,8 @@ class UserController extends Controller
 
         try {
             $user->update([
-                'password' => Hash::make($request->input('password'))
+                'password' => Hash::make($request->input('password')),
+                'password_changed_at' => null,
             ]);
             
             return back()->with('success', '密码重置成功');

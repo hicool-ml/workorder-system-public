@@ -309,6 +309,29 @@ Route::middleware(['auth'])->group(function () {
         
         return back()->with('success', '密码修改成功');
     })->name('profile.password');
+
+    // 强制修改默认密码
+    Route::get('/password/change', function () {
+        return view('auth.passwords.change');
+    })->name('password.change');
+
+    Route::put('/password/update', function (Illuminate\Http\Request $request) {
+        $request->validate([
+            'current_password' => 'required|string',
+            'password' => 'required|string|min:6|confirmed',
+        ]);
+
+        if (!\Illuminate\Support\Facades\Hash::check($request->current_password, auth()->user()->password)) {
+            return back()->withErrors(['current_password' => '当前密码不正确']);
+        }
+
+        auth()->user()->update([
+            'password' => $request->password,
+            'password_changed_at' => now(),
+        ]);
+
+        return redirect()->route('dashboard')->with('success', '密码修改成功，欢迎使用系统');
+    })->name('password.update');
 });
 
 include base_path('routes/web_signature_routes.php');
