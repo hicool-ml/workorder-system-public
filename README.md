@@ -211,6 +211,8 @@ CAS 用户属性映射在 `config/services.php` 的 `cas` 节配置。
 
 ## 默认账号
 
+> **安全警告**：以下为开发测试用默认账号，**生产环境部署后必须立即修改所有默认密码**。系统已内置强制改密机制，首次登录或管理员重置密码后会跳转到改密页面。
+
 | 角色 | 登录名 | 密码 | 说明 |
 |------|--------|------|------|
 | 管理员 | admin | admin123 | 全部权限 |
@@ -234,6 +236,111 @@ CAS 用户属性映射在 `config/services.php` 的 `cas` 节配置。
 - `campuses` / `locations` — 校区/地址
 - `system_settings` — 系统配置（键值对）
 - `workorder_sources` — 工单来源
+
+## Docker 部署
+
+项目提供多阶段 Dockerfile 和 docker-compose，一条命令启动应用 + MySQL：
+
+```bash
+# 设置数据库密码（可选，默认 secret/rootsecret）
+export DB_PASSWORD=your_strong_password
+export DB_ROOT_PASSWORD=your_root_password
+
+# 构建并启动
+docker compose up -d --build
+
+# 初始化数据库（首次部署）
+docker compose exec app php artisan migrate --force
+docker compose exec app php artisan db:seed
+docker compose exec app php artisan storage:link
+docker compose exec app php artisan key:generate
+
+# 验证
+curl http://localhost/login
+```
+
+镜像内置 Nginx + PHP-FPM + Queue Worker（Supervisor 管理），无需额外配置进程守护。
+
+### 环境变量
+
+| 变量 | 默认值 | 说明 |
+|------|--------|------|
+| `DB_PASSWORD` | `secret` | 应用数据库用户密码 |
+| `DB_ROOT_PASSWORD` | `rootsecret` | MySQL root 密码 |
+
+## 生产环境优化
+
+### OPcache
+
+Docker 镜像已开启 OPcache（`validate_timestamps=0`），代码变更后需重启容器：
+
+```bash
+docker compose restart app
+```
+
+### 队列与调度
+
+Queue Worker 已由 Supervisor 在容器内自动管理。定时任务（如每日备份）需在宿主机添加 Cron：
+
+```bash
+* * * * * cd /var/www/html && php artisan schedule:run >> /dev/null 2>&1
+```
+
+或使用 Docker 的 cron sidecar 容器。
+
+### 数据库索引
+
+报表查询已优化 5 个复合索引（见 `2026_07_15_080000_add_report_query_indexes` 迁移），
+覆盖状态+时间、校区+时间、分类+时间等高频筛选组合。
+
+### 性能基准参考
+
+| 场景 | 单服务器参考值 |
+|------|----------------|
+| 工单列表分页 | < 50ms（含筛选，2000 条数据） |
+| 统计报表 | < 200ms（90 天范围，5 个维度） |
+| 并发接单 | 乐观锁保证无重复 |
+| 附件上传 | 单文件最大 10MB，最多 5 个 |
+
+> 以上为开发环境参考值，生产环境实际性能取决于服务器配置和网络条件。
+
+## 备份与恢复
+
+```bash
+# 手动备份（数据库 + 附件，存入 storage/backups）
+php artisan backup:system
+
+# 生产部署建议使用含备份的初始化
+composer setup:prod
+
+# 自动备份（已在调度中注册，每日 02:00）
+# 保留最近 30 份，可通过 --keep=N 调整
+```
+
+备份文件位于 `storage/app/private/backups/YYYYMMDD_HHMMSS/`，包含 `database.sql` 和 `attachments.zip`。
+
+## 常见问题排查
+
+**登录后被强制跳转到修改密码页面**：默认密码安全策略，首次登录或管理员重置密码后必须修改。
+
+**CAS 用户无法修改个人信息**：CAS 用户的账号信息由学校统一身份认证管理，此为预期行为。
+
+**短信发送失败**：检查系统设置 > 短信配置中的网关参数和通知规则（事件 x 通道）。
+
+**附件预览异常**：已添加缓存破坏参数，如仍有问题请清除浏览器缓存或检查 `storage:link`。
+
+**报表加载缓慢**：确认已运行最新迁移（包含查询索引优化），检查 `workorders` 表数据量。
+
+**Queue Worker 不工作**：Docker 部署中由 Supervisor 自动管理；手动部署需运行 `php artisan queue:work`。
+
+## 监控建议
+
+- **日志**：`storage/logs/laravel.log`，建议配合日志轮转（`LOG_STACK=daily`）
+- **健康检查**：`/up` 路由返回服务器状态
+- **备份监控**：检查 `storage/app/private/backups/` 下是否有当日备份
+- **队列积压**：`php artisan queue:failed` 查看失败任务
+
+---
 
 ## License
 

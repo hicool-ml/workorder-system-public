@@ -1,0 +1,17 @@
+.git
+.gitignore
+node_modules
+vendor
+storage/app/*
+storage/logs/*
+storage/framework/cache/*
+storage/framework/sessions/*
+storage/framework/views/*
+.env
+.env.backup
+.composer-cache
+.tools
+*.md
+!README.md
+docker-compose.yml
+Dockerfile

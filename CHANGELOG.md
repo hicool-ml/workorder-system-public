@@ -7,6 +7,33 @@
 
 ---
 
+## [1.3.0] - 2026-07-15
+
+### 安全
+- **附件授权漏洞修复**：`download`/`preview`/`destroy` 统一走 `canViewWorkorder`，覆盖工单管理员和协作工程师（此前遗漏导致 403 误拦截）
+- **`canManageWorkorderAttachments` 工单级权限**：从纯角色检查改为工单级授权（防止工程师越权操作非本人工单附件）
+- **CAS 安全加固**：校验 CAS 返回的用户标识非空（拒绝无唯一标识的登录）、登录时重新生成会话令牌（防会话固定攻击）
+- **短信内容脱敏**：短信不再包含工单标题（可能含用户故障描述），仅保留编号；移除 SMS 模板 title 参数
+- **默认账号安全警告**：README 默认账号表添加安全警告，生产环境必须修改
+
+### 变更
+- **角色权限修正**：`canCreateWorkorders` 恢复工单管理员；普通用户（含 CAS）仅能通过 `/report` 报修
+- **CAS 用户禁止修改个人信息**：个人资料页对 CAS 用户显示只读提示，后端路由加防护
+- **.env.example 默认 MySQL**：与 README 部署说明一致（此前默认 SQLite 导致不一致）
+
+### 新增
+- **Docker 部署**：多阶段 Dockerfile + docker-compose（Nginx + PHP-FPM + Queue Worker + MySQL 一体化）
+- **`composer setup:prod`**：生产环境部署脚本，迁移前自动备份
+- **README 新增章节**：Docker 部署、生产环境优化、备份与恢复、常见问题排查、监控建议、性能基准参考
+# 变更日志 (CHANGELOG)
+
+本项目所有重要变更均会记录在此文件中。
+
+格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，
+版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
+
+---
+
 ## [未发布]
 
 ### 安全
