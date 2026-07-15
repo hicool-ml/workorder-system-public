@@ -293,9 +293,9 @@ class User extends Authenticatable
     /**
      * 检查是否可以管理工单附件
      */
-    public function canManageWorkorderAttachments(): bool
+    public function canManageWorkorderAttachments(Workorder $workorder): bool
     {
-        return in_array($this->role, ['admin', 'workorder_manager', 'engineer']);
+        return $this->canUploadAttachment($workorder);
     }
 
     /**

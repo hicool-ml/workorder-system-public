@@ -14,10 +14,8 @@ class AttachmentController extends Controller
      */
     public function download(WorkorderAttachment $attachment): StreamedResponse
     {
-        // 权限检查：只有工单的创建者、分配的处理人、管理员可以下载附件
-        if (!auth()->user()->isAdmin() && 
-            $attachment->workorder->creator_id !== auth()->id() && 
-            $attachment->workorder->assignee_id !== auth()->id()) {
+        // 权限检查：统一使用 canViewWorkorder（覆盖管理员/工单管理员/创建者/处理人/协作工程师）
+        if (!auth()->user()->canViewWorkorder($attachment->workorder)) {
             abort(403, '您没有权限下载此附件');
         }
         
@@ -34,10 +32,8 @@ class AttachmentController extends Controller
      */
     public function preview(WorkorderAttachment $attachment)
     {
-        // 权限检查
-        if (!auth()->user()->isAdmin() && 
-            $attachment->workorder->creator_id !== auth()->id() && 
-            $attachment->workorder->assignee_id !== auth()->id()) {
+        // 权限检查：统一使用 canViewWorkorder
+        if (!auth()->user()->canViewWorkorder($attachment->workorder)) {
             abort(403, '您没有权限预览此附件');
         }
         
@@ -116,10 +112,8 @@ class AttachmentController extends Controller
      */
     public function destroy(WorkorderAttachment $attachment)
     {
-        // 权限检查：只有工单创建者、分配的处理人或管理员可以删除附件
-        if (!auth()->user()->isAdmin() && 
-            $attachment->workorder->creator_id !== auth()->id() && 
-            $attachment->workorder->assignee_id !== auth()->id()) {
+        // 权限检查：统一使用 canManageWorkorderAttachments（覆盖管理员/工单管理员/处理人/协作工程师）
+        if (!auth()->user()->canManageWorkorderAttachments($attachment->workorder)) {
             abort(403, '您没有权限删除此附件');
         }
         
