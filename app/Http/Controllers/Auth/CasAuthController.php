@@ -74,8 +74,9 @@ class CasAuthController extends Controller
             return redirect()->route('login')->with('error', '无法创建用户账户');
         }
 
-        // 登录
+        // 登录并重新生成会话（防止会话固定攻击）
         auth()->login($user, true);
+        session()->regenerate(true);
 
         $intended = session('cas.intended', route('workorders.index'));
         session()->forget('cas.intended');
@@ -220,6 +221,12 @@ class CasAuthController extends Controller
 
         // 根据 CAS 返回的属性映射到本地字段
         $casUsername = $casAttrs['username'] ?? '';
+
+        // 安全检查：CAS 必须返回唯一的用户标识，否则拒绝登录
+        if (empty($casUsername)) {
+            Log::error('CAS 认证返回的用户标识为空，拒绝登录', ['attributes' => $casAttrs]);
+            return null;
+        }
         $name = $casAttrs[$attrMap['name'] ?? 'cn'] ?? $casAttrs['cn'] ?? $casUsername;
         $phone = $casAttrs[$attrMap['phone'] ?? 'mobile'] ?? $casAttrs['mobile'] ?? $casAttrs['telephoneNumber'] ?? null;
         $email = $casAttrs[$attrMap['email'] ?? 'mail'] ?? $casAttrs['mail'] ?? null;

@@ -43,6 +43,16 @@
             "@php artisan key:generate",
             "@php artisan migrate --force",
             "npm install",
+            "npm run build",
+            "@php -r \"echo '\\n  \\033[33m提示：生产环境部署前请先执行 composer setup:prod（含数据库备份）\\033[0m\\n';\""
+        ],
+        "setup:prod": [
+            "composer install",
+            "@php -r \"file_exists('.env') || copy('.env.example', '.env');\"",
+            "@php artisan key:generate",
+            "@php artisan backup:system",
+            "@php artisan migrate --force",
+            "npm install",
             "npm run build"
         ],
         "dev": [
