@@ -179,6 +179,14 @@ class User extends Authenticatable
     }
 
     /**
+     * 检查是否为 CAS 统一身份认证用户
+     */
+    public function isCasUser(): bool
+    {
+        return $this->account_type === 'cas';
+    }
+
+    /**
      * 检查用户是否具有指定角色
      */
     public function hasRole(string $role): bool
@@ -191,7 +199,7 @@ class User extends Authenticatable
      */
     public function canCreateWorkorders(): bool
     {
-        return in_array($this->role, ['admin', 'engineer', 'user']);
+        return in_array($this->role, ['admin', 'workorder_manager', 'engineer']);
     }
 
     /**

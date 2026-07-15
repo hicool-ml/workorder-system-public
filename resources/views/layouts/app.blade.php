@@ -67,10 +67,17 @@
                 <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/></svg>
                 <span>工单列表</span>
             </a>
+            @if(!auth()->user()->isUser())
             <a href="{{ route('workorders.create') }}" class="nav-item {{ request()->routeIs('workorders.create') ? 'nav-active' : 'text-brand-100 hover:bg-brand-700' }}">
                 <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 5v14M5 12h14"/></svg>
                 <span>创建工单</span>
             </a>
+            @else
+            <a href="{{ route('workorders.report.create') }}" class="nav-item {{ request()->routeIs('workorders.report.*') ? 'nav-active' : 'text-brand-100 hover:bg-brand-700' }}">
+                <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z"/></svg>
+                <span>我要报修</span>
+            </a>
+            @endif
 
             @if(auth()->user()->canManageWorkorderTypes())
             <a href="{{ route('workorder-templates.index') }}" class="nav-item {{ request()->routeIs('workorder-templates.*') ? 'nav-active' : 'text-brand-100 hover:bg-brand-700' }}">

@@ -176,6 +176,11 @@ class WorkorderController extends Controller
      */
     public function create(Request $request)
     {
+        // 普通用户只能通过简化报修表单提交
+        if (Auth::user()->isUser()) {
+            return redirect()->route('workorders.report.create');
+        }
+
         // 获取简化的工单分类
         $mainCategories = WorkorderCategorySimplified::getTopLevelCategories();
         $subCategories = [];
@@ -208,6 +213,11 @@ class WorkorderController extends Controller
      */
     public function store(Request $request)
     {
+        // 普通用户只能通过简化报修表单提交
+        if (Auth::user()->isUser()) {
+            return redirect()->route('workorders.report.create');
+        }
+
         // 获取所有有效的工单来源代码
         $validSources = WorkorderSource::getActiveSourceCodes();
         $validSources[] = 'custom'; // 允许自定义来源

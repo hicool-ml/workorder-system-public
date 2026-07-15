@@ -275,6 +275,9 @@ Route::middleware(['auth'])->group(function () {
     })->name('profile');
     
     Route::put('/profile', function (Illuminate\Http\Request $request) {
+        if (auth()->user()->isCasUser()) {
+            return back()->with('error', '统一身份认证用户的个人信息由学校信息中心管理，无法在此修改');
+        }
         $request->validate([
             'name' => 'required|string|max:100',
             'email' => 'required|email|max:100|unique:users,email,' . auth()->id(),
@@ -294,6 +297,9 @@ Route::middleware(['auth'])->group(function () {
     })->name('profile.update');
     
     Route::put('/profile/password', function (Illuminate\Http\Request $request) {
+        if (auth()->user()->isCasUser()) {
+            return back()->with('error', 'CAS 用户的密码由统一身份认证系统管理，无法在此修改');
+        }
         $request->validate([
             'current_password' => 'required|string',
             'password' => 'required|string|min:6|confirmed',
