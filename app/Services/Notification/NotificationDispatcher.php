@@ -253,7 +253,6 @@ class NotificationDispatcher
         $template = config("services.sms.templates.{$event}", 'SMS_' . strtoupper($event));
         $params = [
             'workorder_number' => $workorder->ticket_no,
-            'title'            => $workorder->title,
             'content'          => $this->buildSmsContent($workorder, $event),
         ];
 
@@ -318,7 +317,8 @@ class NotificationDispatcher
         $eventLabels = self::getEventLabels();
         $label = $eventLabels[$event] ?? $event;
         $systemName = SystemSetting::get('system_name', '工单系统');
-        return "【{$systemName}】您的工单「{$workorder->title}」{$label}，编号：{$workorder->ticket_no}";
+        // 短信内容脱敏：不含工单标题（可能含用户故障描述），仅用编号
+        return "【{$systemName}】工单{$label}，编号：{$workorder->ticket_no}，请登录系统查看详情。";
     }
 }
 
