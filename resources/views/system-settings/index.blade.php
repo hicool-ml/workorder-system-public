@@ -183,23 +183,6 @@
                 </p>
             </a>
 
-            {{-- CAS 统一身份认证 --}}
-            <a href="{{ route('system-settings.cas') }}" class="block p-4 rounded-lg border border-border hover:border-brand-400 hover:shadow-sm transition-all">
-                <div class="flex items-center gap-3 mb-2">
-                    <div class="w-10 h-10 rounded-lg flex items-center justify-center bg-purple-50 dark:bg-purple-900/20">
-                        <svg class="w-5 h-5 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 0 0 8 11a4 4 0 1 1 8 0c0 1.017-.07 2.019-.203 3m-2.118 3.844A21.88 21.88 0 0 0 12 11c0-2.5.5-5 1.5-7.5M3 12a9 9 0 1 1 18 0 9 9 0 0 1-18 0z"/></svg>
-                    </div>
-                    <span class="text-sm font-semibold text-ink">统一身份认证</span>
-                </div>
-                <p class="text-xs" style="color: var(--c-ink-muted);">CAS / LinkID 对接配置
-                    @if(config('services.cas.enabled'))
-                    <span class="text-green-600 font-medium ml-1">已启用</span>
-                    @else
-                    <span class="text-orange-500 ml-1">未启用</span>
-                    @endif
-                </p>
-            </a>
-
         </div>
     </div>
 

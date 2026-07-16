@@ -175,39 +175,7 @@ class Notification extends Model
         }
         
         // 获取地址信息，确保格式清晰且人类可读
-        $addressParts = [];
-        
-        // 处理校区信息
-        if ($workorder->campus && !empty(trim($workorder->campus))) {
-            $campus = trim($workorder->campus);
-            // 从系统设置中获取校区映射
-            $campusMapping = self::getCampusMapping();
-            $campusName = $campusMapping[$campus] ?? null;
-            
-            if ($campusName) {
-                $addressParts[] = $campusName;
-            } else {
-                // 尝试将下划线转换为空格，并首字母大写
-                $campus = str_replace('_', ' ', $campus);
-                $campus = ucwords(strtolower($campus));
-                $addressParts[] = $campus;
-            }
-        }
-        
-        // 处理楼栋信息
-        if ($workorder->building && !empty(trim($workorder->building))) {
-            $building = trim($workorder->building);
-            // building 存的是 locations 表的 id，查完整楼名
-            $loc = \App\Models\Location::find($building);
-            $addressParts[] = $loc ? $loc->name : $building;
-        }
-        
-        // 处理详细位置
-        if ($workorder->location_detail && !empty(trim($workorder->location_detail))) {
-            $addressParts[] = trim($workorder->location_detail);
-        }
-        
-        $address = implode(' ', array_unique($addressParts));
+        $address = self::buildWorkorderAddress($workorder);
         
         // 获取故障描述
         $description = $workorder->description ?: '';
@@ -268,57 +236,7 @@ class Notification extends Model
             return null;
         }
         // 获取地址信息，确保格式清晰且人类可读
-        $addressParts = [];
-        
-        // 处理校区信息
-        if ($workorder->campus && !empty(trim($workorder->campus))) {
-            $campus = trim($workorder->campus);
-            // 从系统设置中获取校区映射
-            $campusMapping = self::getCampusMapping();
-            $campusName = $campusMapping[$campus] ?? null;
-            
-            if ($campusName) {
-                $addressParts[] = $campusName;
-            } else {
-                // 尝试将下划线转换为空格，并首字母大写
-                $campus = str_replace('_', ' ', $campus);
-                $campus = ucwords(strtolower($campus));
-                $addressParts[] = $campus;
-            }
-        }
-        
-        // 处理楼栋信息
-        if ($workorder->building && !empty(trim($workorder->building))) {
-            $building = trim($workorder->building);
-            // 移除校区前缀，只保留楼栋号
-            $building = preg_replace('/^(new_|old_|asean_)campus\s*[-_]?\s*/i', '', $building);
-            // 提取数字部分
-            if (preg_match('/(\d+)/', $building, $matches)) {
-                $addressParts[] = $matches[1] . '栋';
-            } else {
-                $addressParts[] = $building;
-            }
-        }
-        
-        // 处理位置信息
-        if ($workorder->location && !empty(trim($workorder->location))) {
-            $location = trim($workorder->location);
-            // 移除校区前缀
-            $location = preg_replace('/^(new_|old_|asean_)campus\s*[-_]?\s*/i', '', $location);
-            // 提取房间号
-            if (preg_match('/(\d+)/', $location, $matches)) {
-                $addressParts[] = $matches[1] . '室';
-            } else {
-                $addressParts[] = $location;
-            }
-        }
-        
-        // 处理详细位置
-        if ($workorder->location_detail && !empty(trim($workorder->location_detail))) {
-            $addressParts[] = trim($workorder->location_detail);
-        }
-        
-        $address = implode(' ', array_unique($addressParts));
+        $address = self::buildWorkorderAddress($workorder);
         
         // 获取故障描述
         $description = $workorder->description ?: '';
@@ -389,57 +307,7 @@ class Notification extends Model
         }
         
         // 获取地址信息，确保格式清晰且人类可读
-        $addressParts = [];
-        
-        // 处理校区信息
-        if ($workorder->campus && !empty(trim($workorder->campus))) {
-            $campus = trim($workorder->campus);
-            // 从系统设置中获取校区映射
-            $campusMapping = self::getCampusMapping();
-            $campusName = $campusMapping[$campus] ?? null;
-            
-            if ($campusName) {
-                $addressParts[] = $campusName;
-            } else {
-                // 尝试将下划线转换为空格，并首字母大写
-                $campus = str_replace('_', ' ', $campus);
-                $campus = ucwords(strtolower($campus));
-                $addressParts[] = $campus;
-            }
-        }
-        
-        // 处理楼栋信息
-        if ($workorder->building && !empty(trim($workorder->building))) {
-            $building = trim($workorder->building);
-            // 移除校区前缀，只保留楼栋号
-            $building = preg_replace('/^(new_|old_|asean_)campus\s*[-_]?\s*/i', '', $building);
-            // 提取数字部分
-            if (preg_match('/(\d+)/', $building, $matches)) {
-                $addressParts[] = $matches[1] . '栋';
-            } else {
-                $addressParts[] = $building;
-            }
-        }
-        
-        // 处理位置信息
-        if ($workorder->location && !empty(trim($workorder->location))) {
-            $location = trim($workorder->location);
-            // 移除校区前缀
-            $location = preg_replace('/^(new_|old_|asean_)campus\s*[-_]?\s*/i', '', $location);
-            // 提取房间号
-            if (preg_match('/(\d+)/', $location, $matches)) {
-                $addressParts[] = $matches[1] . '室';
-            } else {
-                $addressParts[] = $location;
-            }
-        }
-        
-        // 处理详细位置
-        if ($workorder->location_detail && !empty(trim($workorder->location_detail))) {
-            $addressParts[] = trim($workorder->location_detail);
-        }
-        
-        $address = implode(' ', array_unique($addressParts));
+        $address = self::buildWorkorderAddress($workorder);
         
         // 获取故障描述
         $description = $workorder->description ?: '';
@@ -516,57 +384,7 @@ class Notification extends Model
         }
         
         // 获取地址信息，确保格式清晰且人类可读
-        $addressParts = [];
-        
-        // 处理校区信息
-        if ($workorder->campus && !empty(trim($workorder->campus))) {
-            $campus = trim($workorder->campus);
-            // 从系统设置中获取校区映射
-            $campusMapping = self::getCampusMapping();
-            $campusName = $campusMapping[$campus] ?? null;
-            
-            if ($campusName) {
-                $addressParts[] = $campusName;
-            } else {
-                // 尝试将下划线转换为空格，并首字母大写
-                $campus = str_replace('_', ' ', $campus);
-                $campus = ucwords(strtolower($campus));
-                $addressParts[] = $campus;
-            }
-        }
-        
-        // 处理楼栋信息
-        if ($workorder->building && !empty(trim($workorder->building))) {
-            $building = trim($workorder->building);
-            // 移除校区前缀，只保留楼栋号
-            $building = preg_replace('/^(new_|old_|asean_)campus\s*[-_]?\s*/i', '', $building);
-            // 提取数字部分
-            if (preg_match('/(\d+)/', $building, $matches)) {
-                $addressParts[] = $matches[1] . '栋';
-            } else {
-                $addressParts[] = $building;
-            }
-        }
-        
-        // 处理位置信息
-        if ($workorder->location && !empty(trim($workorder->location))) {
-            $location = trim($workorder->location);
-            // 移除校区前缀
-            $location = preg_replace('/^(new_|old_|asean_)campus\s*[-_]?\s*/i', '', $location);
-            // 提取房间号
-            if (preg_match('/(\d+)/', $location, $matches)) {
-                $addressParts[] = $matches[1] . '室';
-            } else {
-                $addressParts[] = $location;
-            }
-        }
-        
-        // 处理详细位置
-        if ($workorder->location_detail && !empty(trim($workorder->location_detail))) {
-            $addressParts[] = trim($workorder->location_detail);
-        }
-        
-        $address = implode(' ', array_unique($addressParts));
+        $address = self::buildWorkorderAddress($workorder);
         
         // 获取故障描述
         $description = $workorder->description ?: '';
@@ -644,57 +462,7 @@ class Notification extends Model
         }
         
         // 获取地址信息，确保格式清晰且人类可读
-        $addressParts = [];
-        
-        // 处理校区信息
-        if ($workorder->campus && !empty(trim($workorder->campus))) {
-            $campus = trim($workorder->campus);
-            // 从系统设置中获取校区映射
-            $campusMapping = self::getCampusMapping();
-            $campusName = $campusMapping[$campus] ?? null;
-            
-            if ($campusName) {
-                $addressParts[] = $campusName;
-            } else {
-                // 尝试将下划线转换为空格，并首字母大写
-                $campus = str_replace('_', ' ', $campus);
-                $campus = ucwords(strtolower($campus));
-                $addressParts[] = $campus;
-            }
-        }
-        
-        // 处理楼栋信息
-        if ($workorder->building && !empty(trim($workorder->building))) {
-            $building = trim($workorder->building);
-            // 移除校区前缀，只保留楼栋号
-            $building = preg_replace('/^(new_|old_|asean_)campus\s*[-_]?\s*/i', '', $building);
-            // 提取数字部分
-            if (preg_match('/(\d+)/', $building, $matches)) {
-                $addressParts[] = $matches[1] . '栋';
-            } else {
-                $addressParts[] = $building;
-            }
-        }
-        
-        // 处理位置信息
-        if ($workorder->location && !empty(trim($workorder->location))) {
-            $location = trim($workorder->location);
-            // 移除校区前缀
-            $location = preg_replace('/^(new_|old_|asean_)campus\s*[-_]?\s*/i', '', $location);
-            // 提取房间号
-            if (preg_match('/(\d+)/', $location, $matches)) {
-                $addressParts[] = $matches[1] . '室';
-            } else {
-                $addressParts[] = $location;
-            }
-        }
-        
-        // 处理详细位置
-        if ($workorder->location_detail && !empty(trim($workorder->location_detail))) {
-            $addressParts[] = trim($workorder->location_detail);
-        }
-        
-        $address = implode(' ', array_unique($addressParts));
+        $address = self::buildWorkorderAddress($workorder);
         
         // 获取故障描述
         $description = $workorder->description ?: '';
@@ -757,57 +525,7 @@ class Notification extends Model
         }
         
         // 获取地址信息，确保格式清晰且人类可读
-        $addressParts = [];
-        
-        // 处理校区信息
-        if ($workorder->campus && !empty(trim($workorder->campus))) {
-            $campus = trim($workorder->campus);
-            // 从系统设置中获取校区映射
-            $campusMapping = self::getCampusMapping();
-            $campusName = $campusMapping[$campus] ?? null;
-            
-            if ($campusName) {
-                $addressParts[] = $campusName;
-            } else {
-                // 尝试将下划线转换为空格，并首字母大写
-                $campus = str_replace('_', ' ', $campus);
-                $campus = ucwords(strtolower($campus));
-                $addressParts[] = $campus;
-            }
-        }
-        
-        // 处理楼栋信息
-        if ($workorder->building && !empty(trim($workorder->building))) {
-            $building = trim($workorder->building);
-            // 移除校区前缀，只保留楼栋号
-            $building = preg_replace('/^(new_|old_|asean_)campus\s*[-_]?\s*/i', '', $building);
-            // 提取数字部分
-            if (preg_match('/(\d+)/', $building, $matches)) {
-                $addressParts[] = $matches[1] . '栋';
-            } else {
-                $addressParts[] = $building;
-            }
-        }
-        
-        // 处理位置信息
-        if ($workorder->location && !empty(trim($workorder->location))) {
-            $location = trim($workorder->location);
-            // 移除校区前缀
-            $location = preg_replace('/^(new_|old_|asean_)campus\s*[-_]?\s*/i', '', $location);
-            // 提取房间号
-            if (preg_match('/(\d+)/', $location, $matches)) {
-                $addressParts[] = $matches[1] . '室';
-            } else {
-                $addressParts[] = $location;
-            }
-        }
-        
-        // 处理详细位置
-        if ($workorder->location_detail && !empty(trim($workorder->location_detail))) {
-            $addressParts[] = trim($workorder->location_detail);
-        }
-        
-        $address = implode(' ', array_unique($addressParts));
+        $address = self::buildWorkorderAddress($workorder);
         
         // 获取故障描述
         $description = $workorder->description ?: '';
@@ -869,57 +587,7 @@ class Notification extends Model
             return null;
         }
         // 获取地址信息，确保格式清晰且人类可读
-        $addressParts = [];
-        
-        // 处理校区信息
-        if ($workorder->campus && !empty(trim($workorder->campus))) {
-            $campus = trim($workorder->campus);
-            // 从系统设置中获取校区映射
-            $campusMapping = self::getCampusMapping();
-            $campusName = $campusMapping[$campus] ?? null;
-            
-            if ($campusName) {
-                $addressParts[] = $campusName;
-            } else {
-                // 尝试将下划线转换为空格，并首字母大写
-                $campus = str_replace('_', ' ', $campus);
-                $campus = ucwords(strtolower($campus));
-                $addressParts[] = $campus;
-            }
-        }
-        
-        // 处理楼栋信息
-        if ($workorder->building && !empty(trim($workorder->building))) {
-            $building = trim($workorder->building);
-            // 移除校区前缀，只保留楼栋号
-            $building = preg_replace('/^(new_|old_|asean_)campus\s*[-_]?\s*/i', '', $building);
-            // 提取数字部分
-            if (preg_match('/(\d+)/', $building, $matches)) {
-                $addressParts[] = $matches[1] . '栋';
-            } else {
-                $addressParts[] = $building;
-            }
-        }
-        
-        // 处理位置信息
-        if ($workorder->location && !empty(trim($workorder->location))) {
-            $location = trim($workorder->location);
-            // 移除校区前缀
-            $location = preg_replace('/^(new_|old_|asean_)campus\s*[-_]?\s*/i', '', $location);
-            // 提取房间号
-            if (preg_match('/(\d+)/', $location, $matches)) {
-                $addressParts[] = $matches[1] . '室';
-            } else {
-                $addressParts[] = $location;
-            }
-        }
-        
-        // 处理详细位置
-        if ($workorder->location_detail && !empty(trim($workorder->location_detail))) {
-            $addressParts[] = trim($workorder->location_detail);
-        }
-        
-        $address = implode(' ', array_unique($addressParts));
+        $address = self::buildWorkorderAddress($workorder);
         
         // 获取故障描述
         $description = $workorder->description ?: '';
@@ -998,57 +666,7 @@ class Notification extends Model
         }
         
         // 获取地址信息，确保格式清晰且人类可读
-        $addressParts = [];
-        
-        // 处理校区信息
-        if ($workorder->campus && !empty(trim($workorder->campus))) {
-            $campus = trim($workorder->campus);
-            // 从系统设置中获取校区映射
-            $campusMapping = self::getCampusMapping();
-            $campusName = $campusMapping[$campus] ?? null;
-            
-            if ($campusName) {
-                $addressParts[] = $campusName;
-            } else {
-                // 尝试将下划线转换为空格，并首字母大写
-                $campus = str_replace('_', ' ', $campus);
-                $campus = ucwords(strtolower($campus));
-                $addressParts[] = $campus;
-            }
-        }
-        
-        // 处理楼栋信息
-        if ($workorder->building && !empty(trim($workorder->building))) {
-            $building = trim($workorder->building);
-            // 移除校区前缀，只保留楼栋号
-            $building = preg_replace('/^(new_|old_|asean_)campus\s*[-_]?\s*/i', '', $building);
-            // 提取数字部分
-            if (preg_match('/(\d+)/', $building, $matches)) {
-                $addressParts[] = $matches[1] . '栋';
-            } else {
-                $addressParts[] = $building;
-            }
-        }
-        
-        // 处理位置信息
-        if ($workorder->location && !empty(trim($workorder->location))) {
-            $location = trim($workorder->location);
-            // 移除校区前缀
-            $location = preg_replace('/^(new_|old_|asean_)campus\s*[-_]?\s*/i', '', $location);
-            // 提取房间号
-            if (preg_match('/(\d+)/', $location, $matches)) {
-                $addressParts[] = $matches[1] . '室';
-            } else {
-                $addressParts[] = $location;
-            }
-        }
-        
-        // 处理详细位置
-        if ($workorder->location_detail && !empty(trim($workorder->location_detail))) {
-            $addressParts[] = trim($workorder->location_detail);
-        }
-        
-        $address = implode(' ', array_unique($addressParts));
+        $address = self::buildWorkorderAddress($workorder);
         
         // 获取故障描述
         $description = $workorder->description ?: '';
@@ -1118,57 +736,7 @@ class Notification extends Model
             return null;
         }
         // 获取地址信息，确保格式清晰且人类可读
-        $addressParts = [];
-        
-        // 处理校区信息
-        if ($workorder->campus && !empty(trim($workorder->campus))) {
-            $campus = trim($workorder->campus);
-            // 从系统设置中获取校区映射
-            $campusMapping = self::getCampusMapping();
-            $campusName = $campusMapping[$campus] ?? null;
-            
-            if ($campusName) {
-                $addressParts[] = $campusName;
-            } else {
-                // 尝试将下划线转换为空格，并首字母大写
-                $campus = str_replace('_', ' ', $campus);
-                $campus = ucwords(strtolower($campus));
-                $addressParts[] = $campus;
-            }
-        }
-        
-        // 处理楼栋信息
-        if ($workorder->building && !empty(trim($workorder->building))) {
-            $building = trim($workorder->building);
-            // 移除校区前缀，只保留楼栋号
-            $building = preg_replace('/^(new_|old_|asean_)campus\s*[-_]?\s*/i', '', $building);
-            // 提取数字部分
-            if (preg_match('/(\d+)/', $building, $matches)) {
-                $addressParts[] = $matches[1] . '栋';
-            } else {
-                $addressParts[] = $building;
-            }
-        }
-        
-        // 处理位置信息
-        if ($workorder->location && !empty(trim($workorder->location))) {
-            $location = trim($workorder->location);
-            // 移除校区前缀
-            $location = preg_replace('/^(new_|old_|asean_)campus\s*[-_]?\s*/i', '', $location);
-            // 提取房间号
-            if (preg_match('/(\d+)/', $location, $matches)) {
-                $addressParts[] = $matches[1] . '室';
-            } else {
-                $addressParts[] = $location;
-            }
-        }
-        
-        // 处理详细位置
-        if ($workorder->location_detail && !empty(trim($workorder->location_detail))) {
-            $addressParts[] = trim($workorder->location_detail);
-        }
-        
-        $address = implode(' ', array_unique($addressParts));
+        $address = self::buildWorkorderAddress($workorder);
         
         // 获取故障描述
         $description = $workorder->description ?: '';
@@ -1234,38 +802,7 @@ class Notification extends Model
             return null;
         }
         // 获取地址信息，确保格式清晰
-        $addressParts = [];
-        if ($workorder->campus && !empty(trim($workorder->campus))) {
-            $campus = trim($workorder->campus);
-            // 从系统设置中获取校区映射
-            $campusMapping = self::getCampusMapping();
-            $campusName = $campusMapping[$campus] ?? null;
-            
-            if ($campusName) {
-                $addressParts[] = $campusName;
-            } else {
-                // 尝试将下划线转换为空格，并首字母大写
-                $campus = str_replace('_', ' ', $campus);
-                $campus = ucwords(strtolower($campus));
-                $addressParts[] = $campus;
-            }
-        }
-        if ($workorder->building && !empty(trim($workorder->building))) {
-            $building = trim($workorder->building);
-            // 移除可能重复的校区信息
-            $building = preg_replace('/^(new_|old_|asean_)campus\s*[-_]?\s*/i', '', $building);
-            $addressParts[] = $building;
-        }
-        if ($workorder->location && !empty(trim($workorder->location))) {
-            $location = trim($workorder->location);
-            // 移除可能重复的校区和楼栋信息
-            $location = preg_replace('/^(new_|old_|asean_)campus\s*[-_]?\s*/i', '', $location);
-            $addressParts[] = $location;
-        }
-        if ($workorder->location_detail && !empty(trim($workorder->location_detail))) {
-            $addressParts[] = trim($workorder->location_detail);
-        }
-        $address = implode(' ', array_unique($addressParts));
+        $address = self::buildWorkorderAddress($workorder);
         
         // 获取故障描述
         $description = $workorder->description ?: '';
@@ -1330,38 +867,7 @@ class Notification extends Model
             return null;
         }
         // 获取地址信息，确保格式清晰
-        $addressParts = [];
-        if ($workorder->campus && !empty(trim($workorder->campus))) {
-            $campus = trim($workorder->campus);
-            // 从系统设置中获取校区映射
-            $campusMapping = self::getCampusMapping();
-            $campusName = $campusMapping[$campus] ?? null;
-            
-            if ($campusName) {
-                $addressParts[] = $campusName;
-            } else {
-                // 尝试将下划线转换为空格，并首字母大写
-                $campus = str_replace('_', ' ', $campus);
-                $campus = ucwords(strtolower($campus));
-                $addressParts[] = $campus;
-            }
-        }
-        if ($workorder->building && !empty(trim($workorder->building))) {
-            $building = trim($workorder->building);
-            // 移除可能重复的校区信息
-            $building = preg_replace('/^(new_|old_|asean_)campus\s*[-_]?\s*/i', '', $building);
-            $addressParts[] = $building;
-        }
-        if ($workorder->location && !empty(trim($workorder->location))) {
-            $location = trim($workorder->location);
-            // 移除可能重复的校区和楼栋信息
-            $location = preg_replace('/^(new_|old_|asean_)campus\s*[-_]?\s*/i', '', $location);
-            $addressParts[] = $location;
-        }
-        if ($workorder->location_detail && !empty(trim($workorder->location_detail))) {
-            $addressParts[] = trim($workorder->location_detail);
-        }
-        $address = implode(' ', array_unique($addressParts));
+        $address = self::buildWorkorderAddress($workorder);
         
         // 获取故障描述
         $description = $workorder->description ?: '';
@@ -1574,5 +1080,29 @@ class Notification extends Model
         }
 
         return [];
+    }
+
+    /**
+     * 统一构建工单地址字符串
+     * building 存的是 locations 表的 id，自动查完整楼名
+     */
+    private static function buildWorkorderAddress(Workorder $workorder): string
+    {
+        $parts = [];
+
+        if ($workorder->campus && trim($workorder->campus)) {
+            $parts[] = trim($workorder->campus);
+        }
+
+        if ($workorder->building && trim($workorder->building)) {
+            $loc = \App\Models\Location::find(trim($workorder->building));
+            $parts[] = $loc ? $loc->name : trim($workorder->building);
+        }
+
+        if ($workorder->location_detail && trim($workorder->location_detail)) {
+            $parts[] = trim($workorder->location_detail);
+        }
+
+        return implode(' ', array_filter($parts)) ?: '未知地址';
     }
 }

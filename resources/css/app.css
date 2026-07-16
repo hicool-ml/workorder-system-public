@@ -1,4 +1,4 @@
-@import "tailwindcss";
+﻿@import "tailwindcss";
 
 @source "../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php";
 @source "../../storage/framework/views/*.php";
@@ -185,3 +185,27 @@ body.drawer-open { overflow: hidden; }
 .treemap:hover .treemap-cell { opacity: 0.5; }
 .treemap-cell:hover { opacity: 1 !important; transform: scale(1.02); z-index: 2; box-shadow: 0 4px 12px rgba(0,0,0,0.25); }
 .treemap-empty { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; color: var(--c-ink-subtle); font-size: 13px; }
+
+/* ── 分页组件 ── */
+.pagination-btn {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-width: 2.25rem; height: 2.25rem; padding: 0 0.5rem;
+    font-size: 0.875rem; font-weight: 500;
+    color: var(--c-ink-muted); background-color: var(--c-card);
+    border: 1px solid var(--c-border); border-radius: 0.5rem;
+    transition: all 0.15s ease; cursor: pointer; text-decoration: none;
+}
+.pagination-btn:hover:not(.pagination-disabled):not(.pagination-active) {
+    background-color: var(--c-muted); color: var(--c-ink); border-color: var(--c-border-strong);
+}
+.pagination-active {
+    background-color: var(--c-brand); color: #fff; border-color: var(--c-brand);
+}
+.pagination-disabled {
+    background-color: var(--c-muted); color: var(--c-ink-subtle); cursor: not-allowed; opacity: 0.6;
+}
+.pagination-dots {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-width: 2.25rem; height: 2.25rem;
+    font-size: 0.875rem; color: var(--c-ink-subtle);
+}

@@ -3,6 +3,8 @@
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Http\Exceptions\ThrottleRequestsException;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -28,5 +30,10 @@ return Application::configure(basePath: dirname(__DIR__))
         // Cloudflare隧道已经提供了加密：[用户浏览器] <-HTTPS-> [Cloudflare隧道] <-HTTP-> [内网服务器>
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        //
+        $exceptions->respond(function ($response, $exception, $request) {
+            if ($response->getStatusCode() === 419) {
+                return redirect()->route('login')->with('message', '会话已过期，请重新登录');
+            }
+            return $response;
+        });
     })->create();
