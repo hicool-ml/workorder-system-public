@@ -297,7 +297,9 @@ class NotificationController extends Controller
                     $systemName = \App\Models\SystemSetting::get('system_name', '工单系统');
                     $title = $request->input('title');
                     $content = $request->input('content');
+                    $timestamp = now()->format('Y-m-d H:i');
                     $message = "【{$systemName}】系统公告\n"
+                        . "时间：{$timestamp}\n"
                         . "{$title}\n"
                         . "{$content}";
                     $wecom->sendText($message, ['@all']);

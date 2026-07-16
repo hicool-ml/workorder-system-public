@@ -350,7 +350,9 @@ class NotificationDispatcher
         $description = mb_substr($workorder->description ?: $workorder->title ?: '未知故障', 0, 30);
         $status = $workorder->status_text ?: '未知状态';
 
+        $timestamp = now()->format('Y-m-d H:i');
         $content = "【{$systemName}】{$label}\n"
+            . "时间：{$timestamp}\n"
             . "编号：{$workorder->ticket_no}\n"
             . "地点：{$address}\n"
             . "描述：{$description}";
