@@ -297,12 +297,7 @@ class Notification extends Model
             return null;
         }
         
-        // 检查创建人是否存在，如果不存在则跳过
-        if (!$workorder->creator_id || !\App\Models\User::where('id', $workorder->creator_id)->exists()) {
-            \Log::warning('创建人不存在，跳过开始处理通知', [
-                'workorder_id' => $workorder->id,
-                'creator_id' => $workorder->creator_id
-            ]);
+        if (!self::shouldNotifyCreator($workorder, '开始处理通知')) {
             return null;
         }
         
@@ -374,12 +369,7 @@ class Notification extends Model
             return null;
         }
         
-        // 检查创建人是否存在，如果不存在则跳过
-        if (!$workorder->creator_id || !\App\Models\User::where('id', $workorder->creator_id)->exists()) {
-            \Log::warning('创建人不存在，跳过解决通知', [
-                'workorder_id' => $workorder->id,
-                'creator_id' => $workorder->creator_id
-            ]);
+        if (!self::shouldNotifyCreator($workorder, '解决通知')) {
             return null;
         }
         
@@ -452,12 +442,7 @@ class Notification extends Model
             return null;
         }
         
-        // 检查创建人是否存在，如果不存在则跳过
-        if (!$workorder->creator_id || !\App\Models\User::where('id', $workorder->creator_id)->exists()) {
-            \Log::warning('创建人不存在，跳过完结通知', [
-                'workorder_id' => $workorder->id,
-                'creator_id' => $workorder->creator_id
-            ]);
+        if (!self::shouldNotifyCreator($workorder, '完结通知')) {
             return null;
         }
         
@@ -515,12 +500,7 @@ class Notification extends Model
      */
     public static function createWorkorderClosed(Workorder $workorder, bool $notifyCreator = true): ?self
     {
-        // 检查创建人是否存在，如果不存在则跳过
-        if (!$workorder->creator_id || !\App\Models\User::where('id', $workorder->creator_id)->exists()) {
-            \Log::warning('创建人不存在，跳过关闭通知', [
-                'workorder_id' => $workorder->id,
-                'creator_id' => $workorder->creator_id
-            ]);
+        if (!self::shouldNotifyCreator($workorder, '关闭通知')) {
             return null;
         }
         
@@ -578,12 +558,7 @@ class Notification extends Model
      */
     public static function createWorkorderComment(Workorder $workorder, string $content, User $user, bool $notifyCreator = true): ?self
     {
-        // 检查创建人是否存在，如果不存在则跳过
-        if (!$workorder->creator_id || !\App\Models\User::where('id', $workorder->creator_id)->exists()) {
-            \Log::warning('创建人不存在，跳过处理记录通知', [
-                'workorder_id' => $workorder->id,
-                'creator_id' => $workorder->creator_id
-            ]);
+        if (!self::shouldNotifyCreator($workorder, '处理记录通知')) {
             return null;
         }
         // 获取地址信息，确保格式清晰且人类可读
@@ -656,12 +631,7 @@ class Notification extends Model
             return null;
         }
         
-        // 检查创建人是否存在，如果不存在则跳过
-        if (!$workorder->creator_id || !\App\Models\User::where('id', $workorder->creator_id)->exists()) {
-            \Log::warning('创建人不存在，跳过回访完成通知', [
-                'workorder_id' => $workorder->id,
-                'creator_id' => $workorder->creator_id
-            ]);
+        if (!self::shouldNotifyCreator($workorder, '回访完成通知')) {
             return null;
         }
         
@@ -717,7 +687,7 @@ class Notification extends Model
     /**
      * 创建协作邀请通知
      */
-    public static function createWorkorderCollaborationInvited(Workorder $workorder, User $inviter, User $collaborator, string $reason = null): ?self
+    public static function createWorkorderCollaborationInvited(Workorder $workorder, User $inviter, User $collaborator, ?string $reason = null): ?self
     {
         // 检查邀请者和协作者是否存在，如果不存在则跳过
         if (!\App\Models\User::where('id', $inviter->id)->exists()) {
@@ -848,7 +818,7 @@ class Notification extends Model
     /**
      * 创建协作拒绝通知
      */
-    public static function createWorkorderCollaborationRejected(Workorder $workorder, User $collaborator, User $inviter, string $note = null): ?self
+    public static function createWorkorderCollaborationRejected(Workorder $workorder, User $collaborator, User $inviter, ?string $note = null): ?self
     {
         // 检查协作者和邀请者是否存在，如果不存在则跳过
         if (!\App\Models\User::where('id', $collaborator->id)->exists()) {
@@ -914,7 +884,7 @@ class Notification extends Model
     /**
      * 创建系统公告通知
      */
-    public static function createSystemAnnouncement(string $title, string $content, $targetType = 'all', array $targetIds = null, bool $isImportant = false): self
+    public static function createSystemAnnouncement(string $title, string $content, $targetType = 'all', ?array $targetIds = null, bool $isImportant = false): self
     {
         // 根据目标类型发送通知
         if ($targetType === 'all') {
@@ -1080,6 +1050,22 @@ class Notification extends Model
         }
 
         return [];
+    }
+
+    /**
+     * 检查工单创建人是否存在且可被通知。
+     * 不存在时记录警告日志，返回 false。
+     */
+    private static function shouldNotifyCreator(Workorder $workorder, string $context = ''): bool
+    {
+        if (!$workorder->creator_id || !\App\Models\User::where('id', $workorder->creator_id)->exists()) {
+            \Log::warning('创建人不存在，跳过通知' . ($context ? '：' . $context : ''), [
+                'workorder_id' => $workorder->id,
+                'creator_id' => $workorder->creator_id,
+            ]);
+            return false;
+        }
+        return true;
     }
 
     /**

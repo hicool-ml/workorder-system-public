@@ -1188,12 +1188,7 @@ class WorkorderController extends Controller
             'note' => 'nullable|string|max:500',
         ]);
         
-        // 将逗号分隔的字符串转换为数组
-        $workorderIds = explode(',', $request->input('workorder_ids'));
-        $workorderIds = array_filter($workorderIds, function($id) {
-            return is_numeric($id) && $id > 0;
-        });
-        $workorderIds = array_map('intval', $workorderIds);
+        $workorderIds = $this->parseWorkorderIds($request);
         $assigneeId = $request->input('assignee_id');
         $note = $request->input('note');
         
@@ -1244,12 +1239,7 @@ class WorkorderController extends Controller
             'workorder_ids' => 'required|string',
         ]);
         
-        // 将逗号分隔的字符串转换为数组
-        $workorderIds = explode(',', $request->input('workorder_ids'));
-        $workorderIds = array_filter($workorderIds, function($id) {
-            return is_numeric($id) && $id > 0;
-        });
-        $workorderIds = array_map('intval', $workorderIds);
+        $workorderIds = $this->parseWorkorderIds($request);
         
         try {
             $successCount = 0;
@@ -1311,12 +1301,7 @@ class WorkorderController extends Controller
             'solution_type' => 'required|in:common,individual',
         ]);
         
-        // 将逗号分隔的字符串转换为数组
-        $workorderIds = explode(',', $request->input('workorder_ids'));
-        $workorderIds = array_filter($workorderIds, function($id) {
-            return is_numeric($id) && $id > 0;
-        });
-        $workorderIds = array_map('intval', $workorderIds);
+        $workorderIds = $this->parseWorkorderIds($request);
         $solutionType = $request->input('solution_type');
         
         try {
@@ -1431,12 +1416,7 @@ class WorkorderController extends Controller
             'workorder_ids' => 'required|string',
         ]);
         
-        // 将逗号分隔的字符串转换为数组
-        $workorderIds = explode(',', $request->input('workorder_ids'));
-        $workorderIds = array_filter($workorderIds, function($id) {
-            return is_numeric($id) && $id > 0;
-        });
-        $workorderIds = array_map('intval', $workorderIds);
+        $workorderIds = $this->parseWorkorderIds($request);
         
         try {
             $successCount = 0;
@@ -1486,12 +1466,7 @@ class WorkorderController extends Controller
             'completion_note' => 'nullable|string|max:1000',
         ]);
         
-        // 将逗号分隔的字符串转换为数组
-        $workorderIds = explode(',', $request->input('workorder_ids'));
-        $workorderIds = array_filter($workorderIds, function($id) {
-            return is_numeric($id) && $id > 0;
-        });
-        $workorderIds = array_map('intval', $workorderIds);
+        $workorderIds = $this->parseWorkorderIds($request);
         $completionNote = $request->input('completion_note', '批量完结工单');
         
         try {
@@ -1544,6 +1519,16 @@ class WorkorderController extends Controller
         }
     }
     
+    /**
+     * 将逗号分隔的工单 ID 字符串解析为去重的正整数数组
+     */
+    private function parseWorkorderIds(Request $request): array
+    {
+        $ids = explode(',', $request->input('workorder_ids', ''));
+        $ids = array_filter($ids, fn($id) => is_numeric($id) && $id > 0);
+        return array_map('intval', $ids);
+    }
+
     /**
      * 权限检查：查看工单
      */
