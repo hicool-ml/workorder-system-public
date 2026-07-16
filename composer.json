@@ -28,7 +28,8 @@
         "files": [
             "app/Helpers/DateHelper.php",
             "app/Helpers/helpers.php",
-            "app/Helpers/UrlHelper.php"
+            "app/Helpers/UrlHelper.php",
+            "app/Helpers/workorder_ui.php"
         ]
     },
     "autoload-dev": {

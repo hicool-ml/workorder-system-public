@@ -1,7 +1,8 @@
-<?php
+﻿<?php
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
@@ -12,11 +13,11 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('departments', function (Blueprint $table) {
-            // 删除上级部门相关字段
-            $table->dropForeign(['parent_id']);
-            $table->dropColumn('parent_id');
-            $table->dropColumn('level');
+            if (DB::getDriverName() !== 'sqlite') {
+                $table->dropForeign(['parent_id']);
+            }
             $table->dropIndex(['parent_id', 'status']);
+            $table->dropColumn(['parent_id', 'level']);
         });
     }
 
@@ -28,9 +29,11 @@ return new class extends Migration
         Schema::table('departments', function (Blueprint $table) {
             $table->unsignedBigInteger('parent_id')->nullable()->comment('上级部门ID');
             $table->integer('level')->default(1)->comment('部门层级');
-            
-            $table->foreign('parent_id')->references('id')->on('departments')->onDelete('cascade');
             $table->index(['parent_id', 'status']);
+
+            if (DB::getDriverName() !== 'sqlite') {
+                $table->foreign('parent_id')->references('id')->on('departments')->onDelete('cascade');
+            }
         });
     }
 };

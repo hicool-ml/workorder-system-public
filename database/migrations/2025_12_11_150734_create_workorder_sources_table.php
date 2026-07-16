@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
@@ -11,6 +11,11 @@ return new class extends Migration
      */
     public function up(): void
     {
+        // 幂等保护：该表在 2025_11_20_000001 迁移中已创建
+        if (Schema::hasTable('workorder_sources')) {
+            return;
+        }
+
         Schema::create('workorder_sources', function (Blueprint $table) {
             $table->id();
             $table->string('name', 50)->unique()->comment('来源名称');

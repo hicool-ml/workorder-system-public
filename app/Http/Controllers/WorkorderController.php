@@ -836,6 +836,14 @@ class WorkorderController extends Controller
      */
     public function addLog(Request $request, Workorder $workorder)
     {
+        // 权限检查：必须能查看该工单，且有添加处理记录的权限
+        if (!Auth::user()->canViewWorkorder($workorder)) {
+            abort(403, '您没有权限查看此工单');
+        }
+        if (!Auth::user()->canAddWorkorderNotes()) {
+            abort(403, '您没有权限添加处理记录');
+        }
+
         // 如果是GET请求，直接返回到工单详情页面
         if ($request->isMethod('get')) {
             return redirect(\App\Helpers\UrlHelper::relative_url("/workorders/{$workorder->id}"));
@@ -1252,18 +1260,23 @@ class WorkorderController extends Controller
                 $workorder = Workorder::find($workorderId);
                 
                 // 权限检查：只能处理分配给自己的工单，或者管理员/工单管理员可以处理所有工单
+                // 工单不存在时直接跳过，避免空值解引用
+                if (!$workorder) {
+                    $failedCount++;
+                    $failedWorkorders[] = 'Unknown';
+                    continue;
+                }
+                // 权限检查：只能处理分配给自己的工单，或者管理员/工单管理员可以处理所有工单
                 if (!auth()->user()->isAdmin() && !auth()->user()->isWorkorderManager() && $workorder->assignee_id !== auth()->id()) {
                     $failedCount++;
                     $failedWorkorders[] = $workorder->ticket_no ?? 'Unknown';
                     continue;
                 }
-                
-                if (!$workorder || !$workorder->canBeStarted()) {
+                if (!$workorder->canBeStarted()) {
                     $failedCount++;
                     $failedWorkorders[] = $workorder->ticket_no ?? 'Unknown';
                     continue;
                 }
-                
                 if ($workorder->start()) {
                     $successCount++;
                 } else {
@@ -1288,6 +1301,11 @@ class WorkorderController extends Controller
      */
     public function batchResolve(Request $request)
     {
+        // 权限检查
+        if (!auth()->user()->canHandleWorkorders()) {
+            return response()->json(['success' => false, 'message' => '您没有权限处理工单'], 403);
+        }
+
         $request->validate([
             'workorder_ids' => 'required|string',
             'solution_type' => 'required|in:common,individual',
@@ -1458,6 +1476,11 @@ class WorkorderController extends Controller
      */
     public function batchComplete(Request $request)
     {
+        // 权限检查
+        if (!auth()->user()->canHandleWorkorders()) {
+            return response()->json(['success' => false, 'message' => '您没有权限处理工单'], 403);
+        }
+
         $request->validate([
             'workorder_ids' => 'required|string',
             'completion_note' => 'nullable|string|max:1000',
@@ -1480,18 +1503,23 @@ class WorkorderController extends Controller
                 $workorder = Workorder::find($workorderId);
                 
                 // 权限检查：只能处理分配给自己的工单，或者管理员/工单管理员可以处理所有工单
+                // 工单不存在时直接跳过，避免空值解引用
+                if (!$workorder) {
+                    $failedCount++;
+                    $failedWorkorders[] = 'Unknown';
+                    continue;
+                }
+                // 权限检查：只能处理分配给自己的工单，或者管理员/工单管理员可以处理所有工单
                 if (!auth()->user()->isAdmin() && !auth()->user()->isWorkorderManager() && $workorder->assignee_id !== auth()->id()) {
                     $failedCount++;
                     $failedWorkorders[] = $workorder->ticket_no ?? 'Unknown';
                     continue;
                 }
-                
-                if (!$workorder || !$workorder->canBeCompleted()) {
+                if (!$workorder->canBeCompleted()) {
                     $failedCount++;
                     $failedWorkorders[] = $workorder->ticket_no ?? 'Unknown';
                     continue;
                 }
-                
                 if ($workorder->complete()) {
                     // 如果有完结备注，添加到日志
                     if (!empty($completionNote)) {
