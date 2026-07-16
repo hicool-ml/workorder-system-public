@@ -175,7 +175,7 @@
                     <span class="text-sm font-semibold text-ink">企业微信</span>
                 </div>
                 <p class="text-xs" style="color: var(--c-ink-muted);">群机器人 Webhook 通知
-                    @if(\App\Models\SystemSetting::get('wecom_webhook_enabled', '0') === '1')
+                    @if(filter_var(\App\Models\SystemSetting::get('wecom_webhook_enabled', '0'), FILTER_VALIDATE_BOOLEAN))
                     <span class="text-green-600 font-medium ml-1">已启用</span>
                     @else
                     <span class="text-orange-500 ml-1">未启用</span>
