@@ -867,7 +867,7 @@ class WorkorderController extends Controller
     public function updateMaterials(Request $request, Workorder $workorder)
     {
         // 权限检查：只有工单的分配处理人、工单管理员或管理员可以编辑备件耗材
-        if (!auth()->user()->isAdmin() && !auth()->user()->isWorkorderManager() && $workorder->assignee_id !== auth()->id() && !$workorder->collaborators()->where('collaborator_id', auth()->id())->exists()) {
+        if (!auth()->user()->canUploadAttachment($workorder)) {
             $message = '您没有权限编辑备件耗材使用情况';
             if ($request->isMethod('get')) {
                 return redirect(\App\Helpers\UrlHelper::relative_url("/workorders/{$workorder->id}"))->with('error', $message);
@@ -912,7 +912,7 @@ class WorkorderController extends Controller
     public function uploadAttachments(Request $request, Workorder $workorder)
     {
         // 权限检查：只有工单的分配处理人、工单管理员、管理员或协作工程师可以上传附件
-        if (!auth()->user()->isAdmin() && !auth()->user()->isWorkorderManager() && $workorder->assignee_id !== auth()->id() && !$workorder->collaborators()->where('collaborator_id', auth()->id())->exists()) {
+        if (!auth()->user()->canUploadAttachment($workorder)) {
             $message = '您没有权限上传附件';
             if ($request->isMethod('get')) {
                 return redirect(\App\Helpers\UrlHelper::relative_url("/workorders/{$workorder->id}"))->with('error', $message);
@@ -966,7 +966,7 @@ class WorkorderController extends Controller
     public function storeVisit(Request $request, Workorder $workorder)
     {
         // 权限检查：只有管理员、工单管理员或工单处理人可以添加回访记录
-        if (!auth()->user()->isAdmin() && !auth()->user()->isWorkorderManager() && $workorder->assignee_id !== auth()->id()) {
+        if (!$workorder->canBeOperatedBy(auth()->user(), 'resolve')) {
             $message = '您没有权限添加回访记录';
             if ($request->isMethod('get')) {
                 return redirect(\App\Helpers\UrlHelper::relative_url("/workorders/{$workorder->id}"))->with('error', $message);
@@ -1048,7 +1048,7 @@ class WorkorderController extends Controller
     public function inviteCollaborator(Request $request, Workorder $workorder)
     {
         // 权限检查：只有工单的分配处理人、工单管理员或管理员可以邀请协作
-        if (!auth()->user()->isAdmin() && !auth()->user()->isWorkorderManager() && $workorder->assignee_id !== auth()->id()) {
+        if (!$workorder->canBeOperatedBy(auth()->user(), 'resolve')) {
             $message = '您没有权限邀请协作';
             if ($request->isMethod('get')) {
                 return redirect(\App\Helpers\UrlHelper::relative_url("/workorders/{$workorder->id}"))->with('error', $message);
@@ -1257,7 +1257,7 @@ class WorkorderController extends Controller
                     continue;
                 }
                 // 权限检查：只能处理分配给自己的工单，或者管理员/工单管理员可以处理所有工单
-                if (!auth()->user()->isAdmin() && !auth()->user()->isWorkorderManager() && $workorder->assignee_id !== auth()->id()) {
+                if (!$workorder->canBeOperatedBy(auth()->user(), 'resolve')) {
                     $failedCount++;
                     $failedWorkorders[] = $workorder->ticket_no ?? 'Unknown';
                     continue;
@@ -1323,7 +1323,7 @@ class WorkorderController extends Controller
                     $workorder = Workorder::find($workorderId);
                     
                     // 权限检查：只能处理分配给自己的工单，或者管理员/工单管理员可以处理所有工单
-                    if (!auth()->user()->isAdmin() && !auth()->user()->isWorkorderManager() && $workorder->assignee_id !== auth()->id()) {
+                    if (!$workorder->canBeOperatedBy(auth()->user(), 'resolve')) {
                         $failedCount++;
                         $failedWorkorders[] = $workorder->ticket_no ?? 'Unknown';
                         continue;
@@ -1359,7 +1359,7 @@ class WorkorderController extends Controller
                     $workorder = Workorder::find($workorderId);
                     
                     // 权限检查：只能处理分配给自己的工单，或者管理员/工单管理员可以处理所有工单
-                    if (!auth()->user()->isAdmin() && !auth()->user()->isWorkorderManager() && $workorder->assignee_id !== auth()->id()) {
+                    if (!$workorder->canBeOperatedBy(auth()->user(), 'resolve')) {
                         $failedCount++;
                         $failedWorkorders[] = $workorder->ticket_no ?? 'Unknown';
                         continue;
@@ -1485,7 +1485,7 @@ class WorkorderController extends Controller
                     continue;
                 }
                 // 权限检查：只能处理分配给自己的工单，或者管理员/工单管理员可以处理所有工单
-                if (!auth()->user()->isAdmin() && !auth()->user()->isWorkorderManager() && $workorder->assignee_id !== auth()->id()) {
+                if (!$workorder->canBeOperatedBy(auth()->user(), 'resolve')) {
                     $failedCount++;
                     $failedWorkorders[] = $workorder->ticket_no ?? 'Unknown';
                     continue;
