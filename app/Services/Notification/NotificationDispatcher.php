@@ -31,13 +31,13 @@ class NotificationDispatcher
     public static function defaultRules(): array
     {
         return [
-            'created'   => ['in_app' => true,  'sms' => false],
-            'assigned'  => ['in_app' => true,  'sms' => true],
-            'started'   => ['in_app' => true,  'sms' => false],
-            'resolved'  => ['in_app' => true,  'sms' => true],
-            'completed' => ['in_app' => true,  'sms' => false],
-            'closed'    => ['in_app' => true,  'sms' => false],
-            'overdue'   => ['in_app' => true,  'sms' => true],
+            'created'   => ['in_app' => true,  'sms' => false, 'wecom' => false],
+            'assigned'  => ['in_app' => true,  'sms' => true,  'wecom' => true],
+            'started'   => ['in_app' => true,  'sms' => false, 'wecom' => false],
+            'resolved'  => ['in_app' => true,  'sms' => true,  'wecom' => false],
+            'completed' => ['in_app' => true,  'sms' => false, 'wecom' => false],
+            'closed'    => ['in_app' => true,  'sms' => false, 'wecom' => false],
+            'overdue'   => ['in_app' => true,  'sms' => true,  'wecom' => true],
         ];
     }
 
@@ -49,8 +49,20 @@ class NotificationDispatcher
         $stored = SystemSetting::get('notification_rules');
 
         if ($stored && is_array($stored)) {
-            // 合并默认规则，确保新增的事件类型不遗漏
-            return array_merge(self::defaultRules(), $stored);
+            // 逐事件深度合并，确保每个事件都包含所有通道（in_app/sms/wecom）
+            $defaults = self::defaultRules();
+            $merged = [];
+            foreach ($defaults as $event => $defaultChannels) {
+                $storedChannels = $stored[$event] ?? [];
+                $merged[$event] = array_merge($defaultChannels, $storedChannels);
+            }
+            // 保留 stored 中可能有但 defaults 里没有的事件
+            foreach ($stored as $event => $channels) {
+                if (!isset($merged[$event])) {
+                    $merged[$event] = $channels;
+                }
+            }
+            return $merged;
         }
 
         $defaults = self::defaultRules();
@@ -63,7 +75,18 @@ class NotificationDispatcher
      */
     public static function updateRules(array $rules): void
     {
-        $merged = array_merge(self::defaultRules(), $rules);
+        // 逐事件深度合并，确保每个事件都有完整的三通道结构
+        $defaults = self::defaultRules();
+        $merged = [];
+        foreach ($defaults as $event => $defaultChannels) {
+            $storedChannels = $rules[$event] ?? [];
+            $merged[$event] = array_merge($defaultChannels, $storedChannels);
+        }
+        foreach ($rules as $event => $channels) {
+            if (!isset($merged[$event])) {
+                $merged[$event] = $channels;
+            }
+        }
         SystemSetting::set('notification_rules', $merged, 'json', '通知规则（事件x通道）', false);
     }
 
@@ -104,9 +127,10 @@ class NotificationDispatcher
         $rules = self::getRules();
         $inAppEnabled = ($rules[$event]['in_app'] ?? false) === true;
         $smsEnabled = ($rules[$event]['sms'] ?? false) === true;
+        $wecomEnabled = ($rules[$event]['wecom'] ?? false) === true;
 
-        // 如果两个通道都关闭，直接返回
-        if (!$inAppEnabled && !$smsEnabled) {
+        // 如果所有通道都关闭，直接返回
+        if (!$inAppEnabled && !$smsEnabled && !$wecomEnabled) {
             return;
         }
 
@@ -125,6 +149,11 @@ class NotificationDispatcher
         // 短信通知
         if ($smsEnabled) {
             $this->sendSms($workorder, $event, $recipients);
+        }
+
+        // 企业微信群通知
+        if ($wecomEnabled) {
+            $this->sendWeCom($workorder, $event, $recipients);
         }
     }
 
@@ -285,6 +314,11 @@ class NotificationDispatcher
         if ($workorder->building && trim($workorder->building)) {
             $b = trim($workorder->building);
             $b = preg_replace('/^(new_|old_|asean_)campus\s*[-_]?\s*/i', '', $b);
+            // building 存的是 locations 表的 id，查完整楼名
+            $loc = \App\Models\Location::find($b);
+            if ($loc) {
+                $b = $loc->name;
+            }
             $parts[] = $b;
         }
         if ($workorder->location_detail && trim($workorder->location_detail)) {
@@ -298,6 +332,76 @@ class NotificationDispatcher
      * Build in-app notification content
      * Format matches old system: address - description - status - assignee
      */
+    /**
+     * 发送企业微信群通知
+     */
+    private function sendWeCom(Workorder $workorder, string $event, array $recipients): void
+    {
+        $wecom = app(WeComWebhookService::class);
+
+        if (!$wecom->isEnabled()) {
+            return;
+        }
+
+        $eventLabels = self::getEventLabels();
+        $label = $eventLabels[$event] ?? $event;
+        $systemName = SystemSetting::get('system_name', '工单系统');
+        $address = $this->buildAddress($workorder);
+        $description = mb_substr($workorder->description ?: $workorder->title ?: '未知故障', 0, 30);
+        $status = $workorder->status_text ?: '未知状态';
+
+        $content = "【{$systemName}】{$label}\n"
+            . "编号：{$workorder->ticket_no}\n"
+            . "地点：{$address}\n"
+            . "描述：{$description}";
+
+        // 收集 @ 信息：优先企业微信 userid，手机号作为 mentioned_mobile_list
+        $mentionedUserIds = [];
+        $mentionedMobiles = [];
+        foreach ($recipients as $user) {
+            if (!empty($user->wecom_userid)) {
+                // 有 userid 优先用 userid @
+                $mentionedUserIds[] = $user->wecom_userid;
+            } elseif (!empty($user->phone)) {
+                // 没填 userid 则用手机号 @
+                $mentionedMobiles[] = $user->phone;
+            }
+        }
+        // 处理人只显示工单实际的 assignee，不是所有通知接收者
+        $assigneeNames = $workorder->assignee ? $workorder->assignee->name : '';
+        if ($assigneeNames) {
+            $content .= "\n处理人：{$assigneeNames}";
+        } elseif ($event === 'created') {
+            $content .= "\n处理人：待分配";
+        }
+        $content .= "\n状态：{$status}";
+
+        // 工单链接（放在最后一行，去掉"链接："前缀，微信可能自动识别）
+        $baseUrl = rtrim(SystemSetting::get('system_url', config('app.url', '')), '/');
+        if ($baseUrl) {
+            $content .= "\n{$baseUrl}/workorders/{$workorder->id}";
+        }
+
+        if ($event === 'created') {
+            // 创建时 @所有人，提醒管理员有新工单
+            $result = $wecom->sendText($content, ['@all']);
+        } else {
+            // assigned/overdue 只 @ 对应的工程师
+            $shouldMention = in_array($event, ['assigned', 'overdue'])
+                && (!empty($mentionedUserIds) || !empty($mentionedMobiles));
+            $result = $wecom->sendText(
+                $content,
+                $shouldMention ? $mentionedUserIds : [],
+                $shouldMention ? $mentionedMobiles : []
+            );
+        }
+
+        Log::info('工单企业微信通知', [
+            'workorder_id' => $workorder->id,
+            'event' => $event,
+            'success' => $result['success'],
+        ]);
+    }
     private function buildContent(Workorder $workorder, string $event): string
     {
         $address = $this->buildAddress($workorder);
@@ -318,7 +422,6 @@ class NotificationDispatcher
         $label = $eventLabels[$event] ?? $event;
         $systemName = SystemSetting::get('system_name', '工单系统');
         // 短信内容脱敏：不含工单标题（可能含用户故障描述），仅用编号
-        return "【{$systemName}】工单{$label}，编号：{$workorder->ticket_no}，请登录系统查看详情。";
+        return "【{$systemName}】{$label}，编号：{$workorder->ticket_no}，请登录系统查看详情。";
     }
 }
-

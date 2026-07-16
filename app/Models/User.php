@@ -26,6 +26,7 @@ class User extends Authenticatable
         'password',
         'phone',
         'employee_id',
+        'wecom_userid',
         'department_id',
         'role',
         'status',

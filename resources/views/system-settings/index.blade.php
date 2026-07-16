@@ -69,6 +69,11 @@
                     <label class="label" for="system_release_date">发布日期</label>
                     <input type="date" class="input" id="system_release_date" name="settings[system_release_date]" value="{{ $groupedSettings['version']->firstWhere('key', 'system_release_date')?->typed_value ?? date('Y-m-d') }}">
                 </div>
+                <div class="sm:col-span-3">
+                    <label class="label" for="system_url">系统访问地址</label>
+                    <input type="url" class="input" id="system_url" name="settings[system_url]" value="{{ $groupedSettings['system']->firstWhere('key', 'system_url')?->typed_value ?? '' }}" placeholder="http://192.168.1.100:8099">
+                    <p class="text-xs mt-1" style="color: var(--c-ink-subtle);">企业微信通知中的工单链接会使用此地址，需填实际可访问的 IP/域名</p>
+                </div>
             </div>
             <div class="mt-4">
                 <button type="submit" class="btn btn-primary">
@@ -137,7 +142,7 @@
         <div class="px-5 py-4 border-b border-border">
             <h3 class="text-sm font-semibold text-ink">集成配置</h3>
         </div>
-        <div class="p-5 grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div class="p-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
 
             {{-- 通知规则 --}}
             <a href="{{ route('system-settings.notification-rules') }}" class="block p-4 rounded-lg border border-border hover:border-brand-400 hover:shadow-sm transition-all">
@@ -159,6 +164,23 @@
                     <span class="text-sm font-semibold text-ink">短信配置</span>
                 </div>
                 <p class="text-xs" style="color: var(--c-ink-muted);">短信服务商密钥和模板配置</p>
+            </a>
+
+            {{-- 企业微信群机器人 --}}
+            <a href="{{ route('system-settings.wecom') }}" class="block p-4 rounded-lg border border-border hover:border-brand-400 hover:shadow-sm transition-all">
+                <div class="flex items-center gap-3 mb-2">
+                    <div class="w-10 h-10 rounded-lg flex items-center justify-center bg-emerald-50 dark:bg-emerald-900/20">
+                        <svg class="w-5 h-5 text-emerald-600 dark:text-emerald-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 11a4 4 0 1 0-8 0 4 4 0 0 0 8 0z M16 11a4 4 0 1 0-8 0 4 4 0 0 0 8 0z M16 19a4 4 0 1 0-8 0 4 4 0 0 0 8 0z M24 19a4 4 0 1 0-8 0 4 4 0 0 0 8 0z"/></svg>
+                    </div>
+                    <span class="text-sm font-semibold text-ink">企业微信</span>
+                </div>
+                <p class="text-xs" style="color: var(--c-ink-muted);">群机器人 Webhook 通知
+                    @if(\App\Models\SystemSetting::get('wecom_webhook_enabled', '0') === '1')
+                    <span class="text-green-600 font-medium ml-1">已启用</span>
+                    @else
+                    <span class="text-orange-500 ml-1">未启用</span>
+                    @endif
+                </p>
             </a>
 
             {{-- CAS 统一身份认证 --}}

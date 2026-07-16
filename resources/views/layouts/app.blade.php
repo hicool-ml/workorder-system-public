@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <meta name="theme-color" content="#2563eb">
-    <title>@yield('title', '工单系统')</title>
+<title>@yield('title', \App\Helpers\SystemHelper::getSystemName())</title>
 
     {{-- Dark mode: apply before paint to prevent flash --}}
     <script>
@@ -34,7 +34,7 @@
                 </button>
                 <a href="{{ route('workorders.index') }}" class="flex items-center gap-2 font-semibold">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
-                    <span class="text-sm">工单系统</span>
+<span class="text-sm">{{ \App\Helpers\SystemHelper::getSystemName() }}</span>
                 </a>
             </div>
             <div class="flex items-center gap-1">
@@ -53,7 +53,7 @@
         <div class="flex items-center justify-between px-5 h-14 border-b border-brand-700 shrink-0">
             <a href="{{ route('workorders.index') }}" class="flex items-center gap-2 font-semibold">
                 <svg class="w-5 h-5 text-brand-300" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
-                <span>工单管理系统</span>
+<span>{{ \App\Helpers\SystemHelper::getSystemName() }}</span>
             </a>
             <button type="button" onclick="toggleDrawer()" class="lg:hidden p-1.5 rounded-lg hover:bg-brand-700">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12"/></svg>
@@ -146,6 +146,13 @@
                 </form>
             </div>
         </nav>
+        {{-- Copyright footer --}}
+        <div class="px-4 py-3 border-t border-brand-700 shrink-0">
+            <p class="text-[11px] text-brand-300 leading-relaxed">
+                {{ \App\Helpers\SystemHelper::getSystemCopyright() }}<br>
+                <span class="text-brand-400">© {{ date("Y") }} hicool</span>
+            </p>
+        </div>
     </aside>
 
     {{-- Desktop top bar --}}

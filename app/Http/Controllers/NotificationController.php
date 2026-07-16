@@ -290,6 +290,22 @@ class NotificationController extends Controller
                 'notification_id' => $notification ? $notification->id : null
             ]);
             
+            // 同步推送到企业微信
+            try {
+                $wecom = app(\App\Services\Notification\WeComWebhookService::class);
+                if ($wecom->isEnabled()) {
+                    $systemName = \App\Models\SystemSetting::get('system_name', '工单系统');
+                    $title = $request->input('title');
+                    $content = $request->input('content');
+                    $message = "【{$systemName}】系统公告\n"
+                        . "{$title}\n"
+                        . "{$content}";
+                    $wecom->sendText($message, ['@all']);
+                }
+            } catch (\Exception $wecomEx) {
+                \Log::warning('公告推送企业微信失败', ['error' => $wecomEx->getMessage()]);
+            }
+            
             // 检查是否为AJAX请求
             if ($request->expectsJson()) {
                 return response()->json(['success' => true, 'message' => '系统公告创建成功']);

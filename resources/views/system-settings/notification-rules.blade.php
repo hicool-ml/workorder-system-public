@@ -20,12 +20,13 @@
             <thead>
                 <tr class="border-b-2 border-border">
                     <th class="text-left py-3 px-2 font-semibold text-ink">工单事件</th>
-                    <th class="text-center py-3 px-4 font-semibold text-ink">站内通知</th>
+                   <th class="text-center py-3 px-4 font-semibold text-ink">站内通知</th>
                     <th class="text-center py-3 px-4 font-semibold text-ink">短信通知</th>
+                    <th class="text-center py-3 px-4 font-semibold text-ink">企业微信</th>
                 </tr>
             </thead>
             <tbody id="rules-body">
-                <tr><td colspan="3" class="text-center py-8" style="color: var(--c-ink-subtle);">加载中...</td></tr>
+                <tr><td colspan="4" class="text-center py-8" style="color: var(--c-ink-subtle);">加载中...</td></tr>
             </tbody>
         </table>
     </div>
@@ -67,6 +68,7 @@
 .toggle-switch input:checked + .toggle-slider { background-color: #2563eb; }
 .toggle-switch input:checked + .toggle-slider:before { transform: translateX(20px); }
 .sms-switch input:checked + .toggle-slider { background-color: #059669; }
+.wecom-switch input:checked + .toggle-slider { background-color: #059669; }
 </style>
 @endsection
 
@@ -86,6 +88,7 @@ async function loadRules() {
         renderRules();
     } catch (e) {
         document.getElementById('rules-body').innerHTML = '<tr><td colspan="3" class="text-center py-8 text-red-500">加载失败</td></tr>';
+        document.getElementById('rules-body').innerHTML = '<tr><td colspan="4" class="text-center py-8 text-red-500">加载失败</td></tr>';
     }
 }
 
@@ -97,6 +100,7 @@ function renderRules() {
         const key = entry[0], label = entry[1];
         const inApp = (currentRules[key] || {}).in_app === true;
         const sms = (currentRules[key] || {}).sms === true;
+        const wecom = (currentRules[key] || {}).wecom === true;
 
         const tr = document.createElement('tr');
         tr.className = 'border-b border-border';
@@ -111,6 +115,12 @@ function renderRules() {
             '<td class="text-center py-3 px-4">' +
                 '<label class="toggle-switch sms-switch">' +
                     '<input type="checkbox" data-event="' + key + '" data-channel="sms" ' + (sms ? 'checked' : '') + ' onchange="updateRule(this)">' +
+                    '<span class="toggle-slider"></span>' +
+                '</label>' +
+            '</td>' +
+            '<td class="text-center py-3 px-4">' +
+                '<label class="toggle-switch wecom-switch">' +
+                    '<input type="checkbox" data-event="' + key + '" data-channel="wecom" ' + (wecom ? 'checked' : '') + ' onchange="updateRule(this)">' +
                     '<span class="toggle-slider"></span>' +
                 '</label>' +
             '</td>';

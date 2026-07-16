@@ -268,13 +268,13 @@
                                 @if($workorder->campus)
                                     {{ $workorder->campus }}
                                 @endif
-                                @if($workorder->building)
-                                    @php
+                               @if($workorder->building)
+                                   @php
                                         $building = \App\Models\Location::find($workorder->building);
-                                        echo ' - ' . ($building ? $building->name : $workorder->building);
-                                        if ($workorder->location_detail) echo ' ' . $workorder->location_detail;
-                                    @endphp
-                                @endif
+                                       echo ' - ' . ($building ? $building->name : $workorder->building);
+                                       if ($workorder->location_detail) echo ' ' . $workorder->location_detail;
+                                   @endphp
+                               @endif
                             </div>
                         </td>
                         <td class="px-4 py-3 max-w-[200px]">
@@ -365,10 +365,18 @@
                 {{-- Location --}}
                 <div class="text-xs text-ink-muted mb-2 flex items-center gap-1">
                     <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z M12 13a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/></svg>
-                    <span class="truncate">
-                        @if($workorder->campus){{ $workorder->campus }}@endif
-                        @if($workorder->building) - {{ \App\Models\Location::find($workorder->building)?->name ?? $workorder->building }}@endif
-                    </span>
+                  <span class="truncate">
+                     @php
+                         $addrParts = [];
+                         if ($workorder->campus) $addrParts[] = $workorder->campus;
+                         if ($workorder->building) {
+                              $bName = \App\Models\Location::find($workorder->building)?->name;
+                             $addrParts[] = $bName ?: $workorder->building;
+                         }
+                         if ($workorder->location_detail) $addrParts[] = $workorder->location_detail;
+                     @endphp
+                      {{ implode(' ', $addrParts) }}
+                  </span>
                 </div>
 
                 {{-- Badges --}}

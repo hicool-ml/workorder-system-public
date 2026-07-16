@@ -197,27 +197,9 @@ class Notification extends Model
         // 处理楼栋信息
         if ($workorder->building && !empty(trim($workorder->building))) {
             $building = trim($workorder->building);
-            // 移除校区前缀，只保留楼栋号
-            $building = preg_replace('/^(new_|old_|asean_)campus\s*[-_]?\s*/i', '', $building);
-            // 提取数字部分
-            if (preg_match('/(\d+)/', $building, $matches)) {
-                $addressParts[] = $matches[1] . '栋';
-            } else {
-                $addressParts[] = $building;
-            }
-        }
-        
-        // 处理位置信息
-        if ($workorder->location && !empty(trim($workorder->location))) {
-            $location = trim($workorder->location);
-            // 移除校区前缀
-            $location = preg_replace('/^(new_|old_|asean_)campus\s*[-_]?\s*/i', '', $location);
-            // 提取房间号
-            if (preg_match('/(\d+)/', $location, $matches)) {
-                $addressParts[] = $matches[1] . '室';
-            } else {
-                $addressParts[] = $location;
-            }
+            // building 存的是 locations 表的 id，查完整楼名
+            $loc = \App\Models\Location::find($building);
+            $addressParts[] = $loc ? $loc->name : $building;
         }
         
         // 处理详细位置

@@ -618,8 +618,6 @@ class WorkorderController extends Controller
         ]);
 
         if ($workorder->assign($request->input('assignee_id'))) {
-            // 发送通知
-            $workorder->sendNotification('assigned', [], [$workorder->assignee_id]);
             return back()->with('success', '工单分配成功');
         }
         
@@ -649,8 +647,6 @@ class WorkorderController extends Controller
         }
 
         if ($workorder->assign(Auth::id())) {
-            // 发送通知
-            $workorder->sendNotification('assigned', [], [$workorder->assignee_id]);
             $message = '接单成功，工单已分配给您';
             if ($request->isMethod('get')) {
                 return redirect(\App\Helpers\UrlHelper::relative_url('/workorders'))->with('success', $message);
@@ -738,6 +734,15 @@ class WorkorderController extends Controller
             
             // 发送通知
             $workorder->sendNotification('resolved');
+
+            // 系统设置不需要用户确认完结时，工程师解决后自动完结（签单工单除外）
+            $requireConfirm = \App\Models\SystemSetting::get('require_user_completion_confirm', '0');
+            if ($requireConfirm !== '1' && !$workorder->requires_signature) {
+                $workorder->complete();
+                $workorder->sendNotification('completed');
+                return back()->with('success', '工单已解决并自动完结');
+            }
+
             return back()->with('success', '工单已标记为解决');
         }
         

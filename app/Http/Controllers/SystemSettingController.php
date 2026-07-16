@@ -7,6 +7,9 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Storage;
+
 class SystemSettingController extends Controller
 {
     /**
@@ -466,6 +469,189 @@ class SystemSettingController extends Controller
         $enabled = $request->boolean('cas_enabled');
         SystemSetting::set('cas_enabled', $enabled, 'boolean', '是否启用CAS统一身份认证', false);
 
-        return back()->with('success', 'CAS认证配置已保存' . ($enabled ? '（已启用）' : '（未启用）'));
+       return back()->with('success', 'CAS认证配置已保存' . ($enabled ? '（已启用）' : '（未启用）'));
+   }
+
+    /**
+     * 企业微信通知配置页面
+     */
+    public function wecom()
+    {
+        if (!Auth::user() || !Auth::user()->isAdmin()) {
+            return redirect()->route('system-settings.index')->with('error', '无权操作');
+        }
+
+        $wecomSettings = [
+            'send_mode'       => SystemSetting::get('wecom_send_mode', 'webhook'),
+            'webhook_enabled' => filter_var(SystemSetting::get('wecom_webhook_enabled', '0'), FILTER_VALIDATE_BOOLEAN),
+            'webhook_url'     => SystemSetting::get('wecom_webhook_url', ''),
+            'app_enabled'     => filter_var(SystemSetting::get('wecom_app_enabled', '0'), FILTER_VALIDATE_BOOLEAN),
+            'app_corpid'      => SystemSetting::get('wecom_app_corpid', ''),
+            'app_secret'      => SystemSetting::get('wecom_app_secret', ''),
+            'app_agentid'     => SystemSetting::get('wecom_app_agentid', ''),
+            'ssl_verify_enabled' => filter_var(SystemSetting::get('ssl_verify_enabled', '1'), FILTER_VALIDATE_BOOLEAN),
+            'ssl_cacert_path'    => SystemSetting::get('ssl_cacert_path', ''),
+            'ssl_cacert_exists'  => file_exists(SystemSetting::get('ssl_cacert_path', '') ?: ''),
+        ];
+
+        return view('system-settings.wecom', compact('wecomSettings'));
+    }
+
+    /**
+     * 更新企业微信通知配置（群机器人 / 自建应用）
+     */
+    public function updateWecom(Request $request)
+    {
+        if (!Auth::user() || !Auth::user()->isAdmin()) {
+            return redirect()->route('system-settings.index')->with('error', '无权操作');
+        }
+
+        $mode = $request->input('wecom_send_mode', 'webhook');
+        if (!in_array($mode, ['webhook', 'app'])) {
+            $mode = 'webhook';
+        }
+        SystemSetting::set('wecom_send_mode', $mode, 'string', '企业微信推送模式', false);
+
+        if ($mode === 'webhook') {
+            $request->validate([
+                'wecom_webhook_url' => 'nullable|string|max:500',
+            ]);
+            $url = trim($request->input('wecom_webhook_url', ''));
+            $whEnabled = $request->boolean('wecom_webhook_enabled');
+            if ($whEnabled && empty($url)) {
+                return back()->withInput()->with('error', '启用前请先填写企业微信 Webhook 地址');
+            }
+            SystemSetting::set('wecom_webhook_url', $url, 'string', '企业微信群机器人 Webhook 地址', false);
+            SystemSetting::set('wecom_webhook_enabled', $whEnabled, 'boolean', '是否启用企业微信群机器人通知', false);
+            return back()->with('success', '企业微信配置已保存' . ($whEnabled ? '（已启用）' : '（未启用）'));
+        }
+
+        // 自建应用模式
+        $request->validate([
+            'wecom_app_corpid'   => 'nullable|string|max:200',
+            'wecom_app_secret'   => 'nullable|string|max:200',
+            'wecom_app_agentid'  => 'nullable|string|max:50',
+        ]);
+        $appEnabled = $request->boolean('wecom_app_enabled');
+        $corpid = trim($request->input('wecom_app_corpid', ''));
+        if ($appEnabled && empty($corpid)) {
+            return back()->withInput()->with('error', '启用前请先填写企业ID（CorpID）');
+        }
+        SystemSetting::set('wecom_app_corpid', $corpid, 'string', '企业微信企业ID', false);
+        SystemSetting::set('wecom_app_secret', trim($request->input('wecom_app_secret', '')), 'string', '企业微信自建应用Secret', false);
+        SystemSetting::set('wecom_app_agentid', trim($request->input('wecom_app_agentid', '')), 'string', '企业微信自建应用AgentID', false);
+        SystemSetting::set('wecom_app_enabled', $appEnabled, 'boolean', '是否启用企业微信自建应用通知', false);
+        Cache::forget('wecom_app_access_token');
+        return back()->with('success', '企业微信配置已保存' . ($appEnabled ? '（已启用）' : '（未启用）'));
+    }
+
+    /**
+     * 发送企业微信测试消息
+     */
+    public function testWecom(Request $request)
+    {
+        if (!Auth::user() || !Auth::user()->isAdmin()) {
+            return response()->json(['success' => false, 'message' => '无权操作'], 403);
+        }
+
+        $wecom = app(\App\Services\Notification\WeComWebhookService::class);
+        $systemName = SystemSetting::get('system_name', '工单系统');
+
+        $content = "【{$systemName}】测试通知\n"
+            . "这是一条来自工单系统的测试消息。\n"
+            . "收到此消息说明企业微信通知配置成功。";
+
+        $mode = $request->input('wecom_send_mode', $wecom->getSendMode());
+
+        // 检查当前推送通道是否已启用（与工单通知的 isEnabled() 检查一致）
+        $enabled = $wecom->isEnabled();
+
+        // 统一用 text 类型发送（纯文本），与工单通知格式一致
+        $result = $wecom->sendText($content);
+
+        // 即使测试发送成功，如果通道未启用也必须明确告知用户
+        if ($result['success'] && !$enabled) {
+            return response()->json([
+                'success'         => false,
+                'message'         => '测试消息已发送成功，但当前推送通道未启用，工单通知不会发送。请在上方勾选「启用」后再保存。',
+                'test_sent'       => true,
+                'channel_enabled' => false,
+            ]);
+        }
+
+        return response()->json($result);
+    }
+
+    /**
+     * 上传 CA 证书文件
+     */
+    public function uploadCacert(Request $request)
+    {
+        if (!Auth::user() || !Auth::user()->isAdmin()) {
+            return response()->json(['success' => false, 'message' => '无权操作'], 403);
+        }
+
+        $request->validate([
+            'cacert_file' => 'required|file|max:1024',
+        ]);
+
+        $file = $request->file('cacert_file');
+        $content = file_get_contents($file->getRealPath());
+
+        // 校验是否为有效的 PEM 格式 CA 证书
+        if (strpos($content, 'BEGIN CERTIFICATE') === false) {
+            return response()->json(['success' => false, 'message' => '文件不是有效的 PEM 格式 CA 证书（缺少 BEGIN CERTIFICATE 标记）']);
+        }
+
+        // 存储到 storage/app/cacert.pem
+        $path = storage_path('app/cacert.pem');
+        file_put_contents($path, $content);
+
+        SystemSetting::set('ssl_cacert_path', $path, 'string', '自定义 CA 证书路径', false);
+        // 上传证书后自动开启 SSL 验证
+        SystemSetting::set('ssl_verify_enabled', true, 'boolean', '是否启用 HTTPS SSL 证书验证', false);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'CA 证书上传成功，已自动启用 SSL 验证',
+            'path' => $path,
+        ]);
+    }
+
+    /**
+     * 切换 SSL 验证开关
+     */
+    public function toggleSslVerify(Request $request)
+    {
+        if (!Auth::user() || !Auth::user()->isAdmin()) {
+            return response()->json(['success' => false, 'message' => '无权操作'], 403);
+        }
+
+        $enabled = $request->boolean('enabled');
+        SystemSetting::set('ssl_verify_enabled', $enabled, 'boolean', '是否启用 HTTPS SSL 证书验证', false);
+
+        return response()->json([
+            'success' => true,
+            'message' => $enabled ? 'SSL 验证已开启' : 'SSL 验证已关闭（仅限测试环境）',
+            'enabled' => $enabled,
+        ]);
+    }
+
+    /**
+     * 删除已上传的 CA 证书
+     */
+    public function deleteCacert(Request $request)
+    {
+        if (!Auth::user() || !Auth::user()->isAdmin()) {
+            return response()->json(['success' => false, 'message' => '无权操作'], 403);
+        }
+
+        $path = SystemSetting::get('ssl_cacert_path', '');
+        if (!empty($path) && file_exists($path)) {
+            @unlink($path);
+        }
+        SystemSetting::set('ssl_cacert_path', '', 'string', '自定义 CA 证书路径', false);
+
+        return response()->json(['success' => true, 'message' => 'CA 证书已删除，将使用系统默认配置']);
     }
 }

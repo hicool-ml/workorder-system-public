@@ -97,6 +97,11 @@
                         @error('employee_id')<p class="text-xs text-red-500 mt-1">{{ $message }}</p>@enderror
                     </div>
                     <div>
+                        <label class="label" for="wecom_userid">企业微信UserID</label>
+                        <input type="text" class="input" id="wecom_userid" name="wecom_userid" value="{{ old('wecom_userid', $user->wecom_userid) }}" maxlength="100" placeholder="可选，用于@提醒">
+                        @error('wecom_userid')<p class="text-xs text-red-500 mt-1">{{ $message }}</p>@enderror
+                    </div>
+                    <div>
                         <label class="label" for="location">办公地点</label>
                         <input type="text" class="input" id="location" name="location" value="{{ old('location', $user->location) }}" maxlength="255">
                         @error('location')<p class="text-xs text-red-500 mt-1">{{ $message }}</p>@enderror

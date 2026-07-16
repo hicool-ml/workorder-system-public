@@ -68,18 +68,23 @@
             @error('department_id')<p class="text-xs text-red-500 mt-1">{{ $message }}</p>@enderror
         </div>
     </div>
-    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div>
-            <label class="label" for="phone">联系电话</label>
-            <input type="text" class="input" id="phone" name="phone" value="{{ old('phone') }}">
-            @error('phone')<p class="text-xs text-red-500 mt-1">{{ $message }}</p>@enderror
-        </div>
-        <div>
-            <label class="label" for="employee_id">工号</label>
-            <input type="text" class="input" id="employee_id" name="employee_id" value="{{ old('employee_id') }}">
-            @error('employee_id')<p class="text-xs text-red-500 mt-1">{{ $message }}</p>@enderror
-        </div>
-    </div>
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+         <div>
+             <label class="label" for="phone">联系电话</label>
+             <input type="text" class="input" id="phone" name="phone" value="{{ old('phone') }}">
+             @error('phone')<p class="text-xs text-red-500 mt-1">{{ $message }}</p>@enderror
+         </div>
+         <div>
+             <label class="label" for="employee_id">工号</label>
+             <input type="text" class="input" id="employee_id" name="employee_id" value="{{ old('employee_id') }}">
+             @error('employee_id')<p class="text-xs text-red-500 mt-1">{{ $message }}</p>@enderror
+         </div>
+         <div>
+             <label class="label" for="wecom_userid">企业微信UserID</label>
+             <input type="text" class="input" id="wecom_userid" name="wecom_userid" value="{{ old('wecom_userid') }}" maxlength="100" placeholder="可选，用于@提醒">
+             @error('wecom_userid')<p class="text-xs text-red-500 mt-1">{{ $message }}</p>@enderror
+         </div>
+     </div>
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
             <label class="label" for="status">状态 <span class="text-red-500">*</span></label>

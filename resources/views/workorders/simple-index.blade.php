@@ -103,8 +103,9 @@
                                     {{ $workorder->campus }}
                                 @endif
                                 @if(\$workorder->building)
-                                    {{ \$workorder->building }}
+                                    {{ \App\Models\Location::find(\$workorder->building)?->name ?? \$workorder->building }}
                                 @endif
+                                @if(\$workorder->location_detail) {{ \$workorder->location_detail }}@endif
                             </small>
                         </td>
                         <td>
