@@ -63,6 +63,21 @@ class AdminUserSeeder extends Seeder
         ]);
 
         // æ™®é€šç”¨æˆ·
+        // ¹¤µ¥¹ÜÀíÔ±
+        User::firstOrCreate(['email' => 'manager@workorder.com'], [
+            'username' => 'manager',
+            'name' => '²âÊÔ¹¤µ¥¹ÜÀíÔ±',
+            'email' => 'manager@workorder.com',
+            'password' => Hash::make('manager123'),
+            'phone' => '13800000003',
+            'employee_id' => 'MGR001',
+            'department_id' => $itDepartment?->id,
+            'role' => 'workorder_manager',
+            'status' => 'active',
+            'location' => 'ÐÐÕþÂ¥',
+            'remarks' => 'ÏµÍ³²âÊÔ¹¤µ¥¹ÜÀíÔ±ÕËºÅ',
+        ]);
+
         User::firstOrCreate(['email' => 'user@workorder.com'], [
             'username' => 'user',
             'name' => 'æµ‹è¯•ç”¨æˆ·',

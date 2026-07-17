@@ -223,6 +223,7 @@ CAS 用户属性映射在 `config/services.php` 的 `cas` 节配置。
 | 角色 | 登录名 | 密码 | 说明 |
 |------|--------|------|------|
 | 管理员 | admin | admin123 | 全部权限 |
+| 工单管理员 | manager | manager123 | 接收报修、工单调度 |
 | 工程师 | engineer | engineer123 | 接单处理 |
 | 普通用户 | user | user123 | 提交工单 |
 
