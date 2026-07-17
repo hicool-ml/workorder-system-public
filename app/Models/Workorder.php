@@ -1134,8 +1134,13 @@ class Workorder extends Model
             return false;
         }
         
-        // 检查是否可以邀请（工单负责人或已接受的协作工程师可以邀请）
-        if ($inviter->id !== $this->assignee_id) {
+        // 检查是否可以邀请：工单负责人、管理员、工单管理员，或已接受的协作工程师
+        // 注意：需与 WorkorderPermissionService::canInviteCollaboration 的判断保持一致，
+        // 否则前端按钮显示但提交被静默拒绝。
+        if ($inviter->id !== $this->assignee_id
+            && !$inviter->isAdmin()
+            && !$inviter->isWorkorderManager()
+        ) {
             // 检查是否是已接受的协作工程师
             $isCollaborator = $this->collaborations()
                 ->where('collaborator_id', $inviter->id)
