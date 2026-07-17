@@ -340,10 +340,10 @@ class User extends Authenticatable
                 return true;
             }
             
-            // 检查是否是协作工程师
+            // 检查是否是协作工程师（含待接受：被邀请人需先看到工单才能接受邀请）
             return $workorder->collaborations()
                 ->where('collaborator_id', $this->id)
-                ->where('status', 'accepted')
+                ->whereIn('status', ['pending', 'accepted'])
                 ->exists();
         }
         
@@ -386,10 +386,10 @@ class User extends Authenticatable
                 return true;
             }
             
-            // 检查是否是协作工程师
+            // 检查是否是协作工程师（含待接受：被邀请人需先看到工单才能接受邀请）
             return $workorder->collaborations()
                 ->where('collaborator_id', $this->id)
-                ->where('status', 'accepted')
+                ->whereIn('status', ['pending', 'accepted'])
                 ->exists();
         }
         
