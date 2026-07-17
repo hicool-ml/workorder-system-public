@@ -205,7 +205,16 @@ body.drawer-open { overflow: hidden; }
     background-color: var(--c-muted); color: var(--c-ink-subtle); cursor: not-allowed; opacity: 0.6;
 }
 .pagination-dots {
-    display: inline-flex; align-items: center; justify-content: center;
-    min-width: 2.25rem; height: 2.25rem;
-    font-size: 0.875rem; color: var(--c-ink-subtle);
+   display: inline-flex; align-items: center; justify-content: center;
+   min-width: 2.25rem; height: 2.25rem;
+   font-size: 0.875rem; color: var(--c-ink-subtle);
+}
+
+/* Highlight flash for freshly uploaded attachments card */
+@keyframes highlight-flash {
+    0%   { background-color: rgba(34, 197, 94, 0.28); box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.22); }
+    100% { background-color: var(--c-card); box-shadow: none; }
+}
+#attachments-card.highlight-flash {
+    animation: highlight-flash 2.4s ease-out;
 }

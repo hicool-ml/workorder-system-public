@@ -270,8 +270,8 @@
             @endif
         </div>
 
-        {{-- Attachments --}}
-        <div class="card p-5">
+       {{-- Attachments --}}
+        <div class="card p-5 scroll-mt-24" id="attachments-card">
             <div class="flex items-center justify-between mb-3">
                 <h3 class="text-sm font-semibold text-ink">附件</h3>
                 @if(canUploadAttachment($workorder))
@@ -535,16 +535,16 @@
                <button type="button" onclick="closeModal('uploadAttachmentModal')" class="btn btn-secondary">取消</button>
                 <button type="submit" class="btn btn-primary" id="attachmentUploadBtn">上传</button>
            </div>
-            <div id="attachmentUploadProgress" class="hidden mt-3">
-                <div class="flex items-center justify-between mb-1 text-xs" style="color: var(--c-ink-subtle);">
-                    <span id="attachmentUploadStatus">上传中...</span>
-                    <span id="attachmentUploadPercent">0%</span>
-                </div>
-                <div class="w-full bg-surface-muted rounded-full h-2 overflow-hidden">
-                    <div id="attachmentUploadBar" class="h-2 rounded-full transition-all duration-200" style="width:0%;background:linear-gradient(90deg,#3b82f6,#6366f1);"></div>
-                </div>
-            </div>
-       </form>
+          <div id="attachmentUploadProgress" class="hidden mt-3">
+              <div class="flex items-center justify-between mb-1 text-xs" style="color: var(--c-ink-subtle);">
+                  <span id="attachmentUploadStatus">上传中...</span>
+                  <span id="attachmentUploadPercent">0%</span>
+              </div>
+              <div class="w-full bg-surface-muted rounded-full h-2 overflow-hidden">
+                  <div id="attachmentUploadBar" class="h-2 rounded-full transition-all duration-200" style="width:0%;background:linear-gradient(90deg,#3b82f6,#6366f1);"></div>
+              </div>
+          </div>
+     </form>
     </div>
 </div>
 @endif
@@ -750,8 +750,24 @@ document.getElementById('no_materials')?.addEventListener('change', function() {
         var progStatus = document.getElementById('attachmentUploadStatus');
         if (!form || !btn || form.dataset.ajaxBound) return;
         form.dataset.ajaxBound = '1';
+        // Show the progress bar the moment files are chosen, so the user sees the
+        // upload is wired up even before tapping the upload button (matters on slow links).
+        var fileInput = document.getElementById('new_attachments');
+        if (fileInput && !fileInput.dataset.progBound) {
+            fileInput.dataset.progBound = '1';
+            fileInput.addEventListener('change', function() {
+                if (fileInput.files && fileInput.files.length) {
+                    progWrap.classList.remove('hidden');
+                    progStatus.textContent = '已选择，点击上传';
+                    progPercent.textContent = '0%';
+                    progressBar.style.width = '0%';
+                }
+            });
+        }
         form.addEventListener('submit', function(e) {
             e.preventDefault();
+            // Guard against double-submit: once uploading, the button is disabled
+            // and further taps are ignored.
             if (btn.disabled) return;
             var formData = new FormData(form);
             var xhr = new XMLHttpRequest();
@@ -759,7 +775,7 @@ document.getElementById('no_materials')?.addEventListener('change', function() {
             xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
             var token = document.querySelector('meta[name="csrf-token"]');
             if (token) xhr.setRequestHeader('X-CSRF-TOKEN', token.getAttribute('content'));
-            // disable + show progress
+            // disable button (prevents repeat clicks) + reset progress UI
             btn.disabled = true;
             btn.dataset.originalText = btn.textContent;
             btn.innerHTML = '<svg class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path></svg> 上传中...';
@@ -772,17 +788,26 @@ document.getElementById('no_materials')?.addEventListener('change', function() {
                     var pct = Math.round((ev.loaded / ev.total) * 100);
                     progressBar.style.width = pct + '%';
                     progPercent.textContent = pct + '%';
+                    if (pct < 100) progStatus.textContent = '上传中...';
                 }
+            });
+            // Bytes are uploaded at 100%; the server still needs time to save the files.
+            // Show a clear "processing" state so users do not assume it stalled.
+            xhr.upload.addEventListener('load', function() {
+                progressBar.style.width = '100%';
+                progPercent.textContent = '100%';
+                progStatus.textContent = '上传完成，正在保存...';
             });
             xhr.addEventListener('load', function() {
                 var data = null;
                 try { data = xhr.responseText ? JSON.parse(xhr.responseText) : null; } catch (e) {}
                 if (xhr.status >= 200 && xhr.status < 300 && (!data || data.success)) {
                     progPercent.textContent = '100%';
-                    progStatus.textContent = (data && data.message) ? data.message : '上传成功，正在刷新...';
+                    progStatus.textContent = '上传成功';
                     progressBar.style.width = '100%';
+                    // Close the modal and refresh immediately, scrolling to the attachments card.
                     closeModal('uploadAttachmentModal');
-                    setTimeout(function() { location.reload(); }, 500);
+                    location.href = location.pathname + '?t=' + Date.now() + '#attachments-card';
                 } else {
                     resetButton();
                     progWrap.classList.add('hidden');
@@ -806,6 +831,24 @@ document.getElementById('no_materials')?.addEventListener('change', function() {
         document.addEventListener('DOMContentLoaded', initAttachmentUpload);
     } else {
         initAttachmentUpload();
+    }
+})();
+
+// Highlight attachments card after reload to #attachments-card (post-upload)
+(function() {
+    function highlightAttachments() {
+        var el = document.getElementById('attachments-card');
+        if (!el) return;
+        if (el.scrollIntoView) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        el.classList.add('highlight-flash');
+        setTimeout(function() { el.classList.remove('highlight-flash'); }, 2600);
+    }
+    if (location.hash === '#attachments-card') {
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', highlightAttachments);
+        } else {
+            setTimeout(highlightAttachments, 80);
+        }
     }
 })();
 
