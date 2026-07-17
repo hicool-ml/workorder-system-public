@@ -1163,9 +1163,67 @@ class Workorder extends Model
             $collaborator = User::find($collaboratorId);
             if ($collaborator) {
                 \App\Models\Notification::createWorkorderCollaborationInvited($this, $inviter, $collaborator, $reason);
+
+                // 同步到企业微信：群机器人推送一条消息并 @ 被邀请人，
+                // 否则被邀请人只有在登录系统后才能看到邀请。
+                $this->notifyWeComCollaborationInvite($inviter, $collaborator, $reason);
             }
         }
         return $collaboration !== false;
+    }
+
+    /**
+     * 协作邀请的企业微信群机器人推送。
+     * @ 被邀请人：优先用 wecom_userid，其次用手机号；都没有则发普通消息不 @。
+     */
+    private function notifyWeComCollaborationInvite(User $inviter, User $collaborator, ?string $reason): void
+    {
+        try {
+            $wecom = app(\App\Services\Notification\WeComWebhookService::class);
+            if (!$wecom->isEnabled()) {
+                return;
+            }
+
+            $systemName = \App\Models\SystemSetting::get('system_name', '工单系统');
+            $address = trim(implode(' ', array_filter([
+                $this->campus && trim($this->campus) ? trim($this->campus) : '',
+                $this->building && trim($this->building) ? trim($this->building) : '',
+                $this->location_detail && trim($this->location_detail) ? trim($this->location_detail) : '',
+            ]))) ?: '未知地点';
+            $description = mb_substr($this->description ?: $this->title ?: '未知故障', 0, 30);
+            $timestamp = now()->format('Y-m-d H:i');
+            $reasonLine = $reason ? "\n邀请原因：{$reason}" : '';
+
+            $content = "【{$systemName}】协作邀请\n"
+                . "时间：{$timestamp}\n"
+                . "编号：{$this->ticket_no}\n"
+                . "地点：{$address}\n"
+                . "描述：{$description}\n"
+                . "邀请人：{$inviter->name}\n"
+                . "被邀请人：{$collaborator->name}{$reasonLine}";
+
+            $baseUrl = rtrim(\App\Models\SystemSetting::get('system_url', config('app.url', '')), '/');
+            if ($baseUrl) {
+                $content .= "\n{$baseUrl}/workorders/{$this->id}";
+            }
+
+            // 收集 @ 信息：userid 优先，手机号兜底
+            $mentionedUserIds = [];
+            $mentionedMobiles = [];
+            if (!empty($collaborator->wecom_userid)) {
+                $mentionedUserIds[] = $collaborator->wecom_userid;
+            } elseif (!empty($collaborator->phone)) {
+                $mentionedMobiles[] = $collaborator->phone;
+            }
+
+            $wecom->sendText($content, $mentionedUserIds, $mentionedMobiles);
+        } catch (\Exception $e) {
+            \Log::warning('协作邀请企业微信通知失败', [
+                'workorder_id' => $this->id,
+                'collaborator_id' => $collaborator->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
     
     /**

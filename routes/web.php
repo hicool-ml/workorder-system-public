@@ -94,9 +94,7 @@ Route::middleware(['auth'])->group(function () {
     Route::post('workorders/{workorder}/complete', [WorkorderController::class, 'complete'])->name('workorders.complete');
     Route::post('workorders/{workorder}/close', [WorkorderController::class, 'close'])->name('workorders.close');
     Route::post('workorders/{workorder}/logs', [WorkorderController::class, 'addLog'])->name('workorders.logs.add');
-   Route::post('workorders/{workorder}/materials', [WorkorderController::class, 'updateMaterials'])->name('workorders.materials.update');
-    // 后悔药：管理员/工单管理员手动修改工单状态
-   Route::patch('workorders/{workorder}/status', [WorkorderController::class, 'updateStatus'])->name('workorders.status.update');
+  Route::post('workorders/{workorder}/materials', [WorkorderController::class, 'updateMaterials'])->name('workorders.materials.update');
     Route::post('workorders/{workorder}/rollback', [WorkorderController::class, 'rollback'])->name('workorders.rollback');
    Route::post('workorders/{workorder}/invite-collaborator', [WorkorderController::class, 'inviteCollaborator'])->name('workorders.invite.collaborator');
     Route::post('workorder-collaborations/{collaboration}/accept', [WorkorderController::class, 'acceptCollaboration'])->name('workorders.collaborations.accept');
