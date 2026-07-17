@@ -5,6 +5,7 @@ namespace App\Providers;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\URL;
+use Illuminate\Support\Facades\Vite;
 use Carbon\Carbon;
 
 class AppServiceProvider extends ServiceProvider
@@ -24,6 +25,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Vite 资源强制使用相对路径，确保 IP/域名/HTTP/HTTPS 访问都能正确加载
+        Vite::createAssetPathsUsing(fn ($path) => '/'.ltrim($path, '/'));
+
         // 设置Carbon中文本地化
         Carbon::setLocale('zh');
         

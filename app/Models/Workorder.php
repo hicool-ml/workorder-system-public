@@ -183,17 +183,174 @@ class Workorder extends Model
     /**
      * 获取已接受的协作工程师
      */
-    public function collaborators(): HasMany
+   public function collaborators(): HasMany
+   {
+       return $this->hasMany(WorkorderCollaboration::class)
+           ->where('status', 'accepted')
+           ->with('collaborator');
+   }
+
+    /**
+     * 工单正向流转顺序（从早到晚）
+     * 回滚只能把状态退回到当前节点之前的某个节点。
+     */
+    public static function statusFlow(): array
     {
-        return $this->hasMany(WorkorderCollaboration::class)
-            ->where('status', 'accepted')
-            ->with('collaborator');
+        return ['pending', 'assigned', 'processing', 'resolved', 'completed', 'closed'];
+    }
+
+    /**
+     * 回滚目标节点的中文标签（管理员视角）
+     */
+    public static function rollbackTargetLabels(): array
+    {
+        return [
+            'pending' => '待分配',
+            'assigned' => '已分配',
+            'processing' => '处理中',
+            'resolved' => '已解决',
+        ];
+    }
+
+    /**
+     * 当前状态可回滚到的目标节点列表
+     * 只能回退到流程上更早的节点；completed/closed 不作为回滚目标。
+     * 返回 [status => label] 数组，为空表示当前不可回滚。
+     */
+    public function getRollbackOptions(): array
+    {
+        $flow = self::statusFlow();
+        $currentIdx = array_search($this->status, $flow);
+        if ($currentIdx === false || $currentIdx === 0) {
+            return [];
+        }
+
+        $labels = self::rollbackTargetLabels();
+        $options = [];
+        // 回退目标范围：从第一个节点到当前节点的前一个节点，且必须是可回滚目标
+        for ($i = 0; $i < $currentIdx; $i++) {
+            $status = $flow[$i];
+            if (isset($labels[$status])) {
+                $options[$status] = $labels[$status];
+            }
+        }
+        return $options;
+    }
+
+    /**
+     * 检查目标节点是否为当前状态的合法回滚目标
+     */
+    public function canRollbackTo(string $target): bool
+    {
+        return array_key_exists($target, $this->getRollbackOptions());
+    }
+
+    /**
+     * 回滚工单到指定流程节点
+     *
+     * 与"修改状态"不同：回滚会把该节点之后产生的派生数据一并清理
+     * （处理人、处理时间、解决方案、协作邀请等），并写入一条带操作人
+     * 与原因的审计日志。
+     *
+     * @param string $target 回滚目标状态
+     * @param string|null $reason 回滚原因（审计用）
+     * @param int|null $operatorId 操作人 ID
+     * @return bool
+     */
+    public function rollback(string $target, ?string $reason = null, ?int $operatorId = null): bool
+    {
+        if (!$this->canRollbackTo($target)) {
+            return false;
+        }
+
+        $operatorId = $operatorId ?? (auth()->check() ? auth()->id() : $this->creator_id);
+        $oldStatus = $this->status;
+
+        return DB::transaction(function () use ($target, $reason, $operatorId, $oldStatus) {
+            // 基础回滚：清除目标节点之后的时间戳与解决方案
+            $data = [
+                'status' => $target,
+                'resolved_at' => null,
+                'completed_at' => null,
+                'closed_at' => null,
+                'solution' => null,
+                'processing_duration' => null,
+            ];
+
+            switch ($target) {
+                case 'pending':
+                    // 回到待分配：清空处理人及所有处理痕迹
+                    $data['assignee_id'] = null;
+                    $data['assigned_at'] = null;
+                    $data['started_at'] = null;
+                    $data['expected_complete_at'] = null;
+                    break;
+                case 'assigned':
+                    // 回到已分配：保留处理人，清除开始处理之后的痕迹
+                    $data['started_at'] = null;
+                    $data['expected_complete_at'] = null;
+                    break;
+                case 'processing':
+                    // 回到处理中：保留处理人与开始时间
+                    break;
+                case 'resolved':
+                    // 回到已解决：保留解决方案（在下方按需恢复）
+                    break;
+            }
+
+            // 已解决作为目标时，应保留之前的解决方案与解决时间
+            if ($target === 'resolved') {
+                unset($data['solution']);
+                // resolved_at 由数据库原值保留：这里不强制清除
+                $data['resolved_at'] = $this->getOriginal('resolved_at');
+            }
+
+            $this->fill($data)->save();
+
+            // 回退到已分配/待分配时清理协作邀请（这些邀请产生于分配后的处理阶段）
+            $clearedCollaborations = 0;
+            if (in_array($target, ['pending', 'assigned'], true)) {
+                // 删除前记录被清理的协作，避免审计丢失
+                $collabs = $this->collaborations()->get();
+                $clearedCollaborations = $collabs->count();
+                if ($clearedCollaborations > 0) {
+                    $this->collaborations()->delete();
+                }
+            }
+
+            // 写入审计日志：状态变更 + 清理说明 + 原因
+            $logContent = '回滚工单状态';
+            $parts = [];
+            if ($reason) {
+                $parts[] = '原因：' . $reason;
+            }
+            if ($clearedCollaborations > 0) {
+                $parts[] = '清理协作邀请 ' . $clearedCollaborations . ' 条';
+            }
+            if ($target === 'pending') {
+                $parts[] = '清空处理人';
+            }
+            if (!empty($parts)) {
+                $logContent .= '（' . implode('；', $parts) . '）';
+            }
+
+            $this->logs()->create([
+                'user_id' => $operatorId,
+                'action' => 'rolled_back',
+                'content' => $logContent,
+                'old_value' => $oldStatus,
+                'new_value' => $target,
+                'is_system' => false,
+            ]);
+
+            return true;
+        });
     }
 
    /**
-     * 生成工单编号（委托给 generateTicketNoByPrefix）
-     */
-    public static function generateTicketNo($prefix = 'WO'): string
+    * 生成工单编号（委托给 generateTicketNoByPrefix）
+    */
+   public static function generateTicketNo($prefix = 'WO'): string
     {
         return static::generateTicketNoByPrefix($prefix);
     }

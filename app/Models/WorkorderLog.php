@@ -68,8 +68,9 @@ class WorkorderLog extends Model
             'collaboration_rejected' => '拒绝协作',
             'visit_completed' => '完成回访',
             'phone_assisted' => '电话协助完成',
+            'rolled_back' => '回滚工单状态',
         ];
-        
+       
         return $actions[$this->action] ?? $this->action;
     }
 
@@ -101,6 +102,14 @@ class WorkorderLog extends Model
             'assigned', 'started', 'paused', 'resumed',
             'transferred', 'resolved', 'completed', 'rejected', 'closed', 'reopened'
         ]);
+    }
+
+    /**
+     * 回滚操作是否需要展示状态变更箭头
+     */
+    public function isRollback(): bool
+    {
+        return $this->action === 'rolled_back';
     }
 
     /**
@@ -198,6 +207,7 @@ class WorkorderLog extends Model
             'collaboration_rejected' => '拒绝协作',
             'visit_completed' => '完成回访',
             'phone_assisted' => '电话协助完成',
+            'rolled_back' => '回滚工单状态',
         ];
     }
 }

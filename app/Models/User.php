@@ -212,9 +212,18 @@ class User extends Authenticatable
     }
 
     /**
-     * 检查是否可以分配工单
+    * 检查是否可以分配工单
+    */
+   public function canAssignWorkorders(): bool
+   {
+       return in_array($this->role, ['admin', 'workorder_manager']);
+   }
+
+    /**
+     * 检查是否可以回滚工单状态
+     * 仅工单管理员和系统管理员可将工单回滚到更早的流程节点
      */
-    public function canAssignWorkorders(): bool
+    public function canRollbackWorkorder(): bool
     {
         return in_array($this->role, ['admin', 'workorder_manager']);
     }

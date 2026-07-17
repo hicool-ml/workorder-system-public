@@ -45,11 +45,20 @@ class SystemSettingController extends Controller
 
         DB::beginTransaction();
         try {
-            foreach ($request->input('settings') as $key => $value) {
-                $setting = SystemSetting::where('key', $key)->first();
-                if ($setting) {
-                    // 根据类型转换值
-                    $convertedValue = match($setting->type) {
+           foreach ($request->input('settings') as $key => $value) {
+                // firstOrCreate：若该 key 尚未在表中初始化（如 system_url），则自动建立记录，
+                // 否则表单提交会被静默丢弃，表现为"保存无效"。
+                $setting = SystemSetting::firstOrCreate(
+                    ['key' => $key],
+                    [
+                        'value' => '',
+                        'type' => 'string',
+                        'description' => '系统设置 - ' . $key,
+                        'is_public' => false,
+                    ]
+                );
+                   // 根据类型转换值
+                   $convertedValue = match($setting->type) {
                         'boolean' => $value === '1' || $value === 'true',
                         'integer' => (int) $value,
                         'float' => (float) $value,
@@ -59,7 +68,6 @@ class SystemSettingController extends Controller
                     
                     $setting->setTypedValueAttribute($convertedValue);
                     $setting->save();
-                }
             }
             
             DB::commit();

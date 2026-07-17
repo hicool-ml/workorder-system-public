@@ -549,14 +549,14 @@ class WorkorderController extends Controller
                 $data['appointment_time'] = null;
             }
             
-            // 处理自定义来源
-            if ($request->input('source') === '其他来源') {
-                $data['other_source'] = $request->input('other_source');
-            } else {
-                $data['other_source'] = null;
-            }
-            
-            // 如果分配了处理人但没有设置状态，自动设置为assigned
+           // 处理自定义来源
+           if ($request->input('source') === '其他来源') {
+                $data['custom_source'] = $request->input('other_source');
+           } else {
+                $data['custom_source'] = null;
+           }
+
+           // 如果分配了处理人但没有设置状态，自动设置为assigned
             if (isset($data['assignee_id']) && $data['assignee_id'] && $workorder->status === 'pending') {
                 $data['status'] = 'assigned';
                 $data['assigned_at'] = $data['assigned_at'] ?? now();
@@ -909,56 +909,77 @@ class WorkorderController extends Controller
     /**
      * 上传附件
      */
-    public function uploadAttachments(Request $request, Workorder $workorder)
-    {
-        // 权限检查：只有工单的分配处理人、工单管理员、管理员或协作工程师可以上传附件
-        if (!auth()->user()->canUploadAttachment($workorder)) {
-            $message = '您没有权限上传附件';
-            if ($request->isMethod('get')) {
-                return redirect(\App\Helpers\UrlHelper::relative_url("/workorders/{$workorder->id}"))->with('error', $message);
+   public function uploadAttachments(Request $request, Workorder $workorder)
+   {
+        $isAjax = $request->expectsJson() || $request->ajax();
+       // 权限检查：只有工单的分配处理人、工单管理员、管理员或协作工程师可以上传附件
+       if (!auth()->user()->canUploadAttachment($workorder)) {
+           $message = '您没有权限上传附件';
+            if ($isAjax) {
+                return response()->json(['success' => false, 'message' => $message], 403);
             }
-            return back()->with('error', $message);
-        }
-        
-        // 只有待处理或处理中的工单可以上传附件
-        if (!in_array($workorder->status, ['pending', 'processing'])) {
-            $message = '当前工单状态不允许上传附件';
-            if ($request->isMethod('get')) {
-                return redirect(\App\Helpers\UrlHelper::relative_url("/workorders/{$workorder->id}"))->with('error', $message);
+           if ($request->isMethod('get')) {
+               return redirect(\App\Helpers\UrlHelper::relative_url("/workorders/{$workorder->id}"))->with('error', $message);
+           }
+           return back()->with('error', $message);
+       }
+       
+       // 只有待处理或处理中的工单可以上传附件
+       if (!in_array($workorder->status, ['pending', 'processing'])) {
+           $message = '当前工单状态不允许上传附件';
+            if ($isAjax) {
+                return response()->json(['success' => false, 'message' => $message], 422);
             }
-            return back()->with('error', $message);
-        }
-        
-        // 如果是GET请求，直接返回到工单详情页面
-        if ($request->isMethod('get')) {
-            return redirect(\App\Helpers\UrlHelper::relative_url("/workorders/{$workorder->id}"));
-        }
-        
-        $request->validate([
-            'attachments' => 'required|array',
-            'attachments.*' => 'file|max:10240', // 最大10MB
-            'description' => 'nullable|string|max:500',
-        ]);
-        
+           if ($request->isMethod('get')) {
+               return redirect(\App\Helpers\UrlHelper::relative_url("/workorders/{$workorder->id}"))->with('error', $message);
+           }
+           return back()->with('error', $message);
+       }
+       
+       // 如果是GET请求，直接返回到工单详情页面
+       if ($request->isMethod('get')) {
+           return redirect(\App\Helpers\UrlHelper::relative_url("/workorders/{$workorder->id}"));
+       }
+       
         try {
-            $uploadedCount = 0;
-            $files = $request->file('attachments');
-            $descriptions = $request->input('attachment_descriptions', []);
-            
-            foreach ($files as $index => $file) {
-                $description = $descriptions[$index] ?? null;
-                WorkorderAttachment::uploadFile($file, $workorder->id, $description);
-                $uploadedCount++;
+            $request->validate([
+                'attachments' => 'required|array',
+                'attachments.*' => 'file|max:10240', // 最大10MB
+                'description' => 'nullable|string|max:500',
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $ve) {
+            if ($isAjax) {
+                return response()->json(['success' => false, 'message' => implode(' ', $ve->validator->errors()->all())], 422);
             }
-            
-            // 记录日志
-            $workorder->addLog('attachment_uploaded', "上传了 {$uploadedCount} 个附件");
-            
-            return back()->with('success', "成功上传 {$uploadedCount} 个附件");
-        } catch (\Exception $e) {
-            return back()->with('error', '附件上传失败：' . $e->getMessage());
+            throw $ve;
         }
-    }
+       
+       try {
+           $uploadedCount = 0;
+           $files = $request->file('attachments');
+           $descriptions = $request->input('attachment_descriptions', []);
+           
+           foreach ($files as $index => $file) {
+               $description = $descriptions[$index] ?? null;
+               WorkorderAttachment::uploadFile($file, $workorder->id, $description);
+               $uploadedCount++;
+           }
+           
+           // 记录日志
+           $workorder->addLog('attachment_uploaded', "上传了 {$uploadedCount} 个附件");
+           
+            $msg = "成功上传 {$uploadedCount} 个附件";
+            if ($isAjax) {
+                return response()->json(['success' => true, 'message' => $msg]);
+            }
+            return back()->with('success', $msg);
+       } catch (\Exception $e) {
+            if ($isAjax) {
+                return response()->json(['success' => false, 'message' => '附件上传失败：' . $e->getMessage()], 500);
+            }
+            return back()->with('error', '附件上传失败：' . $e->getMessage());
+       }
+   }
     
     /**
      * 添加工单回访记录
@@ -1075,23 +1096,56 @@ class WorkorderController extends Controller
             'invitation_reason' => 'nullable|string|max:500',
         ]);
         
-        try {
-            if (WorkorderCollaboration::createInvitation(
-                $workorder->id,
+       try {
+            // 走模型封装：它会建邀请记录、写工单日志，并发送协作邀请通知给被邀请人，
+            // 否则被邀请人无从知晓（此前 controller 直接调 createInvitation 绕过了通知）。
+            if ($workorder->inviteCollaborator(
                 $request->input('collaborator_id'),
-                $request->input('invitation_reason')
+                $request->input('invitation_reason'),
+                auth()->id()
             )) {
-                // 记录日志
-                $collaborator = User::find($request->input('collaborator_id'));
-                $workorder->addLog('collaboration_invited', "邀请了 {$collaborator->name} 协助处理");
-                
-                return back()->with('success', '协作邀请发送成功');
+                return back()->with('success', '协作邀请发送成功，已通知被邀请人');
             } else {
                 return back()->with('error', '协作邀请发送失败，可能已经存在待处理的邀请');
             }
         } catch (\Exception $e) {
-            return back()->with('error', '协作邀请发送失败：' . $e->getMessage());
+           return back()->with('error', '协作邀请发送失败：' . $e->getMessage());
+       }
+   }
+
+    /**
+     * 回滚工单状态（工单管理员 / 系统管理员专用）
+     *
+     * 注意：这与"修改状态"不同。回滚会把目标节点之后产生的派生数据一并清理
+     * （处理人、处理时间、解决方案、协作邀请等），并写入带原因的审计日志。
+     */
+    public function rollback(Request $request, Workorder $workorder)
+    {
+        // 权限检查：仅工单管理员和系统管理员可回滚
+        if (!Auth::user()->canRollbackWorkorder()) {
+            return back()->with('error', '您没有权限回滚工单状态');
         }
+
+        $request->validate([
+            'target_status' => 'required|string',
+            'reason' => 'nullable|string|max:500',
+        ], [
+            'target_status.required' => '请选择回滚目标节点',
+        ]);
+
+        $target = $request->input('target_status');
+        $reason = $request->input('reason');
+
+        if (!$workorder->canRollbackTo($target)) {
+            return back()->with('error', '该节点不是当前工单状态可回滚的目标');
+        }
+
+        if ($workorder->rollback($target, $reason, Auth::id())) {
+            return redirect(\App\Helpers\UrlHelper::relative_url("/workorders/{$workorder->id}"))
+                ->with('success', "工单已回滚到「{$workorder->status_text}」");
+        }
+
+        return back()->with('error', '工单回滚失败');
     }
 
     /**
@@ -1113,11 +1167,19 @@ class WorkorderController extends Controller
         }
         
         try {
-            if ($collaboration->accept()) {
-                // 记录日志
-                $collaboration->workorder->addLog('collaboration_accepted', "接受了 {$collaboration->inviter->name} 的协作邀请");
-                
-                // 接受邀请后，重定向到工单详情页面
+           if ($collaboration->accept()) {
+               // 记录日志
+               $collaboration->workorder->addLog('collaboration_accepted', "接受了 {$collaboration->inviter->name} 的协作邀请");
+                // 通知发起邀请的人：对方已接受
+                if ($collaboration->inviter) {
+                    \App\Models\Notification::createWorkorderCollaborationAccepted(
+                        $collaboration->workorder,
+                        User::find($collaboration->collaborator_id) ?? auth()->user(),
+                        $collaboration->inviter
+                    );
+                }
+               
+               // 接受邀请后，重定向到工单详情页面
                 return redirect(\App\Helpers\UrlHelper::relative_url("/workorders/{$collaboration->workorder_id}"))->with('success', '协作邀请接受成功');
             } else {
                 return back()->with('error', '协作邀请接受失败');
@@ -1157,11 +1219,20 @@ class WorkorderController extends Controller
         ]);
         
         try {
-            if ($collaboration->reject($request->input('response_note'))) {
-                // 记录日志
-                $collaboration->workorder->addLog('collaboration_rejected', "拒绝了 {$collaboration->inviter->name} 的协作邀请");
-                
-                // 拒绝邀请后，重定向到工单列表而不是工单详情页面
+           if ($collaboration->reject($request->input('response_note'))) {
+               // 记录日志
+               $collaboration->workorder->addLog('collaboration_rejected', "拒绝了 {$collaboration->inviter->name} 的协作邀请");
+                // 通知发起邀请的人：对方已拒绝
+                if ($collaboration->inviter) {
+                    \App\Models\Notification::createWorkorderCollaborationRejected(
+                        $collaboration->workorder,
+                        User::find($collaboration->collaborator_id) ?? auth()->user(),
+                        $collaboration->inviter,
+                        $request->input('response_note')
+                    );
+                }
+               
+               // 拒绝邀请后，重定向到工单列表而不是工单详情页面
                 // 因为用户拒绝后可能不再有权限查看该工单
                 return redirect(\App\Helpers\UrlHelper::relative_url("/workorders"))->with('success', '协作邀请拒绝成功');
             } else {

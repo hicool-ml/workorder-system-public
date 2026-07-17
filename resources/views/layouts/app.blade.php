@@ -17,8 +17,32 @@
         })();
     </script>
 
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
+   @vite(['resources/css/app.css', 'resources/js/app.js'])
 
+
+    {{-- Service Worker 自动更新：检测到新版立即接管并刷新，避免用户停留在旧缓存 --}}
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', function() {
+                navigator.serviceWorker.register('/sw.js').then(function(reg) {
+                    if (reg.waiting) { reg.waiting.postMessage({ type: 'SKIP_WAITING' }); }
+                    reg.addEventListener('updatefound', function() {
+                        var nw = reg.installing;
+                        if (!nw) return;
+                        nw.addEventListener('statechange', function() {
+                            if (nw.state === 'installed' && navigator.serviceWorker.controller) {
+                                nw.postMessage({ type: 'SKIP_WAITING' });
+                            }
+                        });
+                    });
+                });
+                var refreshed = false;
+                navigator.serviceWorker.addEventListener('controllerchange', function() {
+                    if (!refreshed) { refreshed = true; window.location.reload(); }
+                });
+            });
+        }
+    </script>
 
     @yield('head')
 </head>

@@ -57,14 +57,14 @@
                             @enderror
                         </div>
                     </div>
-                    
+
                     <div class="mb-4">
                         <label for="description" class="label">问题描述 <span class="text-red-500">*</span></label>
                         <textarea class="input" id="description" name="description" rows="6" required
                                   placeholder="请详细描述遇到的问题，包括现象、影响范围等">{{ old('description', $workorder->description) }}</textarea>
                         <div class="text-xs text-ink-muted mt-1">请尽可能详细地描述问题，以便技术人员快速定位和解决</div>
                     </div>
-                    
+
                     <!-- 联系信息 -->
                     <h6 class="mb-4">联系信息</h6>
                     <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
@@ -83,74 +83,74 @@
                             <input type="email" class="input" id="contact_email" name="contact_email"
                                    value="{{ old('contact_email', $workorder->contact_email) }}" maxlength="100" autocomplete="email">
                         </div>
-                        
-                        <!-- 工单来源和优先级 -->
-                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
-                            <div>
-                                <label for="source" class="label">工单来源 <span class="text-red-500">*</span></label>
-                                <select class="input" id="source" name="source" required onchange="toggleCustomSource()">
-                                    @foreach(\App\Models\WorkorderSource::getActiveSources() as $source)
-                                        <option value="{{ $source->name }}" {{ old('source', $workorder->source) == $source->name ? 'selected' : '' }}>
-                                            {{ $source->name }}
-                                        </option>
-                                    @endforeach
-                                </select>
-                                @error('source')
-                                    <div class="text-xs text-red-600 mt-1">{{ $message }}</div>
-                                @enderror
-                            </div>
-                            <div>
-                                <label class="label">优先级 <span class="text-red-500">*</span></label>
-                                <div class="flex flex-wrap gap-3">
-                                    <div class="flex items-center gap-2">
-                                        <input class="rounded border-border-strong w-4 h-4" type="radio" name="priority" id="priority_low" value="low"
-                                               {{ old('priority', $workorder->priority) == 'low' ? 'checked' : '' }} autocomplete="off">
-                                        <label class="text-sm" for="priority_low">
-                                            <span class="badge bg-green-100 text-green-700">低</span>
-                                        </label>
-                                    </div>
-                                    <div class="flex items-center gap-2">
-                                        <input class="rounded border-border-strong w-4 h-4" type="radio" name="priority" id="priority_medium" value="medium"
-                                               {{ old('priority', $workorder->priority) == 'medium' ? 'checked' : '' }} autocomplete="off">
-                                        <label class="text-sm" for="priority_medium">
-                                            <span class="badge bg-amber-100 text-amber-700">中</span>
-                                        </label>
-                                    </div>
-                                    <div class="flex items-center gap-2">
-                                        <input class="rounded border-border-strong w-4 h-4" type="radio" name="priority" id="priority_high" value="high"
-                                               {{ old('priority', $workorder->priority) == 'high' ? 'checked' : '' }} autocomplete="off">
-                                        <label class="text-sm" for="priority_high">
-                                            <span class="badge bg-red-100 text-red-700">高</span>
-                                        </label>
-                                    </div>
-                                </div>
-                                @error('priority')
-                                    <div class="text-xs text-red-600 mt-1">{{ $message }}</div>
-                                @enderror
-                            </div>
+                    </div>
+
+                    <!-- 工单来源和优先级（与联系信息同级，避免错位） -->
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
+                        <div>
+                            <label for="source" class="label">工单来源 <span class="text-red-500">*</span></label>
+                            <select class="input" id="source" name="source" required onchange="toggleCustomSource()">
+                                @foreach(\App\Models\WorkorderSource::getActiveSources() as $source)
+                                    <option value="{{ $source->name }}" {{ old('source', $workorder->source) == $source->name ? 'selected' : '' }}>
+                                        {{ $source->name }}
+                                    </option>
+                                @endforeach
+                            </select>
+                            @error('source')
+                                <div class="text-xs text-red-600 mt-1">{{ $message }}</div>
+                            @enderror
                         </div>
-                        
-                        <!-- 其他来源说明 -->
-                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3" id="other_source_row" style="display: none;">
-                            <div>
-                                <label for="other_source" class="label">其他来源说明 <span class="text-red-500">*</span></label>
-                                <input type="text" class="input" id="other_source" name="other_source" autocomplete="off"
-                                       value="{{ old('other_source', $workorder->other_source) }}" maxlength="50" autocomplete="off"
-                                       placeholder="请说明具体的报修来源" autocomplete="off">
-                                @error('other_source')
-                                    <div class="text-xs text-red-600 mt-1">{{ $message }}</div>
-                                @enderror
+                        <div class="sm:col-span-2">
+                            <label class="label">优先级 <span class="text-red-500">*</span></label>
+                            <div class="flex flex-nowrap items-center gap-4">
+                                <div class="flex items-center gap-2">
+                                    <input class="rounded border-border-strong w-4 h-4" type="radio" name="priority" id="priority_low" value="low"
+                                           {{ old('priority', $workorder->priority) == 'low' ? 'checked' : '' }} autocomplete="off">
+                                    <label class="text-sm" for="priority_low">
+                                        <span class="badge bg-green-100 text-green-700">低</span>
+                                    </label>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <input class="rounded border-border-strong w-4 h-4" type="radio" name="priority" id="priority_medium" value="medium"
+                                           {{ old('priority', $workorder->priority) == 'medium' ? 'checked' : '' }} autocomplete="off">
+                                    <label class="text-sm" for="priority_medium">
+                                        <span class="badge bg-amber-100 text-amber-700">中</span>
+                                    </label>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <input class="rounded border-border-strong w-4 h-4" type="radio" name="priority" id="priority_high" value="high"
+                                           {{ old('priority', $workorder->priority) == 'high' ? 'checked' : '' }} autocomplete="off">
+                                    <label class="text-sm" for="priority_high">
+                                        <span class="badge bg-red-100 text-red-700">高</span>
+                                    </label>
+                                </div>
                             </div>
+                            @error('priority')
+                                <div class="text-xs text-red-600 mt-1">{{ $message }}</div>
+                            @enderror
                         </div>
                     </div>
+
+                    <!-- 其他来源说明（来源为"其他来源"时显示） -->
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3" id="other_source_row" style="display: none;">
+                        <div>
+                            <label for="other_source" class="label">其他来源说明 <span class="text-red-500">*</span></label>
+                            <input type="text" class="input" id="other_source" name="other_source" autocomplete="off"
+                                   value="{{ old('other_source', $workorder->custom_source) }}" maxlength="50"
+                                   placeholder="请说明具体的报修来源">
+                            @error('other_source')
+                                <div class="text-xs text-red-600 mt-1">{{ $message }}</div>
+                            @enderror
+                        </div>
+                    </div>
+
                     
                     <!-- 位置信息 -->
                     <h6 class="mb-4">位置信息</h6>
                     <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
-                        <div>
-                            <label for="campus" class="label">校区 <span class="text-red-500">*</span></label>
-                            <label for="campus_id" class="label">校区 <span class="text-red-500">*</span></label>
-                            <select class="input" id="campus_id" name="campus_id" required>
+                       <div>
+                           <label for="campus_id" class="label">校区 <span class="text-red-500">*</span></label>
+                           <select class="input" id="campus_id" name="campus_id" required>
                                 <option value="">请选择校区</option>
                                 @foreach(\App\Models\Campus::where('status', 'active')->orderBy('sort_order')->orderBy('name')->get() as $campus)
                                 <option value="{{ $campus->id }}" {{ old('campus_id', $workorder->campus_id) == $campus->id ? 'selected' : '' }}>{{ $campus->name }}</option>
@@ -219,23 +219,21 @@
                         </div>
                         <div>
                             <label class="label">特殊标记</label>
-                            <div class="flex items-center gap-2 mt-2">
-                                <input class="rounded border-border-strong w-4 h-4" type="checkbox" id="need_visit" name="need_visit"
-                                       value="1" {{ old('need_visit', $workorder->need_visit) ? 'checked' : '' }} autocomplete="off">
-                                <label class="text-sm" for="need_visit">
-                                    需要回访
-                                </label>
-                            </div>
-                            <div class="flex items-center gap-2">
-                                <input class="rounded border-border-strong w-4 h-4" type="checkbox" id="is_emergency" name="is_emergency"
-                                       value="1" {{ old('is_emergency', $workorder->is_emergency) ? 'checked' : '' }} autocomplete="off">
-                                <label class="text-sm" for="is_emergency">
-                                    紧急工单
-                                </label>
+                            <div class="flex flex-nowrap items-center gap-4 mt-2">
+                                <div class="flex items-center gap-2">
+                                    <input class="rounded border-border-strong w-4 h-4" type="checkbox" id="need_visit" name="need_visit"
+                                           value="1" {{ old('need_visit', $workorder->need_visit) ? 'checked' : '' }} autocomplete="off">
+                                    <label class="text-sm" for="need_visit">需要回访</label>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <input class="rounded border-border-strong w-4 h-4" type="checkbox" id="is_emergency" name="is_emergency"
+                                           value="1" {{ old('is_emergency', $workorder->is_emergency) ? 'checked' : '' }} autocomplete="off">
+                                    <label class="text-sm" for="is_emergency">紧急工单</label>
+                                </div>
                             </div>
                         </div>
                     </div>
-                    
+
                     <!-- 解决方案和耗材使用 -->
                     @if(in_array($workorder->status, ['processing', 'resolved', 'completed', 'closed']))
                     <h6 class="mb-4">处理信息</h6>
@@ -337,9 +335,8 @@
                                 </div>
                                 <input type="file" class="sr-only" id="new_attachments" name="new_attachments[]" multiple accept=".jpg,.jpeg,.png,.gif,.pdf,.doc,.docx,.txt" onchange="document.getElementById('attEditName').textContent=this.files.length?'已选择 '+this.files.length+' 个文件':'未选择文件'">
 
-                                <div id="attEditName" class="text-xs mt-1" style="color: var(--c-ink-subtle);">未选择文件</div>
-                                   multiple accept=".jpg,.jpeg,.png,.gif,.pdf,.doc,.docx,.txt" autocomplete="off">
-                            <div class="text-xs text-ink-muted mt-1">
+                              <div id="attEditName" class="text-xs mt-1" style="color: var(--c-ink-subtle);">未选择文件</div>
+                          <div class="text-xs text-ink-muted mt-1">
                                 支持上传图片、文档等文件，单个文件最大10MB，最多5个文件
                             </div>
                             <div id="newAttachmentPreview" class="mt-2"></div>
@@ -503,13 +500,12 @@ $(document).ready(function() {
         $('#other_source').attr('required', 'required');
     }
     
-    // 切换其他来源输入框显示/隐藏
-    window.toggleCustomSource = function() {
-        var sourceSelect = $('#source');
-        var otherSourceRow = $('#other_source_row');
-        var otherSourceInput = $('#other_source');
-        
-        if (sourceSelect.val() === 'other') {
+   // 切换其他来源输入框显示/隐藏
+   window.toggleCustomSource = function() {
+       var sourceSelect = $('#source');
+       var otherSourceRow = $('#other_source_row');
+       var otherSourceInput = $('#other_source');
+       
         if (sourceSelect.val() === '其他来源') {
             otherSourceRow.show();
             otherSourceInput.attr('required', 'required');
@@ -864,4 +860,3 @@ function showImagePreview(imageSrc, fileName) {
 }
 </script>
 @endsection
-

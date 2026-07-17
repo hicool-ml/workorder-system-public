@@ -1,4 +1,4 @@
-@extends('layouts.app')
+﻿@extends('layouts.app')
 
 @section('title', '工单详情 - ' . $workorder->ticket_no)
 
@@ -99,9 +99,15 @@
             @csrf
             <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('确认关闭？')">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M18 6 6 18M6 6l12 12"/></svg>
-                <span>关闭</span>
-            </button>
-        </form>
+               <span>关闭</span>
+           </button>
+       </form>
+       @endif
+        @if(auth()->user()->canRollbackWorkorder() && !empty($workorder->getRollbackOptions()))
+        <button type="button" onclick="openModal('rollbackModal')" class="btn btn-secondary btn-sm">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 11v4a1 1 0 0 0 1 1h5m9-9V7a1 1 0 0 0-1-1h-5M9 21l3-3-3-3M15 3l-3 3 3 3"/></svg>
+            <span>回滚</span>
+        </button>
         @endif
     </div>
 </div>
@@ -507,29 +513,38 @@
             <h3 class="text-sm font-semibold text-ink">上传附件</h3>
             <button type="button" onclick="closeModal('uploadAttachmentModal')" class="btn btn-ghost btn-icon btn-sm"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M18 6 6 18M6 6l12 12"/></svg></button>
         </div>
-        <form method="POST" action="{{ route('workorders.attachments.upload', $workorder->id) }}" enctype="multipart/form-data">
-            @csrf
-            <label class="label">选择文件或拍照</label>
-            <div class="flex gap-2 mb-1">
-                <button type="button" onclick="openCameraModal('new_attachments')" class="btn btn-secondary flex-1">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z M12 17a4 4 0 1 0 0-8 4 4 0 0 0 0 8z"/></svg>
-                    <span>拍照</span>
-                </button>
-                <button type="button" onclick="document.getElementById('new_attachments').click()" class="btn btn-secondary flex-1">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4 M7 10l5 5 5-5 M12 15V3"/></svg>
-                    <span>选择文件</span>
-                </button>
-            </div>
-            <input type="file" class="sr-only" id="new_attachments" name="attachments[]" multiple accept=".jpg,.jpeg,.png,.gif,.pdf,.doc,.docx,.txt" onchange="handleAttachmentSelect(this)">
+       <form method="POST" action="{{ route('workorders.attachments.upload', $workorder->id) }}" enctype="multipart/form-data" id="attachmentUploadForm">
+           @csrf
+           <label class="label">选择文件或拍照</label>
+           <div class="flex gap-2 mb-1">
+               <button type="button" onclick="openCameraModal('new_attachments')" class="btn btn-secondary flex-1">
+                   <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z M12 17a4 4 0 1 0 0-8 4 4 0 0 0 0 8z"/></svg>
+                   <span>拍照</span>
+               </button>
+               <button type="button" onclick="document.getElementById('new_attachments').click()" class="btn btn-secondary flex-1">
+                   <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4 M7 10l5 5 5-5 M12 15V3"/></svg>
+                   <span>选择文件</span>
+               </button>
+           </div>
+           <input type="file" class="sr-only" id="new_attachments" name="attachments[]" multiple accept=".jpg,.jpeg,.png,.gif,.pdf,.doc,.docx,.txt" onchange="handleAttachmentSelect(this)">
 
-            <div id="attachmentFileName" class="text-xs mt-1" style="color: var(--c-ink-subtle);">未选择文件</div>
-            <p class="text-xs" style="color: var(--c-ink-subtle);">单个最大 10MB，最多 5 个</p>
-            <div id="newAttachmentPreview" class="mt-3 space-y-2"></div>
-            <div class="flex items-center justify-end gap-2 mt-4">
-                <button type="button" onclick="closeModal('uploadAttachmentModal')" class="btn btn-secondary">取消</button>
-                <button type="submit" class="btn btn-primary">上传</button>
+           <div id="attachmentFileName" class="text-xs mt-1" style="color: var(--c-ink-subtle);">未选择文件</div>
+           <p class="text-xs" style="color: var(--c-ink-subtle);">单个最大 10MB，最多 5 个</p>
+           <div id="newAttachmentPreview" class="mt-3 space-y-2"></div>
+           <div class="flex items-center justify-end gap-2 mt-4">
+               <button type="button" onclick="closeModal('uploadAttachmentModal')" class="btn btn-secondary">取消</button>
+                <button type="submit" class="btn btn-primary" id="attachmentUploadBtn">上传</button>
+           </div>
+            <div id="attachmentUploadProgress" class="hidden mt-3">
+                <div class="flex items-center justify-between mb-1 text-xs" style="color: var(--c-ink-subtle);">
+                    <span id="attachmentUploadStatus">上传中...</span>
+                    <span id="attachmentUploadPercent">0%</span>
+                </div>
+                <div class="w-full bg-surface-muted rounded-full h-2 overflow-hidden">
+                    <div id="attachmentUploadBar" class="h-2 rounded-full transition-all duration-200" style="width:0%;background:linear-gradient(90deg,#3b82f6,#6366f1);"></div>
+                </div>
             </div>
-        </form>
+       </form>
     </div>
 </div>
 @endif
@@ -577,13 +592,45 @@
             <label class="label" for="invitation_reason">邀请原因</label>
             <textarea class="input mb-4" id="invitation_reason" name="invitation_reason" rows="3" placeholder="请说明邀请原因"></textarea>
             <div class="flex items-center justify-end gap-2">
-                <button type="button" onclick="closeModal('inviteModal')" class="btn btn-secondary">取消</button>
-                <button type="submit" class="btn btn-primary">发送邀请</button>
+               <button type="button" onclick="closeModal('inviteModal')" class="btn btn-secondary">取消</button>
+               <button type="submit" class="btn btn-primary">发送邀请</button>
+           </div>
+       </form>
+   </div>
+</div>
+@endif
+{{-- Rollback status modal (工单管理员 / 系统管理员) --}}
+@if(auth()->user()->canRollbackWorkorder() && !empty($workorder->getRollbackOptions()))
+<div id="rollbackModal" class="hidden fixed inset-0 z-50 items-center justify-center p-4 bg-black/50" data-modal>
+    <div class="card w-full max-w-md p-5">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="text-sm font-semibold text-ink">回滚工单状态</h3>
+            <button type="button" onclick="closeModal('rollbackModal')" class="btn btn-ghost btn-icon btn-sm"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M18 6 6 18M6 6l12 12"/></svg></button>
+        </div>
+        <form method="POST" action="{{ route('workorders.rollback', $workorder->id) }}">
+            @csrf
+            <div class="p-3 rounded-lg mb-4 text-sm bg-amber-50 border border-amber-200" style="color: var(--c-ink);">
+                当前状态：<span class="font-medium">{{ $workorder->status_text }}</span><br>
+                <span style="color: var(--c-ink-muted);">回滚会清除目标节点之后产生的处理记录（处理人、处理时间、协作邀请等），并写入一条带原因的审计日志。</span>
+            </div>
+            <label class="label" for="target_status">回滚到 <span class="text-red-500">*</span></label>
+            <select class="input mb-4" id="target_status" name="target_status" required>
+                <option value="">请选择回滚节点</option>
+                @foreach($workorder->getRollbackOptions() as $status => $label)
+                <option value="{{ $status }}">{{ $label }}</option>
+                @endforeach
+            </select>
+            <label class="label" for="rollback_reason">回滚原因</label>
+            <textarea class="input mb-4" id="rollback_reason" name="reason" rows="3" placeholder="请说明回滚原因（将记入审计日志）"></textarea>
+            <div class="flex items-center justify-end gap-2">
+                <button type="button" onclick="closeModal('rollbackModal')" class="btn btn-secondary">取消</button>
+                <button type="submit" class="btn btn-danger" onclick="return confirm('确认回滚？目标节点之后产生的处理记录将被清除。')">确认回滚</button>
             </div>
         </form>
     </div>
 </div>
 @endif
+
 
 {{-- Visit modal --}}
 @if($workorder->status === 'resolved' && !$workorder->visits()->exists())
@@ -692,6 +739,76 @@ document.getElementById('no_materials')?.addEventListener('change', function() {
 });
 
 // New attachment preview in upload modal
+// Attachment upload via AJAX with progress bar; disable button while uploading, close modal on success.
+(function() {
+    function initAttachmentUpload() {
+        var form = document.getElementById('attachmentUploadForm');
+        var btn = document.getElementById('attachmentUploadBtn');
+        var progWrap = document.getElementById('attachmentUploadProgress');
+        var progressBar = document.getElementById('attachmentUploadBar');
+        var progPercent = document.getElementById('attachmentUploadPercent');
+        var progStatus = document.getElementById('attachmentUploadStatus');
+        if (!form || !btn || form.dataset.ajaxBound) return;
+        form.dataset.ajaxBound = '1';
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            if (btn.disabled) return;
+            var formData = new FormData(form);
+            var xhr = new XMLHttpRequest();
+            xhr.open('POST', form.getAttribute('action'));
+            xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+            var token = document.querySelector('meta[name="csrf-token"]');
+            if (token) xhr.setRequestHeader('X-CSRF-TOKEN', token.getAttribute('content'));
+            // disable + show progress
+            btn.disabled = true;
+            btn.dataset.originalText = btn.textContent;
+            btn.innerHTML = '<svg class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path></svg> 上传中...';
+            progWrap.classList.remove('hidden');
+            progressBar.style.width = '0%';
+            progPercent.textContent = '0%';
+            progStatus.textContent = '上传中...';
+            xhr.upload.addEventListener('progress', function(ev) {
+                if (ev.lengthComputable) {
+                    var pct = Math.round((ev.loaded / ev.total) * 100);
+                    progressBar.style.width = pct + '%';
+                    progPercent.textContent = pct + '%';
+                }
+            });
+            xhr.addEventListener('load', function() {
+                var data = null;
+                try { data = xhr.responseText ? JSON.parse(xhr.responseText) : null; } catch (e) {}
+                if (xhr.status >= 200 && xhr.status < 300 && (!data || data.success)) {
+                    progPercent.textContent = '100%';
+                    progStatus.textContent = (data && data.message) ? data.message : '上传成功，正在刷新...';
+                    progressBar.style.width = '100%';
+                    closeModal('uploadAttachmentModal');
+                    setTimeout(function() { location.reload(); }, 500);
+                } else {
+                    resetButton();
+                    progWrap.classList.add('hidden');
+                    var msg = (data && data.message) ? data.message : ('上传失败，请重试（' + xhr.status + '）');
+                    alert(msg);
+                }
+            });
+            xhr.addEventListener('error', function() {
+                resetButton();
+                progWrap.classList.add('hidden');
+                alert('网络错误，上传失败，请重试');
+            });
+            function resetButton() {
+                btn.disabled = false;
+                btn.textContent = btn.dataset.originalText || '上传';
+            }
+            xhr.send(formData);
+        });
+    }
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initAttachmentUpload);
+    } else {
+        initAttachmentUpload();
+    }
+})();
+
 // Handle attachment selection (file picker or camera)
 function handleAttachmentSelect(input) {
     var preview = document.getElementById('newAttachmentPreview');

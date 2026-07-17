@@ -3,7 +3,7 @@
 // 功能：离线缓存骨架页、推送通知、后台同步
 // =============================================================
 
-const CACHE_VERSION = 'v1.0.0';
+const CACHE_VERSION = 'v2.0.1';
 const STATIC_CACHE = `workorder-static-${CACHE_VERSION}`;
 const RUNTIME_CACHE = `workorder-runtime-${CACHE_VERSION}`;
 
@@ -47,34 +47,34 @@ self.addEventListener('fetch', (event) => {
 
     const url = new URL(request.url);
 
-    // 同源请求：网络优先，失败回退缓存
+   // 同源请求：网络优先，失败回退缓存
     if (url.origin === self.location.origin) {
         // API 请求不缓存
         if (url.pathname.startsWith('/api/')) return;
 
-        event.respondWith(
-            fetch(request)
-                .then((response) => {
-                    // 成功则缓存副本
-                    if (response.ok) {
-                        const clone = response.clone();
-                        caches.open(RUNTIME_CACHE).then((cache) => {
-                            cache.put(request, clone);
-                        });
-                    }
-                    return response;
-                })
-                .catch(() => {
-                    // 网络失败，尝试缓存
-                    return caches.match(request).then((cached) => {
-                        if (cached) return cached;
-                        // 页面请求失败时返回离线页
-                        if (request.mode === 'navigate') {
-                            return caches.match('/offline.html');
-                        }
-                    });
-                })
-        );
+       event.respondWith(
+           fetch(request)
+               .then((response) => {
+                   // 成功则缓存副本
+                   if (response.ok) {
+                       const clone = response.clone();
+                       caches.open(RUNTIME_CACHE).then((cache) => {
+                           cache.put(request, clone);
+                       });
+                   }
+                   return response;
+               })
+               .catch(() => {
+                   // 网络失败，尝试缓存
+                   return caches.match(request).then((cached) => {
+                       if (cached) return cached;
+                       // 页面请求失败时返回离线页
+                       if (request.mode === 'navigate') {
+                           return caches.match('/offline.html');
+                       }
+                   });
+               })
+       );
     }
 });
 
