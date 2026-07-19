@@ -221,6 +221,11 @@ Route::middleware(['auth'])->group(function () {
         
         // 系统设置管理（仅管理员）
         Route::get('system-settings', [SystemSettingController::class, 'index'])->name('system-settings.index');
+
+        // 新版"设置"子菜单（拆分自单页 system-settings.index，仅管理员）
+        Route::get('settings/{section}', [SystemSettingController::class, 'page'])
+            ->where('section', 'registration|system|version|backup|messaging|all')
+            ->name('settings.page');
         Route::post('system-settings', [SystemSettingController::class, 'update'])->name('system-settings.update');
         Route::post('system-settings/toggle-registration', [SystemSettingController::class, 'toggleRegistration'])->name('system-settings.toggle-registration');
         Route::post('system-settings/initialize-defaults', [SystemSettingController::class, 'initializeDefaults'])->name('system-settings.initialize-defaults');
@@ -231,9 +236,17 @@ Route::middleware(['auth'])->group(function () {
        Route::post('system-settings/sms', [SystemSettingController::class, 'updateSms'])->name('system-settings.update-sms');
         Route::get('system-settings/wecom', [SystemSettingController::class, 'wecom'])->name('system-settings.wecom');
         Route::post('system-settings/wecom', [SystemSettingController::class, 'updateWecom'])->name('system-settings.update-wecom');
-        Route::get('system-settings/cas', [SystemSettingController::class, 'cas'])->name('system-settings.cas');
-        Route::post('system-settings/cas', [SystemSettingController::class, 'updateCas'])->name('system-settings.update-cas');
-        Route::delete('system-settings/{systemSetting}', [SystemSettingController::class, 'destroy'])->name('system-settings.destroy');
+       Route::get('system-settings/cas', [SystemSettingController::class, 'cas'])->name('system-settings.cas');
+       Route::post('system-settings/cas', [SystemSettingController::class, 'updateCas'])->name('system-settings.update-cas');
+       Route::delete('system-settings/{systemSetting}', [SystemSettingController::class, 'destroy'])->name('system-settings.destroy');
+
+        // 数据备份与恢复（仅管理员）
+        Route::get('system-settings/backups', [App\Http\Controllers\BackupController::class, 'index'])->name('system-settings.backups.index');
+        Route::post('system-settings/backups', [App\Http\Controllers\BackupController::class, 'create'])->name('system-settings.backups.create');
+        Route::get('system-settings/backups/{name}/download', [App\Http\Controllers\BackupController::class, 'download'])->name('system-settings.backups.download');
+        Route::delete('system-settings/backups/{name}', [App\Http\Controllers\BackupController::class, 'destroy'])->name('system-settings.backups.destroy');
+        Route::post('system-settings/backups/upload', [App\Http\Controllers\BackupController::class, 'upload'])->name('system-settings.backups.upload');
+        Route::post('system-settings/backups/{name}/restore', [App\Http\Controllers\BackupController::class, 'restore'])->name('system-settings.backups.restore');
         
         // 工单来源管理（仅管理员）
         Route::resource('workorder-sources', WorkorderSourceController::class)->names([

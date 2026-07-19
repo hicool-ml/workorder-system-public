@@ -152,10 +152,24 @@
                 <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 0 0 8 11a4 4 0 1 1 8 0c0 1.017-.07 2.019-.203 3m-2.118 3.844A21.88 21.88 0 0 0 12 11c0-2.5.5-5 1.5-7.5M3 12a9 9 0 1 1 18 0 9 9 0 0 1-18 0z"/></svg>
                 <span>统一身份认证</span>
             </a>
-            <a href="{{ route('system-settings.index') }}" class="nav-item {{ request()->routeIs('system-settings.*') ? 'nav-active' : 'text-brand-100 hover:bg-brand-700' }}">
-                <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-                <span>系统设置</span>
-            </a>
+                        <div class="settings-nav-group">
+                <button type="button" class="nav-item w-full justify-between {{ request()->routeIs('settings.page', 'system-settings.*') ? 'nav-active' : 'text-brand-100 hover:bg-brand-700' }}" onclick="document.getElementById('settingsSubnav').classList.toggle('hidden')">
+                    <span class="flex items-center gap-3">
+                        <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                        <span>设置</span>
+                    </span>
+                    <svg class="w-3 h-3 opacity-70" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+                </button>
+                <div id="settingsSubnav" class="{{ request()->routeIs('settings.page', 'system-settings.*') ? '' : 'hidden' }} pl-7 mt-1 space-y-1">
+                    <a href="{{ route('settings.page', 'registration') }}" class="nav-item text-sm {{ request()->is('settings/registration') ? 'nav-active' : 'text-brand-100 hover:bg-brand-700' }}"><span class="w-1 h-1 rounded-full bg-current"></span><span>注册设置</span></a>
+                    <a href="{{ route('settings.page', 'system') }}" class="nav-item text-sm {{ request()->is('settings/system') ? 'nav-active' : 'text-brand-100 hover:bg-brand-700' }}"><span class="w-1 h-1 rounded-full bg-current"></span><span>系统设置</span></a>
+                    <a href="{{ route('settings.page', 'version') }}" class="nav-item text-sm {{ request()->is('settings/version') ? 'nav-active' : 'text-brand-100 hover:bg-brand-700' }}"><span class="w-1 h-1 rounded-full bg-current"></span><span>版本管理</span></a>
+                    <a href="{{ route('settings.page', 'backup') }}" class="nav-item text-sm {{ request()->is('settings/backup') ? 'nav-active' : 'text-brand-100 hover:bg-brand-700' }}"><span class="w-1 h-1 rounded-full bg-current"></span><span>备份&恢复</span></a>
+                    <a href="{{ route('settings.page', 'messaging') }}" class="nav-item text-sm {{ request()->is('settings/messaging') ? 'nav-active' : 'text-brand-100 hover:bg-brand-700' }}"><span class="w-1 h-1 rounded-full bg-current"></span><span>消息设置</span></a>
+                    <a href="{{ route('settings.page', 'all') }}" class="nav-item text-sm {{ request()->is('settings/all') ? 'nav-active' : 'text-brand-100 hover:bg-brand-700' }}"><span class="w-1 h-1 rounded-full bg-current"></span><span>详细设置</span></a>
+                    <a href="{{ route('system-settings.index') }}" class="nav-item text-xs {{ request()->routeIs('system-settings.index') ? 'nav-active' : 'text-brand-300 hover:bg-brand-700' }}" title="旧版单页设置，验证无误后将移除"><span class="w-1 h-1 rounded-full bg-current opacity-50"></span><span>旧版（备用）</span></a>
+                </div>
+            </div>
             @endif
 
             {{-- User section --}}

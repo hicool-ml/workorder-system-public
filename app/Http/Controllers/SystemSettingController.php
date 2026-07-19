@@ -15,11 +15,38 @@ class SystemSettingController extends Controller
     /**
      * 系统设置列表页面
      */
+        /**
+     * 系统设置列表页面（旧版单页，保留兼容；新版拆分为 settings.* 子页）
+     */
     public function index()
     {
+        return view('system-settings.index', $this->settingsViewData());
+    }
+
+    /**
+     * 新版"设置"拆分子页：注册设置 / 系统设置 / 版本管理 / 备份恢复 / 消息设置 / 详细设置
+     */
+    public function page(string $section)
+    {
+        $map = [
+            'registration' => 'settings.registration',
+            'system'       => 'settings.system',
+            'version'      => 'settings.version',
+            'backup'       => 'settings.backup',
+            'messaging'    => 'settings.messaging',
+            'all'          => 'settings.all',
+        ];
+        abort_unless(isset($map[$section]), 404);
+        return view($map[$section], $this->settingsViewData());
+    }
+
+    /**
+     * 设置页面共享数据：所有设置项 + 按类别分组
+     */
+    private function settingsViewData(): array
+    {
         $settings = SystemSetting::orderBy('key')->get();
-        
-        // 按类别分组设置
+
         $groupedSettings = [
             'registration' => $settings->filter(fn($s) => str_contains($s->key, 'registration')),
             'user' => $settings->filter(fn($s) => str_contains($s->key, 'user')),
@@ -29,8 +56,8 @@ class SystemSettingController extends Controller
                 'registration_enabled', 'default_user_role', 'require_email_verification', 'system_name', 'system_version', 'system_release_date'
             ])),
         ];
-        
-        return view('system-settings.index', compact('groupedSettings', 'settings'));
+
+        return compact('groupedSettings', 'settings');
     }
 
     /**
