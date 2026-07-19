@@ -29,6 +29,15 @@ Thumbs.db
 .composer-cache
 .npm-cache
 /.tools
+/deploy/secrets.*
+/deploy/*.env
+/deploy/production_final_dump.sql
+/deploy/*_dump.sql
+cookies.txt
+cookies_*.txt
+*.bak
+*.backup
+*_bak.*
 /storage/app/*
 !/storage/app/.gitkeep
 /storage/framework/cache/*

@@ -1,19 +1,26 @@
-﻿#!/bin/bash
+#!/bin/bash
 # ============================================================
 # 工单系统上线部署脚本
-# 在本地执行，通过 SSH 部署到生产服务器 REDACTED_PROD_HOST
+# 在本地执行，通过 SSH 部署到生产服务器
 # 用法: bash deploy/deploy.sh
+#
+# 凭证从环境变量读取，不再硬编码。请在运行前 export 或写入
+# deploy/secrets.env（已 gitignore）后 source。
+#   export PROD_HOST=...      PROD_USER=...   PROD_PASS=...
+#   export MYSQL_USER=...     MYSQL_PASS=...  MYSQL_DB=...
+#   export MYSQL_BIN=...      # 本地 mysql 客户端路径
 # ============================================================
 set -e
 
-PROD_HOST="REDACTED_PROD_HOST"
-PROD_USER="cdu"
-PROD_PASS="REDACTED_PROD_SSH_PASS"
-PROD_PATH="/var/www/workorder"
+PROD_HOST="${PROD_HOST:?请通过环境变量设置 PROD_HOST}"
+PROD_USER="${PROD_USER:-cdu}"
+PROD_PASS="${PROD_PASS:?请通过环境变量设置 PROD_PASS}"
+PROD_PATH="${PROD_PATH:-/var/www/workorder}"
 BACKUP_DIR="/var/www/workorder-backup-$(date +%Y%m%d_%H%M%S)"
-MYSQL_USER="cdu"
-MYSQL_PASS="REDACTED_MYSQL_PASS"
-MYSQL_DB="workorder_db"
+MYSQL_USER="${MYSQL_USER:?请通过环境变量设置 MYSQL_USER}"
+MYSQL_PASS="${MYSQL_PASS:?请通过环境变量设置 MYSQL_PASS}"
+MYSQL_DB="${MYSQL_DB:-workorder_db}"
+MYSQL_BIN="${MYSQL_BIN:-mysql}"
 
 echo "========================================"
 echo "  工单系统上线部署"
@@ -42,7 +49,7 @@ sshpass -p "$PROD_PASS" ssh -o StrictHostKeyChecking=no ${PROD_USER}@${PROD_HOST
 echo "  生产数据导出到 deploy/production_final_dump.sql ($(du -sh deploy/production_final_dump.sql | cut -f1))"
 
 echo "  导入到本地 MySQL..."
-C:/mysql8/bin/mysql.exe -u ${MYSQL_USER} -p${MYSQL_PASS} ${MYSQL_DB} < deploy/production_final_dump.sql 2>/dev/null
+"${MYSQL_BIN}" -u ${MYSQL_USER} -p${MYSQL_PASS} ${MYSQL_DB} < deploy/production_final_dump.sql 2>/dev/null
 echo "[2/7] 数据同步完成"
 
 # --- 步骤 3: 构建前端资源 ---
@@ -93,9 +100,9 @@ echo ""
 echo "[6/7] 设置文件权限..."
 sshpass -p "$PROD_PASS" ssh -o StrictHostKeyChecking=no ${PROD_USER}@${PROD_HOST} "
     cd ${PROD_PATH}
-    sudo chown -R cdu:www-data storage bootstrap/cache
+    sudo chown -R ${PROD_USER}:www-data storage bootstrap/cache
     sudo chmod -R 775 storage bootstrap/cache
-    sudo chown -R cdu:www-data public/storage 2>/dev/null || true
+    sudo chown -R ${PROD_USER}:www-data public/storage 2>/dev/null || true
     sudo systemctl reload apache2
 "
 echo "[6/7] 权限设置完成"

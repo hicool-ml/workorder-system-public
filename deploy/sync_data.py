@@ -1,7 +1,12 @@
-﻿#!/usr/bin/env python3
+#!/usr/bin/env python3
 """
 工单系统数据同步脚本
 从生产服务器同步数据到本地 MySQL
+
+凭证从环境变量读取，不再硬编码。请在运行前设置：
+    export PROD_HOST=...   PROD_USER=...   PROD_PASS=...
+    export MYSQL_USER=...  MYSQL_PASS=...  MYSQL_DB=...
+    export MYSQL_BIN=...   # 本地 mysql 客户端路径（可选）
 
 用法: python deploy/sync_data.py
 """
@@ -10,13 +15,19 @@ import subprocess
 import sys
 import os
 
-PROD_HOST = "REDACTED_PROD_HOST"
-PROD_USER = "cdu"
-PROD_PASS = "REDACTED_PROD_SSH_PASS"
-MYSQL_USER = "cdu"
-MYSQL_PASS = "REDACTED_MYSQL_PASS"
-MYSQL_DB = "workorder_db"
-MYSQL_BIN = r"C:\mysql8\bin\mysql.exe"
+PROD_HOST = os.environ.get("PROD_HOST", "")
+PROD_USER = os.environ.get("PROD_USER", "cdu")
+PROD_PASS = os.environ.get("PROD_PASS", "")
+MYSQL_USER = os.environ.get("MYSQL_USER", "")
+MYSQL_PASS = os.environ.get("MYSQL_PASS", "")
+MYSQL_DB = os.environ.get("MYSQL_DB", "workorder_db")
+MYSQL_BIN = os.environ.get("MYSQL_BIN", r"C:\mysql8\bin\mysql.exe")
+
+for name, val in (("PROD_HOST", PROD_HOST), ("PROD_PASS", PROD_PASS),
+                  ("MYSQL_USER", MYSQL_USER), ("MYSQL_PASS", MYSQL_PASS)):
+    if not val:
+        print(f"错误：请通过环境变量设置 {name}", file=sys.stderr)
+        sys.exit(1)
 
 def main():
     print("=" * 50)
