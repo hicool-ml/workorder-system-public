@@ -148,10 +148,6 @@
                 <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a4 4 0 0 0-3-3.87 M9 20H4v-2a4 4 0 0 1 3-3.87 M16 3.13a4 4 0 0 1 0 7.75 M12 11a4 4 0 1 1 0-8 4 4 0 0 1 0 8z"/></svg>
                 <span>用户管理</span>
             </a>
-            <a href="{{ route('system-settings.cas') }}" class="nav-item {{ request()->routeIs('system-settings.cas') ? 'nav-active' : 'text-brand-100 hover:bg-brand-700' }}">
-                <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 0 0 8 11a4 4 0 1 1 8 0c0 1.017-.07 2.019-.203 3m-2.118 3.844A21.88 21.88 0 0 0 12 11c0-2.5.5-5 1.5-7.5M3 12a9 9 0 1 1 18 0 9 9 0 0 1-18 0z"/></svg>
-                <span>统一身份认证</span>
-            </a>
                         <div class="settings-nav-group">
                 <button type="button" class="nav-item w-full justify-between {{ request()->routeIs('settings.page', 'system-settings.*') ? 'nav-active' : 'text-brand-100 hover:bg-brand-700' }}" onclick="document.getElementById('settingsSubnav').classList.toggle('hidden')">
                     <span class="flex items-center gap-3">
@@ -167,6 +163,7 @@
                     <a href="{{ route('settings.page', 'backup') }}" class="nav-item text-sm {{ request()->is('settings/backup') ? 'nav-active' : 'text-brand-100 hover:bg-brand-700' }}"><span class="w-1 h-1 rounded-full bg-current"></span><span>备份&恢复</span></a>
                     <a href="{{ route('settings.page', 'messaging') }}" class="nav-item text-sm {{ request()->is('settings/messaging') ? 'nav-active' : 'text-brand-100 hover:bg-brand-700' }}"><span class="w-1 h-1 rounded-full bg-current"></span><span>消息设置</span></a>
                     <a href="{{ route('settings.page', 'all') }}" class="nav-item text-sm {{ request()->is('settings/all') ? 'nav-active' : 'text-brand-100 hover:bg-brand-700' }}"><span class="w-1 h-1 rounded-full bg-current"></span><span>详细设置</span></a>
+                    <a href="{{ route('system-settings.cas') }}" class="nav-item text-sm {{ request()->routeIs('system-settings.cas') ? 'nav-active' : 'text-brand-100 hover:bg-brand-700' }}"><span class="w-1 h-1 rounded-full bg-current"></span><span>统一身份认证</span></a>
                     <a href="{{ route('system-settings.index') }}" class="nav-item text-xs {{ request()->routeIs('system-settings.index') ? 'nav-active' : 'text-brand-300 hover:bg-brand-700' }}" title="旧版单页设置，验证无误后将移除"><span class="w-1 h-1 rounded-full bg-current opacity-50"></span><span>旧版（备用）</span></a>
                 </div>
             </div>
