@@ -312,6 +312,12 @@
                                     </div>
                                 </div>
                                 @endif
+                                <div id="phone_solution_div" class="hidden mb-4">
+                                    <label for="phone_solution" class="label">µç»°½â¾ö·½°¸£¨Ñ¡Ìî£©</label>
+                                    <textarea class="input" id="phone_solution" name="phone_solution" rows="4"
+                                              placeholder="ÇëÃèÊöÈçºÎÍ¨¹ıµç»°Ğ­ÖúÓÃ»§½â¾öÎÊÌâ£¨¿ÉÁô¿Õ£©">{{ old('phone_solution') }}</textarea>
+                                    <div class="text-xs text-ink-muted mt-1">¹´Ñ¡ºó½«Ö±½Ó´´½¨ÎªÒÑ½â¾ö¹¤µ¥£¬ÎŞĞèºóĞø´¦Àí</div>
+                                </div>
                             </div>
                             
                             <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
@@ -545,30 +551,21 @@ $(document).ready(function() {
     });
     
     // ç”µè¯ååŠ©å®Œæˆé€‰é¡¹å¤„ç†
-    $('#phone_assisted').change(function() {
-        if ($(this).is(':checked')) {
-            // å¦‚æœé€‰æ‹©ç”µè¯ååŠ©å®Œæˆï¼Œå¯ä»¥éšè—ä¸€äº›ä¸å¿…è¦çš„å­—æ®µ
+    // µç»°Ğ­ÖúÍê³ÉÑ¡Ïî´¦Àí£º½öÏÔÊ¾/Òş²Ø¾²Ì¬·½°¸ÊäÈë¿ò
+    $('#phone_assisted').on('change', function() {
+        var show = $(this).is(':checked');
+        $('#phone_solution_div').toggleClass('hidden', !show);
+        if (show) {
+            // Òş²Ø²»±ØÒªµÄ×Ö¶Î
             $('#appointment_time_start').closest('.col-md-6').hide();
             $('#need_visit').closest('.col-md-3').hide();
-            // æ˜¾ç¤ºç”µè¯ååŠ©è§£å†³æ–¹æ¡ˆè¾“å…¥æ¡†
-            if (!$('#phone_solution_div').length) {
-                var solutionDiv = $('<div id="phone_solution_div">');
-                solutionDiv.html(
-                    '<div class="mb-4">' +
-                        '<label for="phone_solution" class="label">ç”µè¯è§£å†³æ–¹æ¡ˆ <span class="text-red-500">*</span></label>' +
-                        '<textarea class="input" id="phone_solution" name="phone_solution" rows="4" required' +
-                                  'placeholder="è¯·è¯¦ç»†æè¿°ç”µè¯è§£å†³æ–¹æ¡ˆ..."></textarea>' +
-                        '<div class="text-xs text-ink-muted mt-1">é€‰æ‹©ç”µè¯ååŠ©å®Œæˆåï¼Œå·¥å•å°†ç›´æ¥æ ‡è®°ä¸ºå·²è§£å†³çŠ¶æ€</div>' +
-                    '</div>'
-                );
-                $(this).closest('.row').after(solutionDiv);
-            }
         } else {
             $('#appointment_time_start').closest('.col-md-6').show();
             $('#need_visit').closest('.col-md-3').show();
-            $('#phone_solution_div').remove();
         }
     });
+    // ³õÊ¼»¯£ºÈôÒÑ¹´Ñ¡£¨Ò³ÃæË¢ĞÂ»ØÌîºó£©ÔòÏÔÊ¾·½°¸¿ò
+    if ($('#phone_assisted').is(':checked')) { $('#phone_solution_div').removeClass('hidden'); }
     
     // é™„ä»¶é¢„è§ˆ
     $('#attachments').change(async function() {

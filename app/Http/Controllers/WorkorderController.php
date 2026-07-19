@@ -243,7 +243,7 @@ class WorkorderController extends Controller
             'need_visit' => 'boolean',
             'is_emergency' => 'boolean',
             'phone_assisted' => 'boolean',
-            'phone_solution' => 'nullable|string|max:2000|required_if:phone_assisted,1',
+            'phone_solution' => 'nullable|string|max:2000',
             'assignee_id' => 'nullable|string',
             'other_reason' => 'nullable|string|max:500',
             'requires_signature' => 'boolean',
