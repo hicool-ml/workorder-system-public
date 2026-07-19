@@ -83,7 +83,7 @@ class BackupSystem extends Command
         $tmpSql = $disk->path("{$backupDir}/database.sql");
         File::ensureDirectoryExists(dirname($tmpSql));
 
-        $passPart = $pass !== '' ? '-p' . escapeshellarg($pass) : '';
+        $passPart = $pass !== '' ? '-p' . $pass : '';
         $cmd = sprintf(
             '%s --host=%s --port=%s -u %s %s --single-transaction --quick --no-tablespaces %s > %s 2>&1',
             escapeshellarg(explode("\n", $mysqldump)[0]),
@@ -184,6 +184,10 @@ class BackupSystem extends Command
         $zipPath = $disk->path("{$backupDir}/attachments.zip");
         File::ensureDirectoryExists(dirname($zipPath));
 
+        // realpath 归一化分隔符，避免 Windows 下 storage_path() 返回混合分隔符导致 str_replace 失败、
+        // 把服务器绝对路径写进 zip（既冗余又泄露目录结构）。
+        $realBase = realpath($publicPath);
+
         $zip = new \ZipArchive();
         if ($zip->open($zipPath, \ZipArchive::CREATE | \ZipArchive::OVERWRITE) === true) {
             $files = new \RecursiveIteratorIterator(
@@ -193,8 +197,10 @@ class BackupSystem extends Command
             $fileCount = 0;
             foreach ($files as $file) {
                 if (!$file->isDir()) {
-                    $relative = 'public/' . ltrim(str_replace($publicPath, '', $file->getRealPath()), DIRECTORY_SEPARATOR);
-                    $zip->addFile($file->getRealPath(), $relative);
+                    $real = $file->getRealPath();
+                    // 仅取相对 public 的路径作为 zip 内条目，分隔符统一为 /。
+                    $relative = ltrim(str_replace(DIRECTORY_SEPARATOR, '/', substr($real, strlen($realBase))), '/');
+                    $zip->addFile($real, $relative);
                     $fileCount++;
                 }
             }
