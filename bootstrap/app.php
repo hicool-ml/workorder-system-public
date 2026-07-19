@@ -26,6 +26,12 @@ return Application::configure(basePath: dirname(__DIR__))
             \App\Http\Middleware\ForcePasswordChange::class,
         ]);
 
+        // 防止浏览器强缓存 HTML：保证前端总是引用最新 hash 的 CSS/JS
+        // 避免"旧 HTML 引用已删除的旧 CSS 导致图标巨大"的问题
+        $middleware->web(append: [
+            \App\Http\Middleware\PreventHtmlCache::class,
+        ]);
+
         // 完全移除ForceHttps中间件，因为使用Cloudflare隧道不需要本地HTTPS
         // Cloudflare隧道已经提供了加密：[用户浏览器] <-HTTPS-> [Cloudflare隧道] <-HTTP-> [内网服务器>
     })
