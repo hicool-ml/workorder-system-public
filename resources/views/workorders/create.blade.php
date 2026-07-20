@@ -3,14 +3,6 @@
 @section('title', '创建工单')
 
 @section('content')
-<!-- 模板选择区域 -->
-@if(session('from_template'))
-<div class="p-3 rounded-lg bg-blue-50 text-blue-700 text-sm" role="alert">
-    <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z M12 16v-4 M12 8h.01"/></svg>
-    <strong>使用模板创建工单：</strong> 您已从模板 "{{ session('template_name') }}" 预填充了表单内容，请根据需要修改后提交。
-    <button type="button"  aria-label="关闭模板提示"></button>
-</div>
-@endif
 
 <div class="flex items-center justify-between mb-6 pb-4 border-b border-border">
     <h1 class="text-xl font-semibold text-ink">创建工单</h1>
@@ -18,28 +10,7 @@
         <a href="{{ \App\Helpers\UrlHelper::relative_url('/workorders') }}" class="btn btn-secondary">
             <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 12H5 M12 19l-7-7 7-7"/></svg> 返回列表
         </a>
-        <div class="flex gap-2">
-            <button type="button" class="btn btn-secondary">
-                <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z M14 2v6h6 M16 13H8 M16 17H8 M10 9H8"/></svg> 使用模板
-            </button>
-            <ul class="card shadow-lg py-1 min-w-48 absolute right-0 mt-2 z-50">
-                <li><h6 class="px-3 py-1 text-xs font-medium text-ink-muted">常用模板</h6></li>
-                @foreach(\App\Models\WorkorderTemplate::where('is_active', true)->orderBy('name')->limit(5)->get() as $template)
-                <li>
-                    <a href="#" class="block px-3 py-2 text-sm text-ink hover:bg-surface-muted rounded-lg mx-1" onclick="useTemplate({{ $template->id }}, '{{ $template->name }}')">
-                        <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z M14 2v6h6"/></svg> {{ $template->name }}
-                    </a>
-                </li>
-                @endforeach
-                <li><hr class="border-t border-border my-1"></li>
-                <li>
-                    <a href="{{ route('workorder-templates.index') }}" class="block px-3 py-2 text-sm text-ink hover:bg-surface-muted rounded-lg mx-1">
-                        <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 6h13 M8 12h13 M8 18h13 M3 6h.01 M3 12h.01 M3 18h.01"/></svg> 管理模板
-                    </a>
-                </li>
-            </ul>
-        </div>
-    </div>
+            </div>
 </div>
 
 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -964,10 +935,6 @@ $(document).ready(function() {
     }
 });
 
-// 使用模板创建工单
-function useTemplate(templateId, templateName) {
-    window.location.href = '{{ \App\Helpers\UrlHelper::relative_url('/workorders/create') }}?template=' + templateId;
-}
 
 // 显示图片预览模态框
 function showImagePreview(imageSrc, fileName) {
