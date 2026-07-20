@@ -113,6 +113,17 @@ stdout_logfile_maxbytes=0
 stderr_logfile=/dev/stderr
 autostart=true
 autorestart=true
+
+# Laravel 调度器：每分钟触发 schedule:run，让注册在 routes/console.php 的定时任务
+# （如每日 02:00 的 backup:system）真正生效。Alpine 无 cron 服务，用循环替代。
+[program:scheduler]
+command=/bin/sh -c "while true; do php artisan schedule:run --no-ansi >> /dev/null 2>&1; sleep 60; done"
+directory=/var/www/html
+stdout_logfile=/dev/stdout
+stdout_logfile_maxbytes=0
+stderr_logfile=/dev/stderr
+autostart=true
+autorestart=true
 SUP
 
 EXPOSE 80

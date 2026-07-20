@@ -55,15 +55,85 @@ php artisan backup:system --keep=14
 
 ### 让定时任务真正生效
 
-Laravel 的调度需要宿主机有一个每分钟跑一次的 cron 入口：
+Laravel 的调度只是在代码里"注册"了任务定义。要让它真正在凌晨 2 点触发，**必须有一个每分钟调用 `schedule:run` 的外部进程**。没有这个入口，自动备份永远不会执行——这是"没看到昨晚备份"最常见的原因。
 
-```bash
-* * * * * cd /path/to/workorder-system && php artisan schedule:run >> /dev/null 2>&1
-```
+不同部署方式下，这个入口的配置方法不同。下面按常见场景逐一说明。
 
-Docker 部署若未配置 cron sidecar，定时备份不会自动触发，需手动点「立即备份」或额外接入 cron 容器。
+#### Ubuntu / Debian 裸机（Apache 或 Nginx）
 
-## 命令行操作
+用部署账号（通常是 Web 目录属主）编辑 crontab：
+
+`ash
+crontab -e
+`
+
+加入一行（路径换成实际部署目录，本项目生产环境一般为 `/var/www/workorder`）：
+
+`ash
+* * * * * cd /var/www/workorder && php artisan schedule:run >> storage/logs/schedule.log 2>&1
+`
+
+- 若 `php` 不在 cron 的 PATH 里，用绝对路径（`which php` 查询，如 `/usr/bin/php`）
+- 确认 cron 服务在运行：`sudo systemctl status cron`（Ubuntu/Debian）
+- 若用 `www-data` 跑 cron，确保它对 `storage/` 有写权限
+
+#### CentOS / RHEL / Rocky 裸机
+
+步骤同上，只是 cron 服务名不同：
+
+`ash
+sudo systemctl status crond      # 确认在运行
+sudo systemctl enable crond
+crontab -e                       # 同样加那行 * * * * * ... schedule:run
+`
+
+#### Docker 部署
+
+`Dockerfile` 的 supervisor 已内置一个 `scheduler` 进程，每分钟自动执行 `schedule:run`，**开箱即用，无需额外配置**。
+
+若用的是 2026-07-20 之前的旧镜像（不含 scheduler 进程），需重新构建并启动：
+
+`ash
+docker compose up -d --build
+`
+
+不想重建镜像也可临时用 cron sidecar 容器，但推荐重建以获得内置调度。
+
+#### Windows 本地 / IIS
+
+Windows 没有 cron。开发环境一般不需要自动备份，直接在 Web 界面点「立即备份」即可。如确需自动触发，用「任务计划程序」创建一个任务：
+
+- 触发器：每 1 分钟重复
+- 操作：启动程序 `C:\path\to\php.exe`
+- 参数：`artisan schedule:run`
+- 起始位置：项目根目录（含 `artisan` 的目录）
+
+注意：若生产跑在 Windows Server + IIS 上，同样用任务计划程序，务必让该任务以对 `storage/` 有写权限的账号运行。
+
+#### 宝塔 / cPanel / 虚拟主机等面板环境
+
+这类环境通常不允许直接编辑系统 crontab，但面板会提供「计划任务 / Cron Job」入口：
+
+- **宝塔面板**：网站 → 计划任务 → 添加任务，类型选「Shell 脚本」，执行周期每 1 分钟，脚本内容：
+  `ash
+  cd /www/wwwroot/你的站点目录 && php artisan schedule:run
+  `
+- **cPanel**：Advanced → Cron jobs，Add New Cron Job，Common Settings 选 `* * * * *`，Command 填：
+  `ash
+  cd /home/用户名/public_html && php artisan schedule:run
+  `
+- **虚拟主机**：若不支持 CLI cron，自动备份无法生效，只能定期登录 Web 界面手动「立即备份」。
+
+#### 排查"没有自动备份"
+
+1. `php artisan schedule:list` —— 确认任务已注册，应看到 `0 2 * * * php artisan backup:system`
+2. 确认 cron / scheduler / 计划任务确实在每分钟运行：看 `storage/logs/schedule.log` 是否每分钟新增一行
+3. 凌晨 2 点过后查 `storage/app/private/backups/` 有无新目录；若仍无，手动跑 `php artisan backup:system` 看具体报错
+4. 路径权限：执行调度的账号必须能写 `storage/app/private/backups/` 和 `storage/logs/`
+
+> 历史背景：在 2026-07-20 之前，Docker 镜像未内置 scheduler 进程，文档也只给了一条通用 cron 而没区分具体部署场景，导致很多环境下自动备份实际未生效。现已为 Docker 镜像内置调度，并为各部署方式给出明确步骤。
+
+## 命令行操作## 命令行操作
 
 不依赖 Web 界面也能备份：
 
