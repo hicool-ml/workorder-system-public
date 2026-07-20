@@ -339,6 +339,12 @@ class User extends Authenticatable
             if ($workorder->creator_id === $this->id || $workorder->assignee_id === $this->id) {
                 return true;
             }
+            // 工单池：pending（待分配）工单对所有工程师可见，以便就近自行接单
+            // 必须与 getWorkorderQueryScope() 中 ->orWhere('status','pending') 保持一致，
+            // 否则列表能看到却进不了详情页（403），导致工程师无法抢单。
+            if ($workorder->status === 'pending') {
+                return true;
+            }
             
             // 检查是否是协作工程师（含待接受：被邀请人需先看到工单才能接受邀请）
             return $workorder->collaborations()
