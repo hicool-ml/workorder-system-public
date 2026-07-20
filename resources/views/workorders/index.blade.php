@@ -258,8 +258,8 @@
                     </tr>
                 </thead>
                 <tbody>
-                    @forelse($workorders as $workorder)
-                    <tr class="border-b border-border hover:bg-surface-muted transition-colors {{ $workorder->isOverdue() ? 'overdue-row' : '' }}">
+                   @forelse($workorders as $workorder)
+                    <tr class="border-b border-border hover:bg-surface-muted transition-colors {{ $workorder->isOverdue() ? 'overdue-row' : '' }} {{ (auth()->user()->isEngineer() && $workorder->isRelatedToUser()) ? 'my-related-row' : '' }}">
                         <td class="px-4 py-3">
                             <input type="checkbox" class="workorder-checkbox rounded border-border-strong" value="{{ $workorder->id }}" autocomplete="off">
                         </td>
@@ -346,8 +346,8 @@
 
         {{-- Mobile card list --}}
         <div class="md:hidden space-y-2 p-2 sm:p-0">
-            @forelse($workorders as $workorder)
-            <div class="p-3 rounded-lg border border-border {{ $workorder->isOverdue() ? 'overdue-row' : 'bg-surface-muted' }}">
+           @forelse($workorders as $workorder)
+            <div class="p-3 rounded-lg border border-border {{ $workorder->isOverdue() ? 'overdue-row' : 'bg-surface-muted' }} {{ (auth()->user()->isEngineer() && $workorder->isRelatedToUser()) ? 'my-related-row' : '' }}">
                 <div class="flex items-start justify-between gap-3 mb-2">
                     <div class="flex-1 min-w-0">
                         <a href="{{ route('workorders.show', $workorder->id) }}" class="font-medium text-ink hover:text-brand-600">

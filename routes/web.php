@@ -98,7 +98,8 @@ Route::middleware(['auth'])->group(function () {
     Route::post('workorders/{workorder}/rollback', [WorkorderController::class, 'rollback'])->name('workorders.rollback');
    Route::post('workorders/{workorder}/invite-collaborator', [WorkorderController::class, 'inviteCollaborator'])->name('workorders.invite.collaborator');
     Route::post('workorder-collaborations/{collaboration}/accept', [WorkorderController::class, 'acceptCollaboration'])->name('workorders.collaborations.accept');
-    Route::post('workorder-collaborations/{collaboration}/reject', [WorkorderController::class, 'rejectCollaboration'])->name('workorders.collaborations.reject');
+  Route::post('workorder-collaborations/{collaboration}/reject', [WorkorderController::class, 'rejectCollaboration'])->name('workorders.collaborations.reject');
+   Route::post('workorder-collaborations/{collaboration}/cancel', [WorkorderController::class, 'cancelCollaboration'])->name('workorders.collaborations.cancel');
     Route::post('workorders/{workorder}/visit', [WorkorderController::class, 'storeVisit'])->name('workorders.visit.store');
     Route::get('api/workorders/subcategories', [WorkorderController::class, 'getSubCategories'])->name('api.workorders.subcategories');
     Route::get('workorders/{workorder}/materials-usage', [WorkorderController::class, 'getMaterialsUsage'])->name('workorders.materials-usage');

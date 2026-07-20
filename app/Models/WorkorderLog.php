@@ -65,8 +65,9 @@ class WorkorderLog extends Model
             'materials_updated' => '更新备件耗材',
             'collaboration_invited' => '邀请协作',
             'collaboration_accepted' => '接受协作',
-            'collaboration_rejected' => '拒绝协作',
-            'visit_completed' => '完成回访',
+           'collaboration_rejected' => '拒绝协作',
+           'collaboration_cancelled' => '取消协作邀请',
+           'visit_completed' => '完成回访',
             'phone_assisted' => '电话协助完成',
             'rolled_back' => '回滚工单状态',
         ];

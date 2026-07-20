@@ -61,10 +61,8 @@ class AttachmentController extends Controller
      */
     public function info(WorkorderAttachment $attachment)
     {
-        // 权限检查：只有工单的创建者、分配的处理人或管理员可以查看附件信息
-        if (!auth()->user()->isAdmin() &&
-            $attachment->workorder->creator_id !== auth()->id() &&
-            $attachment->workorder->assignee_id !== auth()->id()) {
+        // 权限检查：统一使用 canViewWorkorder（与下载/预览一致）
+        if (!auth()->user()->canViewWorkorder($attachment->workorder)) {
             abort(403, '您没有权限查看此附件信息');
         }
         

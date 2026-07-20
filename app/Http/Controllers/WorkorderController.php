@@ -1238,13 +1238,48 @@ class WorkorderController extends Controller
             } else {
                 return back()->with('error', '协作邀请拒绝失败');
             }
+       } catch (\Exception $e) {
+           return back()->with('error', '协作邀请拒绝失败：' . $e->getMessage());
+       }
+   }
+ 
+    /**
+     * 取消协作邀请
+     * 规则：仅工单负责人、工单管理员、系统管理员可取消；且仅当邀请仍为「待接受」时可取消。
+     */
+    public function cancelCollaboration(Request $request, WorkorderCollaboration $collaboration)
+    {
+        if (!$collaboration->canBeCancelledBy()) {
+            $message = '无法取消此邀请';
+            if ($collaboration->status !== 'pending') {
+                $message = '对方已接受邀请，无法取消';
+            } else {
+                $message = '您没有权限取消此邀请';
+            }
+
+            if ($request->isMethod('get')) {
+                return redirect(\App\Helpers\UrlHelper::relative_url("/workorders/{$collaboration->workorder_id}"))->with('error', $message);
+            }
+            return back()->with('error', $message);
+        }
+
+        $collaboratorName = $collaboration->collaborator?->name ?? '未知用户';
+        $workorderId = $collaboration->workorder_id;
+
+        try {
+            if ($collaboration->cancel()) {
+                $collaboration->workorder->addLog('collaboration_cancelled', "取消了对 {$collaboratorName} 的协作邀请");
+                return redirect(\App\Helpers\UrlHelper::relative_url("/workorders/{$workorderId}"))
+                    ->with('success', '协作邀请已取消');
+            }
+            return back()->with('error', '取消邀请失败');
         } catch (\Exception $e) {
-            return back()->with('error', '协作邀请拒绝失败：' . $e->getMessage());
+            return back()->with('error', '取消邀请失败：' . $e->getMessage());
         }
     }
-    
-    /**
-     * 批量分配工单
+   
+   /**
+    * 批量分配工单
      */
     public function batchAssign(Request $request)
     {

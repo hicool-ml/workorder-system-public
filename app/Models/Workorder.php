@@ -899,6 +899,25 @@ class Workorder extends Model
     {
         return $this->need_visit && $this->status === 'resolved' && !$this->visits()->exists();
     }
+ 
+    /**
+     * 判断工单是否与给定用户「相关」（用于工程师列表高亮）。
+     * 相关 = 该用户是创建人、负责人，或已接受邀请的协作者。
+     */
+    public function isRelatedToUser(?User $user = null): bool
+    {
+        $user = $user ?: auth()->user();
+        if (!$user) {
+            return false;
+        }
+        if ($this->creator_id === $user->id || $this->assignee_id === $user->id) {
+            return true;
+        }
+        return $this->collaborations()
+            ->where('collaborator_id', $user->id)
+            ->where('status', 'accepted')
+            ->exists();
+    }
 
     /**
      * 添加处理记录

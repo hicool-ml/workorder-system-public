@@ -370,11 +370,15 @@
                     <form method="POST" action="{{ route('workorders.collaborations.accept', $collaboration->id) }}" class="inline">@csrf<button type="submit" class="btn btn-primary btn-sm" onclick="return confirm('确认接受？')"><span>接受</span></button></form>
                     <form method="POST" action="{{ route('workorders.collaborations.reject', $collaboration->id) }}" class="inline">@csrf<button type="submit" class="btn btn-secondary btn-sm" onclick="return confirm('确认拒绝？')"><span>拒绝</span></button></form>
                 </div>
-                @else
-                <span class="badge bg-slate-100 text-slate-600">{{ $collaboration->status_text }}</span>
-                @endif
-            </div>
-            @endforeach
+               @else
+               <span class="badge bg-slate-100 text-slate-600">{{ $collaboration->status_text }}</span>
+               @endif
+               {{-- 负责人/管理员可取消待接受的协作邀请（对方接受后不可取消） --}}
+               @if($collaboration->canBeCancelledBy(auth()->user()))
+               <form method="POST" action="{{ route('workorders.collaborations.cancel', $collaboration->id) }}" class="inline">@csrf<button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('确认取消对此工程师的协作邀请？')"><span>取消邀请</span></button></form>
+               @endif
+           </div>
+           @endforeach
         </div>
         @endif
 

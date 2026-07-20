@@ -339,13 +339,14 @@ class User extends Authenticatable
             if ($workorder->creator_id === $this->id || $workorder->assignee_id === $this->id) {
                 return true;
             }
-            // 工单池：pending（待分配）工单对所有工程师可见，以便就近自行接单
-            // 必须与 getWorkorderQueryScope() 中 ->orWhere('status','pending') 保持一致，
-            // 否则列表能看到却进不了详情页（403），导致工程师无法抢单。
-            if ($workorder->status === 'pending') {
+            // 所有未完结工单对工程师可见（便于就近接单、协作、了解全局）。
+            // 必须与 getWorkorderQueryScope() 中 ->orWhereIn('status', ...) 保持一致，
+            // 否则列表能看到却进不了详情页（403）。
+            if (in_array($workorder->status, ['pending', 'assigned', 'processing', 'resolved'])) {
                 return true;
             }
-            
+
+            // 已完结工单：仅当本人是创建人/负责人/（待接受或已接受）协作者时可见，用于跟进历史。
             // 检查是否是协作工程师（含待接受：被邀请人需先看到工单才能接受邀请）
             return $workorder->collaborations()
                 ->where('collaborator_id', $this->id)
@@ -392,10 +393,10 @@ class User extends Authenticatable
                 return true;
             }
             
-            // 检查是否是协作工程师（含待接受：被邀请人需先看到工单才能接受邀请）
+            // 检查是否是已接受邀请的协作工程师（待接受无操作权限，需先接受邀请）
             return $workorder->collaborations()
                 ->where('collaborator_id', $this->id)
-                ->whereIn('status', ['pending', 'accepted'])
+                ->where('status', 'accepted')
                 ->exists();
         }
         
@@ -508,17 +509,19 @@ class User extends Authenticatable
             return Workorder::query();
         }
 
-        // 工程师：可见自己创建的、分配给自己的、协作的，以及所有待处理工单（工单池）
-        // 工单池模式：CAS 用户提交的工单进入 pending 状态，工程师可就近自行接单
+        // 工程师：可见全部未完结工单（待分配/已分配/处理中/已解决），便于就近接单、协作；
+        // 自己创建/负责/被邀请协作的工单即使在完结后仍可见（用于跟进历史）。
+        // 必须与 canViewWorkorder() 中工程师分支保持一致，否则列表能看到却进不了详情（403）。
         if ($this->role === 'engineer') {
             return Workorder::where(function ($q) {
                 $q->where('creator_id', $this->id)
                   ->orWhere('assignee_id', $this->id)
                   ->orWhereHas('collaborations', function ($collabQ) {
+                      // 含待接受：被邀请人需在列表里看到工单才能接受邀请
                       $collabQ->where('collaborator_id', $this->id)
-                              ->where('status', 'accepted');
+                              ->whereIn('status', ['pending', 'accepted']);
                   })
-                  ->orWhere('status', 'pending');
+                  ->orWhereIn('status', ['pending', 'assigned', 'processing', 'resolved']);
             });
         }
 

@@ -21,10 +21,11 @@ class WorkorderPermissionService
     {
         $user = $user ?: auth()->user();
         
-        // 协作工程师可以在 assigned 和 processing 状态下解决工单
+        // 协作工程师（仅已接受邀请）可在 assigned/processing 状态下解决工单；
+        // 待接受状态不允许操作，需先接受邀请。
         if ($workorder->collaborations()
             ->where('collaborator_id', $user->id)
-            ->whereIn('status', ['pending', 'accepted'])
+            ->where('status', 'accepted')
             ->exists() && in_array($workorder->status, ['assigned', 'processing'])) {
             return true;
         }
@@ -57,10 +58,11 @@ class WorkorderPermissionService
     {
         $user = $user ?: auth()->user();
         
-        // 协作工程师可以在 assigned 和 processing 状态下开始处理工单
+        // 协作工程师（仅已接受邀请）可在 assigned/processing 状态下开始处理工单；
+        // 待接受状态不允许操作，需先接受邀请。
         if ($workorder->collaborations()
             ->where('collaborator_id', $user->id)
-            ->whereIn('status', ['pending', 'accepted'])
+            ->where('status', 'accepted')
             ->exists() && in_array($workorder->status, ['assigned', 'processing'])) {
             return true;
         }
@@ -125,10 +127,11 @@ class WorkorderPermissionService
     {
         $user = $user ?: auth()->user();
         
-        // 协作工程师可以在 pending, processing, assigned 状态下上传附件
+        // 协作工程师（仅已接受邀请）可在 pending/processing/assigned 状态下上传附件；
+        // 待接受状态不允许操作，需先接受邀请。
         if ($workorder->collaborations()
             ->where('collaborator_id', $user->id)
-            ->whereIn('status', ['pending', 'accepted'])
+            ->where('status', 'accepted')
             ->exists() && in_array($workorder->status, ['pending', 'processing', 'assigned'])) {
             return true;
         }
@@ -182,10 +185,10 @@ class WorkorderPermissionService
             return true;
         }
         
-        // 协作工程师（包括待接受和已接受状态）
+        // 协作工程师（仅已接受邀请；待接受状态无操作权限，需先接受邀请）
         return $workorder->collaborations()
             ->where('collaborator_id', $user->id)
-            ->whereIn('status', ['pending', 'accepted'])
+            ->where('status', 'accepted')
             ->exists();
     }
 
@@ -214,10 +217,10 @@ class WorkorderPermissionService
             return true;
         }
         
-        // 协作工程师（包括待接受和已接受状态）
+        // 协作工程师（仅已接受邀请；待接受状态无操作权限，需先接受邀请）
         return $workorder->collaborations()
             ->where('collaborator_id', $user->id)
-            ->whereIn('status', ['pending', 'accepted'])
+            ->where('status', 'accepted')
             ->exists();
     }
 

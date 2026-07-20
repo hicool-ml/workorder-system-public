@@ -171,6 +171,9 @@ body.drawer-open { overflow: hidden; }
 
 .overdue-row { background-color: rgba(239,68,68,0.08); }
 
+/* 工程师视图：与自己相关的工单（创建/负责/已接受协作）行高亮 */
+.my-related-row { background-color: rgba(59,130,246,0.10); border-left: 3px solid rgba(59,130,246,0.55); }
+
 /* 矩形树图 (treemap)：面积映射数值，颜色区分类别 */
 .treemap { position: relative; width: 100%; overflow: hidden; border-radius: 0.5rem; background-color: var(--c-muted); }
 .treemap-cell {

@@ -139,6 +139,42 @@ class WorkorderCollaboration extends Model
         
         return $this->save();
     }
+ 
+    /**
+     * 检查当前用户是否可以取消此协作邀请
+     * 规则：仅工单负责人、工单管理员、系统管理员可取消；
+     *       且仅当邀请仍为「待接受(pending)」时可取消——对方一旦接受即不可取消。
+     */
+    public function canBeCancelledBy(?User $user = null): bool
+    {
+        $user = $user ?: auth()->user();
+        if (!$user) {
+            return false;
+        }
+        // 对方已接受后不可取消
+        if ($this->status !== 'pending') {
+            return false;
+        }
+        // 系统管理员/工单管理员可取消任意邀请
+        if ($user->isAdmin() || $user->isWorkorderManager()) {
+            return true;
+        }
+        // 仅工单负责人（被分配人）可取消自己发出的邀请
+        return $this->workorder && $this->workorder->assignee_id === $user->id;
+    }
+
+    /**
+     * 取消协作邀请（仅 pending 可取消）
+     */
+    public function cancel(?User $user = null): bool
+    {
+        if (!$this->canBeCancelledBy($user)) {
+            return false;
+        }
+
+        // 物理删除待接受的邀请记录，等同于取消
+        return (bool) $this->delete();
+    }
 
     /**
      * 创建协作邀请
