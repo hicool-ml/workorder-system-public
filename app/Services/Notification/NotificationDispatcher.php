@@ -38,6 +38,7 @@ class NotificationDispatcher
             'completed' => ['in_app' => true,  'sms' => false, 'wecom' => false],
             'closed'    => ['in_app' => true,  'sms' => false, 'wecom' => false],
             'overdue'   => ['in_app' => true,  'sms' => true,  'wecom' => true],
+            'announcement' => ['in_app' => true, 'sms' => false, 'wecom' => true],
         ];
     }
 
@@ -112,6 +113,7 @@ class NotificationDispatcher
             'completed' => '工单完结',
             'closed'    => '工单关闭',
             'overdue'   => '工单超时',
+            'announcement' => '系统公告',
         ];
     }
 

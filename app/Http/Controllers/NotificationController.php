@@ -274,29 +274,47 @@ class NotificationController extends Controller
         ]);
         
         try {
-            $notification = Notification::createSystemAnnouncement(
-                $request->input('title'),
-                $request->input('content'),
-                $request->input('target_type', 'all'),
-                $request->input('target_ids', []),
-                $request->input('is_important') === 'true' || $request->boolean('is_important', false)
-            );
+            $title = $request->input('title');
+            $content = $request->input('content');
+            $targetType = $request->input('target_type', 'all');
+            $targetIds = $request->input('target_ids', []);
+            $isImportant = $request->input('is_important') === 'true' || $request->boolean('is_important', false);
+
+            // 三个通道均受通知规则 announcement 事件控制
+            $inAppEnabled = \App\Services\Notification\NotificationDispatcher::isChannelEnabled('announcement', 'in_app');
+            $smsEnabled = \App\Services\Notification\NotificationDispatcher::isChannelEnabled('announcement', 'sms');
+            $wecomEnabled = \App\Services\Notification\NotificationDispatcher::isChannelEnabled('announcement', 'wecom');
+
+            $notification = $inAppEnabled ? Notification::createSystemAnnouncement(
+                $title, $content, $targetType, $targetIds, $isImportant
+            ) : null;
             
             // 记录日志
             \Log::info('系统公告创建成功', [
                 'admin_id' => Auth::id(),
-                'title' => $request->input('title'),
-                'target_type' => $request->input('target_type'),
-                'notification_id' => $notification ? $notification->id : null
+                'title' => $title,
+                'target_type' => $targetType,
+                'notification_id' => $notification ? $notification->id : null,
+                'channels' => ['in_app' => $inAppEnabled, 'sms' => $smsEnabled, 'wecom' => $wecomEnabled],
             ]);
+            
+            // 短信通知（受开关控制）
+            if ($smsEnabled) {
+                try {
+                    $sms = app(\App\Services\Sms\SmsManager::class);
+                    if ($sms->isEnabled()) {
+                        $this->sendAnnouncementSms($sms, $title, $content, $targetType, $targetIds);
+                    }
+                } catch (\Exception $smsEx) {
+                    \Log::warning('公告短信通知失败', ['error' => $smsEx->getMessage()]);
+                }
+            }
             
             // 同步推送到企业微信
             try {
                 $wecom = app(\App\Services\Notification\WeComWebhookService::class);
-                if ($wecom->isEnabled()) {
+                if ($wecomEnabled && $wecom->isEnabled()) {
                     $systemName = \App\Models\SystemSetting::get('system_name', '工单系统');
-                    $title = $request->input('title');
-                    $content = $request->input('content');
                     $timestamp = now()->format('Y-m-d H:i');
                     $message = "【{$systemName}】系统公告\n"
                         . "时间：{$timestamp}\n"
@@ -321,7 +339,41 @@ class NotificationController extends Controller
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
-            return response()->json(['success' => false, 'message' => '系统公告创建失败：' . $e->getMessage()]);
+           return response()->json(['success' => false, 'message' => '系统公告创建失败：' . $e->getMessage()]);
+       }
+    }
+
+    /**
+     * 发送公告短信通知（根据目标类型解析接收人）
+     */
+    private function sendAnnouncementSms(
+        \App\Services\Sms\SmsManager $sms,
+        string $title,
+        string $content,
+        string $targetType,
+        array $targetIds
+    ): void {
+        $systemName = \App\Models\SystemSetting::get('system_name', '工单系统');
+        $smsContent = "【{$systemName}】系统公告：{$title}。{$content}";
+        if (mb_strlen($smsContent) > 280) {
+            $smsContent = mb_substr($smsContent, 0, 277) . '...';
+        }
+
+        if ($targetType === 'all') {
+            $users = \App\Models\User::where('status', 'active')->get();
+        } elseif ($targetType === 'users' && !empty($targetIds)) {
+            $users = \App\Models\User::whereIn('id', $targetIds)->where('status', 'active')->get();
+        } elseif ($targetType === 'roles' && !empty($targetIds)) {
+            $users = \App\Models\User::whereIn('role', $targetIds)->where('status', 'active')->get();
+        } else {
+            $users = collect();
+        }
+
+        foreach ($users as $user) {
+            if (empty($user->phone)) {
+                continue;
+            }
+            $sms->send($user->phone, 'SMS_ANNOUNCEMENT', ['content' => $smsContent]);
         }
     }
 }

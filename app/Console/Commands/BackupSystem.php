@@ -30,10 +30,13 @@ class BackupSystem extends Command
     {
         $disk = Storage::disk('local');
         $stamp = now()->format('Ymd_His');
-        $backupDir = "backups/{$stamp}";
-        $disk->makeDirectory($backupDir);
+    $backupDir = "backups/{$stamp}";
+    $disk->makeDirectory($backupDir);
+    // 显式 chmod：PHP mkdir 受进程 umask 影响（调度进程常为 0077），会把 0775 砍成 0700，
+    // 导致 www-data 跑的 Web 页面无法列目录（备份&恢复页报 Permission denied）。chmod 不受 umask 影响。
+    @chmod(storage_path('app/private/' . $backupDir), 0775);
 
-        $this->info("开始备份：{$backupDir}");
+    $this->info("开始备份：{$backupDir}");
 
         $dbOk = $this->backupDatabase($disk, $backupDir);
         $this->backupAttachments($disk, $backupDir, $stamp);

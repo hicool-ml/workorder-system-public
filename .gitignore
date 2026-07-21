@@ -51,3 +51,10 @@ cookies_*.txt
 database/*.sqlite*
 *.sqlite
 *.sqlite-journal
+
+# 临时探针脚本（部署排查用，不进仓库）
+/deploy/_*.sh
+/deploy/_*.cjs
+/deploy/.changes.json
+/scripts/_*.js
+/scripts/_*.cjs

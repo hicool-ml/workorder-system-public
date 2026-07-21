@@ -162,12 +162,16 @@ class BackupController extends Controller
         $stamp = now()->format('Ymd_His') . '_upload';
         $destDir = self::ROOT . '/uploaded/' . $stamp;
         $disk->makeDirectory($destDir);
+        // 同 BackupSystem：规避 umask 导致的 0700，保证组 www-data 可读
+        @chmod($disk->path($destDir), 0775);
         $absDest = $disk->path($destDir);
 
         $zip = new ZipArchive();
         $zip->open($tmpPath);
         $zip->extractTo($absDest);
         $zip->close();
+        // 解压出的文件默认权限可能不含组读，统一修正为目录 0775 / 文件 0664
+        $this->fixPermissions($absDest);
 
         $this->flattenIfNested($absDest);
 
@@ -301,6 +305,34 @@ class BackupController extends Controller
                 $local = $relative . $file->getFilename();
                 $zip->addFile($file->getRealPath(), $local);
             }
+        }
+    }
+
+    /**
+     * 统一修正解压目录的权限：目录 0775、文件 0664，保证 www-data 组可读写。
+     * 规避 umask / Windows zip 默认权限导致 Web 进程读取失败。
+     */
+    private function fixPermissions(string $absPath): void
+    {
+        if (!is_dir($absPath)) {
+            return;
+        }
+        try {
+            $it = new \RecursiveIteratorIterator(
+                new \RecursiveDirectoryIterator($absPath, \RecursiveDirectoryIterator::SKIP_DOTS),
+                \RecursiveIteratorIterator::SELF_FIRST
+            );
+            foreach ($it as $item) {
+                if ($item->isDir()) {
+                    @chmod($item->getRealPath(), 0775);
+                } else {
+                    @chmod($item->getRealPath(), 0664);
+                }
+            }
+            @chmod($absPath, 0775);
+        } catch (\Throwable $e) {
+            // 权限修正失败不应阻断恢复流程，仅记录
+            \Log::warning('fixPermissions 失败: ' . $e->getMessage());
         }
     }
 
