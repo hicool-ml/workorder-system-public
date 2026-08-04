@@ -746,11 +746,19 @@ class Workorder extends Model
     /**
      * 检查是否超时
      */
+    /**
+     * ???????"????"?
+     * ?????????????(closed/completed/resolved),
+     * ???????? now() ?????
+     */
+    public function getOverdueCheckTime(): ?\Carbon\Carbon
+    {
+        return $this->closed_at ?? $this->completed_at ?? $this->resolved_at ?? now();
+    }
     public function isOverdue(): bool
     {
-        if (in_array($this->status, ['resolved'])) {
-            return false;
-        }
+        // Finished workorders are judged by their actual end time, not now().
+        $checkTime = $this->getOverdueCheckTime();
         
         // 获取超时计算的基准时间
         $baseTime = $this->getOverdueBaseTime();
@@ -764,7 +772,7 @@ class Workorder extends Model
             return false;
         }
         
-        return now()->isAfter($expectedCompleteTime);
+        return $checkTime->isAfter($expectedCompleteTime);
     }
 
     /**
@@ -888,8 +896,8 @@ class Workorder extends Model
             return 'normal';
         }
         
-        $now = now();
-        $overdueMinutes = $expectedTime->diffInMinutes($now);
+        $checkTime = $this->getOverdueCheckTime();
+        $overdueMinutes = $expectedTime->diffInMinutes($checkTime);
         
         if ($overdueMinutes <= 60) {
             return 'warning'; // 1小时以内 - 黄色警告
