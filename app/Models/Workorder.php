@@ -713,7 +713,7 @@ class Workorder extends Model
     {
         // Phone-assisted workorders are resolved instantly on creation.
         if ($this->phone_assisted && $this->resolved_at) {
-            return '????';
+            return '电话解决';
         }
 
         // Finished workorders use their final end time; only in-progress ones keep ticking.
