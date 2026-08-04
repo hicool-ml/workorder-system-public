@@ -9,6 +9,9 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\DB;
 
+use App\Models\Location;
+use App\Models\Campus;
+
 class Workorder extends Model
 {
     use HasFactory, SoftDeletes;
@@ -146,6 +149,54 @@ class Workorder extends Model
     public function department(): BelongsTo
     {
         return $this->belongsTo(Department::class, 'department_id');
+    }
+
+    /**
+     * Campus (via campus_id foreign key). Preferred source for display.
+     */
+    public function campusInfo(): BelongsTo
+    {
+        return $this->belongsTo(Campus::class, 'campus_id');
+    }
+
+    /**
+     * Building/Location (via building column, which stores the location id).
+     */
+    public function locationInfo(): BelongsTo
+    {
+        return $this->belongsTo(Location::class, 'building');
+    }
+
+    /**
+     * Readable campus name: prefer campus_id relation, fall back to stored string.
+     */
+    public function getCampusNameAttribute(): string
+    {
+        if ($this->campusInfo) {
+            return $this->campusInfo->name;
+        }
+
+        return (string) ($this->campus ?? '');
+    }
+
+    /**
+     * Readable building name: resolve location id to its name, fall back to raw value.
+     */
+    public function getBuildingNameAttribute(): string
+    {
+        if ($this->locationInfo) {
+            return $this->locationInfo->name;
+        }
+
+        $building = $this->building;
+        if ($building && is_numeric($building)) {
+            $location = Location::find($building);
+            if ($location) {
+                return $location->name;
+            }
+        }
+
+        return (string) ($building ?? '');
     }
 
     /**
@@ -899,7 +950,7 @@ class Workorder extends Model
     {
         return $this->need_visit && $this->status === 'resolved' && !$this->visits()->exists();
     }
- 
+
     /**
      * 判断工单是否与给定用户「相关」（用于工程师列表高亮）。
      * 相关 = 该用户是创建人、负责人，或已接受邀请的协作者。

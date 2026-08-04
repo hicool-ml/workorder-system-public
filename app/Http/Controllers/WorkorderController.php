@@ -33,31 +33,54 @@ class WorkorderController extends Controller
         $user = Auth::user();
         
         // 根据用户角色获取不同的查询范围
-        $query = $user->getWorkorderQueryScope()
-            ->with(['category', 'creator', 'assignee', 'department'])
-            ->orderBy('created_at', 'desc');
+       $query = $user->getWorkorderQueryScope()
+          ->with(['category', 'creator', 'assignee', 'department', 'locationInfo', 'campusInfo'])
+          ->orderBy('created_at', 'desc');
+
         
         // ---- 状态过滤（集中处理，后续筛选全部为 AND） ----
-        // 优先级：明确选择某状态 > 勾选"显示已解决" > 默认仅未完结
+        // 优先级：明确选择某状态 > 勾选"显示已解决" > 有关键词搜索时全部状态 > 默认仅未完结
         $status = $request->input('status');
         $showClosed = $request->boolean('show_closed');
 
         if ($status && $status !== 'all') {
             // 用户明确选择了某个状态，精确匹配
             $query->where('status', $status);
-        } elseif ($status !== 'all' && !$showClosed) {
+        } elseif ($status !== 'all' && !$showClosed && !$request->filled('keyword')) {
             // 默认：只显示未完结工单（待处理、已分配、处理中）
+            // 但当有关键词搜索时，自动扩大到全部状态——搜索历史工单是主要用途
             $query->whereIn('status', ['pending', 'assigned', 'processing']);
         }
 
         // 搜索条件
         if ($request->filled('keyword')) {
-            $keyword = $request->input('keyword');
+            $keyword = trim($request->input('keyword'));
+
             $query->where(function($q) use ($keyword) {
                 $q->where('ticket_no', 'like', "%{$keyword}%")
                   ->orWhere('description', 'like', "%{$keyword}%")
                   ->orWhere('contact_name', 'like', "%{$keyword}%")
-                  ->orWhere('contact_phone', 'like', "%{$keyword}%");
+                  ->orWhere('contact_phone', 'like', "%{$keyword}%")
+                  ->orWhere('location', 'like', "%{$keyword}%")
+                  ->orWhere('building', 'like', "%{$keyword}%")
+                  ->orWhere('location_detail', 'like', "%{$keyword}%")
+                  ->orWhere('campus', 'like', "%{$keyword}%")
+                  ->orWhere('solution', 'like', "%{$keyword}%")
+                  ->orWhere('custom_source', 'like', "%{$keyword}%")
+                  ->orWhere('department_name', 'like', "%{$keyword}%")
+                  // 楼栋编码翻译：关键词匹配到 locations 名称时，用其 ID 匹配工单 building
+                  ->orWhereHas('locationInfo', function($lq) use ($keyword) {
+                      $lq->where('name', 'like', "%{$keyword}%")
+                         ->orWhere('building_code', 'like', "%{$keyword}%");
+                  })
+                  // 关联：创建人姓名
+                  ->orWhereHas('creator', function($uq) use ($keyword) {
+                      $uq->where('name', 'like', "%{$keyword}%");
+                  })
+                  // 关联：处理人姓名
+                  ->orWhereHas('assignee', function($uq) use ($keyword) {
+                      $uq->where('name', 'like', "%{$keyword}%");
+                  });
             });
         }
 

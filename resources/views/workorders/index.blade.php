@@ -55,7 +55,7 @@
                 <div>
                     <label class="label" for="keyword">关键词</label>
                     <input type="text" class="input" id="keyword" name="keyword"
-                           value="{{ request('keyword') }}" placeholder="工单号、描述、联系人" autocomplete="off">
+                           value="{{ request('keyword') }}" placeholder="工单号、描述、地址、联系人、处理人、部门" autocomplete="off">
                 </div>
                 <div>
                     <label class="label" for="filter_category_main">工单大类</label>
@@ -264,17 +264,12 @@
                             <input type="checkbox" class="workorder-checkbox rounded border-border-strong" value="{{ $workorder->id }}" autocomplete="off">
                         </td>
                         <td class="px-4 py-3 max-w-[180px]">
-                            <div class="text-xs text-ink-muted">
-                                @if($workorder->campus)
-                                    {{ $workorder->campus }}
+                           <div class="text-xs text-ink-muted">
+                               @if($workorder->campus_name)
+                                    {{ $workorder->campus_name }}
                                 @endif
-                               @if($workorder->building)
-                                   @php
-                                        $building = \App\Models\Location::find($workorder->building);
-                                       echo ' - ' . ($building ? $building->name : $workorder->building);
-                                       if ($workorder->location_detail) echo ' ' . $workorder->location_detail;
-                                   @endphp
-                               @endif
+                               @if($workorder->building_name) - {{ $workorder->building_name }}@endif
+                               @if($workorder->location_detail) {{ $workorder->location_detail }}@endif
                             </div>
                         </td>
                         <td class="px-4 py-3 max-w-[200px]">
@@ -368,11 +363,8 @@
                   <span class="truncate">
                      @php
                          $addrParts = [];
-                         if ($workorder->campus) $addrParts[] = $workorder->campus;
-                         if ($workorder->building) {
-                              $bName = \App\Models\Location::find($workorder->building)?->name;
-                             $addrParts[] = $bName ?: $workorder->building;
-                         }
+                         if ($workorder->campus_name) $addrParts[] = $workorder->campus_name;
+                         if ($workorder->building_name) $addrParts[] = $workorder->building_name;
                          if ($workorder->location_detail) $addrParts[] = $workorder->location_detail;
                      @endphp
                       {{ implode(' ', $addrParts) }}

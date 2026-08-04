@@ -175,9 +175,9 @@
                 <div><span class="block text-xs" style="color: var(--c-ink-subtle);">电话</span><span class="text-ink font-medium">{{ $workorder->contact_phone }}</span></div>
                 <div><span class="block text-xs" style="color: var(--c-ink-subtle);">邮箱</span><span class="text-ink font-medium">{{ $workorder->contact_email ?: '--' }}</span></div>
                <div><span class="block text-xs" style="color: var(--c-ink-subtle);">地点</span><span class="text-ink font-medium">
-                   @if($workorder->campus){{ $workorder->campus }}@endif
-                    @if($workorder->building)@php($b = \App\Models\Location::find($workorder->building)) {{ $b ? ' - ' . $b->name : ' - ' . $workorder->building }}@endif
-                    @if($workorder->location_detail) {{ $workorder->location_detail }}@endif
+                   @if($workorder->campus_name){{ $workorder->campus_name }}@endif
+                    @if($workorder->building_name) - {{ $workorder->building_name }}@endif
+                   @if($workorder->location_detail) {{ $workorder->location_detail }}@endif
                </span></div>
             </div>
         </div>

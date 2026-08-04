@@ -99,13 +99,13 @@
                         </td>
                         <td>
                             <small>
-                                @if(\$workorder->campus)
-                                    {{ $workorder->campus }}
+                                @if($workorder->campus_name)
+                                    {{ $workorder->campus_name }}
                                 @endif
-                                @if(\$workorder->building)
-                                    {{ \App\Models\Location::find(\$workorder->building)?->name ?? \$workorder->building }}
+                                @if($workorder->building_name)
+                                    {{ $workorder->building_name }}
                                 @endif
-                                @if(\$workorder->location_detail) {{ \$workorder->location_detail }}@endif
+                                @if($workorder->location_detail) {{ $workorder->location_detail }}@endif
                             </small>
                         </td>
                         <td>

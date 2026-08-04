@@ -74,16 +74,11 @@ body { font-family: 'Microsoft YaHei','SimSun',sans-serif; background:#e9ecef; c
 <body>
 @php
     $addressParts = [];
-    if($workorder->campus) {
-        $addressParts[] = is_object($workorder->campus) ? ($workorder->campus->name ?? '') : $workorder->campus;
+    if($workorder->campus_name) {
+        $addressParts[] = $workorder->campus_name;
     }
-    if($workorder->building) {
-        if(is_numeric($workorder->building)) {
-            $bld = \App\Models\Location::find($workorder->building);
-            $addressParts[] = $bld ? $bld->name : $workorder->building;
-        } else {
-            $addressParts[] = $workorder->building;
-        }
+    if($workorder->building_name) {
+        $addressParts[] = $workorder->building_name;
     }
     if($workorder->location_detail) {
         $addressParts[] = $workorder->location_detail;
