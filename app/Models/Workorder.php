@@ -711,8 +711,9 @@ class Workorder extends Model
      */
     public function getCreatedDurationAttribute(): string
     {
-        $now = now();
-        $diff = (int)$this->created_at->diffInMinutes($now);
+        // Finished workorders use their final end time; only in-progress ones keep ticking.
+        $endTime = $this->closed_at ?? $this->completed_at ?? $this->resolved_at ?? now();
+        $diff = (int)$this->created_at->diffInMinutes($endTime);
         
         if ($diff < 1) {
             return '刚刚';
