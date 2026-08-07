@@ -175,6 +175,13 @@ class NotificationDispatcher
                 foreach ($managers as $m) {
                     $recipients[$m->id] = $m;
                 }
+                // assigned handler (if any) is also notified, preserving original coverage
+                if ($workorder->assignee_id) {
+                    $assignee = User::find($workorder->assignee_id);
+                    if ($assignee && $assignee->status === 'active') {
+                        $recipients[$assignee->id] = $assignee;
+                    }
+                }
                 break;
 
             case 'assigned':
@@ -191,7 +198,7 @@ class NotificationDispatcher
                     }
                 }
                 // 解决/完结/关闭时也通知报修人
-                if (in_array($event, ['resolved', 'completed', 'closed']) && $workorder->creator_id) {
+                if (in_array($event, ['started', 'resolved', 'completed', 'closed']) && $workorder->creator_id) {
                     $creator = User::find($workorder->creator_id);
                     if ($creator && $creator->status === 'active') {
                         $recipients[$creator->id] = $creator;

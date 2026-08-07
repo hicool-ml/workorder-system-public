@@ -1163,26 +1163,9 @@ class Workorder extends Model
                 ]);
             }
 
-            switch ($type) {
-                case 'created':
-                    \App\Models\Notification::createWorkorderCreated($this);
-                    break;
-                case 'assigned':
-                    \App\Models\Notification::createWorkorderAssigned($this);
-                    break;
-                case 'started':
-                    \App\Models\Notification::createWorkorderStarted($this, true);
-                    break;
-                case 'resolved':
-                    \App\Models\Notification::createWorkorderResolved($this, true);
-                    break;
-                case 'completed':
-                    \App\Models\Notification::createWorkorderCompleted($this, true);
-                    break;
-                case 'closed':
-                    \App\Models\Notification::createWorkorderClosed($this, true);
-                    break;
-            }
+            // In-app notifications are sent solely by the dispatcher above
+            // (NotificationDispatcher::sendInApp); the per-event factory
+            // calls that used to live here duplicated those notifications.
         } catch (\Exception $e) {
             \Log::warning('工单通知发送失败', [
                 'workorder_id' => $this->id,
