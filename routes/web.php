@@ -48,6 +48,8 @@ Route::middleware(['auth'])->group(function () {
     Route::put('api/notification-rules', [App\Http\Controllers\SystemSettingController::class, 'updateNotificationRules'])->name('api.notification-rules.update');
    Route::post('api/sms/test', [App\Http\Controllers\SystemSettingController::class, 'testSms'])->name('api.sms.test');
     Route::post('api/wecom/test', [App\Http\Controllers\SystemSettingController::class, 'testWecom'])->name('api.wecom.test');
+    Route::post('api/dingtalk/test', [App\Http\Controllers\SystemSettingController::class, 'testDingtalk'])->name('api.dingtalk.test');
+    Route::post('api/feishu/test', [App\Http\Controllers\SystemSettingController::class, 'testFeishu'])->name('api.feishu.test');
     Route::post('api/upload-cacert', [App\Http\Controllers\SystemSettingController::class, 'uploadCacert'])->name('api.upload-cacert');
     Route::post('api/ssl-verify', [App\Http\Controllers\SystemSettingController::class, 'toggleSslVerify'])->name('api.ssl-verify');
     Route::delete('api/cacert', [App\Http\Controllers\SystemSettingController::class, 'deleteCacert'])->name('api.cacert.delete');
@@ -239,7 +241,11 @@ Route::middleware(['auth'])->group(function () {
        Route::get('system-settings/sms', [SystemSettingController::class, 'sms'])->name('system-settings.sms');
        Route::post('system-settings/sms', [SystemSettingController::class, 'updateSms'])->name('system-settings.update-sms');
         Route::get('system-settings/wecom', [SystemSettingController::class, 'wecom'])->name('system-settings.wecom');
-        Route::post('system-settings/wecom', [SystemSettingController::class, 'updateWecom'])->name('system-settings.update-wecom');
+       Route::post('system-settings/wecom', [SystemSettingController::class, 'updateWecom'])->name('system-settings.update-wecom');
+        Route::get('system-settings/dingtalk', [SystemSettingController::class, 'dingtalk'])->name('system-settings.dingtalk');
+        Route::post('system-settings/dingtalk', [SystemSettingController::class, 'updateDingtalk'])->name('system-settings.update-dingtalk');
+        Route::get('system-settings/feishu', [SystemSettingController::class, 'feishu'])->name('system-settings.feishu');
+        Route::post('system-settings/feishu', [SystemSettingController::class, 'updateFeishu'])->name('system-settings.update-feishu');
        Route::get('system-settings/cas', [SystemSettingController::class, 'cas'])->name('system-settings.cas');
        Route::post('system-settings/cas', [SystemSettingController::class, 'updateCas'])->name('system-settings.update-cas');
        Route::delete('system-settings/{systemSetting}', [SystemSettingController::class, 'destroy'])->name('system-settings.destroy');

@@ -31,14 +31,14 @@ class NotificationDispatcher
     public static function defaultRules(): array
     {
         return [
-            'created'   => ['in_app' => true,  'sms' => false, 'wecom' => false],
-            'assigned'  => ['in_app' => true,  'sms' => true,  'wecom' => true],
-            'started'   => ['in_app' => true,  'sms' => false, 'wecom' => false],
-            'resolved'  => ['in_app' => true,  'sms' => true,  'wecom' => false],
-            'completed' => ['in_app' => true,  'sms' => false, 'wecom' => false],
-            'closed'    => ['in_app' => true,  'sms' => false, 'wecom' => false],
-            'overdue'   => ['in_app' => true,  'sms' => true,  'wecom' => true],
-            'announcement' => ['in_app' => true, 'sms' => false, 'wecom' => true],
+            'created'   => ['in_app' => true,  'sms' => false, 'wecom' => false, 'dingtalk' => false, 'feishu' => false],
+            'assigned'  => ['in_app' => true,  'sms' => true,  'wecom' => true,  'dingtalk' => true,  'feishu' => false],
+            'started'   => ['in_app' => true,  'sms' => false, 'wecom' => false, 'dingtalk' => false, 'feishu' => false],
+            'resolved'  => ['in_app' => true,  'sms' => true,  'wecom' => false, 'dingtalk' => false, 'feishu' => false],
+            'completed' => ['in_app' => true,  'sms' => false, 'wecom' => false, 'dingtalk' => false, 'feishu' => false],
+            'closed'    => ['in_app' => true,  'sms' => false, 'wecom' => false, 'dingtalk' => false, 'feishu' => false],
+            'overdue'   => ['in_app' => true,  'sms' => true,  'wecom' => true,  'dingtalk' => true,  'feishu' => false],
+            'announcement' => ['in_app' => true, 'sms' => false, 'wecom' => true, 'dingtalk' => false, 'feishu' => false],
         ];
     }
 
@@ -50,7 +50,7 @@ class NotificationDispatcher
         $stored = SystemSetting::get('notification_rules');
 
         if ($stored && is_array($stored)) {
-            // 逐事件深度合并，确保每个事件都包含所有通道（in_app/sms/wecom）
+            // 逐事件深度合并，确保每个事件都包含所有通道（in_app/sms/wecom/dingtalk/feishu）
             $defaults = self::defaultRules();
             $merged = [];
             foreach ($defaults as $event => $defaultChannels) {
@@ -77,6 +77,7 @@ class NotificationDispatcher
     public static function updateRules(array $rules): void
     {
         // 逐事件深度合并，确保每个事件都有完整的三通道结构
+        // 逐事件深度合并，确保每个事件都有完整的多通道结构
         $defaults = self::defaultRules();
         $merged = [];
         foreach ($defaults as $event => $defaultChannels) {
@@ -148,9 +149,11 @@ class NotificationDispatcher
         $inAppEnabled = ($rules[$event]['in_app'] ?? false) === true;
         $smsEnabled = ($rules[$event]['sms'] ?? false) === true;
         $wecomEnabled = ($rules[$event]['wecom'] ?? false) === true;
+        $dingtalkEnabled = ($rules[$event]['dingtalk'] ?? false) === true;
+        $feishuEnabled = ($rules[$event]['feishu'] ?? false) === true;
 
         // 如果所有通道都关闭，直接返回
-        if (!$inAppEnabled && !$smsEnabled && !$wecomEnabled) {
+        if (!$inAppEnabled && !$smsEnabled && !$wecomEnabled && !$dingtalkEnabled && !$feishuEnabled) {
             return;
         }
 
@@ -181,6 +184,16 @@ class NotificationDispatcher
         // 企业微信群通知
         if ($wecomEnabled) {
             $this->sendWeCom($workorder, $event, $recipients);
+        }
+
+        // 钉钉通知
+        if ($dingtalkEnabled) {
+            $this->sendDingTalk($workorder, $event, $recipients);
+        }
+
+        // 飞书通知
+        if ($feishuEnabled) {
+            $this->sendFeishu($workorder, $event, $recipients);
         }
 
         // 报修人短信：内容独立于内部广播通道，整单生命周期只发两条，
@@ -508,52 +521,14 @@ class NotificationDispatcher
             return;
         }
 
-        $eventLabels = self::getEventLabels();
-        $label = $eventLabels[$event] ?? $event;
-        $systemName = SystemSetting::get('system_name', '工单系统');
-        $address = $this->buildAddress($workorder);
-        $description = mb_substr($workorder->description ?: $workorder->title ?: '未知故障', 0, 30);
-        $status = $workorder->status_text ?: '未知状态';
-
-        $timestamp = now()->format('Y-m-d H:i');
-        $content = "【{$systemName}】{$label}\n"
-            . "时间：{$timestamp}\n"
-            . "编号：{$workorder->ticket_no}\n"
-            . "地点：{$address}\n"
-            . "描述：{$description}";
-
-        // 收集 @ 信息：优先企业微信 userid，手机号作为 mentioned_mobile_list
-        $mentionedUserIds = [];
-        $mentionedMobiles = [];
-        foreach ($recipients as $user) {
-            if (!empty($user->wecom_userid)) {
-                // 有 userid 优先用 userid @
-                $mentionedUserIds[] = $user->wecom_userid;
-            } elseif (!empty($user->phone)) {
-                // 没填 userid 则用手机号 @
-                $mentionedMobiles[] = $user->phone;
-            }
-        }
-        // 处理人只显示工单实际的 assignee，不是所有通知接收者
-        $assigneeNames = $workorder->assignee ? $workorder->assignee->name : '';
-        if ($assigneeNames) {
-            $content .= "\n处理人：{$assigneeNames}";
-        } elseif ($event === 'created') {
-            $content .= "\n处理人：待分配";
-        }
-        $content .= "\n状态：{$status}";
-
-        // 工单链接（放在最后一行，去掉"链接："前缀，微信可能自动识别）
-        $baseUrl = rtrim(SystemSetting::get('system_url', config('app.url', '')), '/');
-        if ($baseUrl) {
-            $content .= "\n{$baseUrl}/workorders/{$workorder->id}";
-        }
+        $content = $this->buildBroadcastContent($workorder, $event);
 
         if ($event === 'created') {
             // 创建时 @所有人，提醒管理员有新工单
             $result = $wecom->sendText($content, ['@all']);
         } else {
             // assigned/overdue 只 @ 对应的工程师
+            [$mentionedUserIds, $mentionedMobiles] = $this->collectWeComMentions($recipients);
             $shouldMention = in_array($event, ['assigned', 'overdue'])
                 && (!empty($mentionedUserIds) || !empty($mentionedMobiles));
             $result = $wecom->sendText(
@@ -568,6 +543,136 @@ class NotificationDispatcher
             'event' => $event,
             'success' => $result['success'],
         ]);
+    }
+
+    /**
+     * 企业微信 @ 收集：userid 优先，手机号兜底
+     */
+    private function collectWeComMentions(array $recipients): array
+    {
+        $userIds = [];
+        $mobiles = [];
+        foreach ($recipients as $user) {
+            if (!empty($user->wecom_userid)) {
+                $userIds[] = $user->wecom_userid;
+            } elseif (!empty($user->phone)) {
+                $mobiles[] = $user->phone;
+            }
+        }
+        return [$userIds, $mobiles];
+    }
+
+    /**
+     * 发送钉钉通知（自定义机器人 / 企业内部应用工作通知）
+     * @ 逻辑参照企业微信：创建 @all，分配/超时 @ 工程师（userid 优先，手机号兜底）
+     */
+    private function sendDingTalk(Workorder $workorder, string $event, array $recipients): void
+    {
+        $dingtalk = app(DingTalkService::class);
+
+        if (!$dingtalk->isEnabled()) {
+            return;
+        }
+
+        $content = $this->buildBroadcastContent($workorder, $event);
+
+        if ($event === 'created') {
+            $result = $dingtalk->sendText($content, [], [], true);
+        } else {
+            // 钉钉：userid → atUserIds，手机号 → atMobiles
+            $atUserIds = [];
+            $atMobiles = [];
+            foreach ($recipients as $user) {
+                if (!empty($user->dingtalk_userid)) {
+                    $atUserIds[] = $user->dingtalk_userid;
+                } elseif (!empty($user->phone)) {
+                    $atMobiles[] = $user->phone;
+                }
+            }
+            $shouldMention = in_array($event, ['assigned', 'overdue'])
+                && (!empty($atUserIds) || !empty($atMobiles));
+            $result = $dingtalk->sendText(
+                $content,
+                $shouldMention ? $atUserIds : [],
+                $shouldMention ? $atMobiles : []
+            );
+        }
+
+        Log::info('工单钉钉通知', [
+            'workorder_id' => $workorder->id,
+            'event' => $event,
+            'success' => $result['success'],
+        ]);
+    }
+
+    /**
+     * 发送飞书通知（自定义机器人 / 自建应用）
+     * @ 逻辑：创建 @all，分配/超时 @ 工程师（user_id/open_id 优先）
+     */
+    private function sendFeishu(Workorder $workorder, string $event, array $recipients): void
+    {
+        $feishu = app(FeishuService::class);
+
+        if (!$feishu->isEnabled()) {
+            return;
+        }
+
+        $content = $this->buildBroadcastContent($workorder, $event);
+
+        if ($event === 'created') {
+            // 群机器人 @all；自建应用模式下 sendText 内部会要求指定接收人
+            $result = $feishu->sendText($content, [], [], true);
+        } else {
+            $userIds = [];
+            foreach ($recipients as $user) {
+                if (!empty($user->feishu_user_id)) {
+                    $userIds[] = $user->feishu_user_id;
+                }
+            }
+            $shouldMention = in_array($event, ['assigned', 'overdue']) && !empty($userIds);
+            $result = $feishu->sendText($content, $shouldMention ? $userIds : []);
+        }
+
+        Log::info('工单飞书通知', [
+            'workorder_id' => $workorder->id,
+            'event' => $event,
+            'success' => $result['success'],
+        ]);
+    }
+
+    /**
+     * 构建企业微信/钉钉/飞书等 IM 通道的统一广播内容（标题/时间/编号/地点/描述/处理人/状态/链接）
+     */
+    private function buildBroadcastContent(Workorder $workorder, string $event): string
+    {
+        $eventLabels = self::getEventLabels();
+        $label = $eventLabels[$event] ?? $event;
+        $systemName = SystemSetting::get('system_name', '工单系统');
+        $address = $this->buildAddress($workorder);
+        $description = mb_substr($workorder->description ?: $workorder->title ?: '未知故障', 0, 30);
+        $status = $workorder->status_text ?: '未知状态';
+        $timestamp = now()->format('Y-m-d H:i');
+
+        $content = "【{$systemName}】{$label}\n"
+            . "时间：{$timestamp}\n"
+            . "编号：{$workorder->ticket_no}\n"
+            . "地点：{$address}\n"
+            . "描述：{$description}";
+
+        $assigneeNames = $workorder->assignee ? $workorder->assignee->name : '';
+        if ($assigneeNames) {
+            $content .= "\n处理人：{$assigneeNames}";
+        } elseif ($event === 'created') {
+            $content .= "\n处理人：待分配";
+        }
+        $content .= "\n状态：{$status}";
+
+        $baseUrl = rtrim(SystemSetting::get('system_url', config('app.url', '')), '/');
+        if ($baseUrl) {
+            $content .= "\n{$baseUrl}/workorders/{$workorder->id}";
+        }
+
+        return $content;
     }
     private function buildContent(Workorder $workorder, string $event): string
     {

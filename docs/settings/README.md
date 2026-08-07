@@ -12,7 +12,7 @@
 | 系统设置 | `settings/system` | [系统设置](02-system.md) | 系统名称、版本号、发布日期、访问地址 |
 | 版本管理 | `settings/version` | [版本管理](03-version.md) | 当前版本展示、发布新版本、版本历史 |
 | 备份 & 恢复 | `settings/backup` | [备份 & 恢复](04-backup-restore.md) | 手动/自动备份、上传、下载、恢复 |
-| 消息设置 | `settings/messaging` | [消息设置](05-messaging.md) | 通知规则、短信、企业微信入口 |
+| 消息设置 | `settings/messaging` | [消息设置](05-messaging.md) | 通知规则、短信、企业微信、钉钉、飞书入口 |
 | 详细设置 | `settings/all` | [详细设置](06-advanced-settings.md) | 全部 `system_settings` 键值表的查看与编辑 |
 | 统一身份认证 | `system-settings/cas` | [统一身份认证](07-cas.md) | CAS / LinkID 接入与用户属性映射 |
 
@@ -28,5 +28,5 @@
 
 ## 相关文档
 
-- [通知配置指南](../NOTIFICATION_GUIDE.md) — 短信、企业微信的完整配置步骤与排错
+- [通知配置指南](../NOTIFICATION_GUIDE.md) — 短信、企业微信、钉钉、飞书的完整配置步骤与排错
 - [项目 README](../../README.md) — 安装部署、角色权限、整体功能概览

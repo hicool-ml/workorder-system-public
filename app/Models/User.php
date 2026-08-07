@@ -27,6 +27,8 @@ class User extends Authenticatable
         'phone',
         'employee_id',
         'wecom_userid',
+        'dingtalk_userid',
+        'feishu_user_id',
         'department_id',
         'role',
         'status',

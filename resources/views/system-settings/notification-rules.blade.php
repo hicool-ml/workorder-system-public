@@ -23,10 +23,12 @@
                    <th class="text-center py-3 px-4 font-semibold text-ink">站内通知</th>
                     <th class="text-center py-3 px-4 font-semibold text-ink">短信通知</th>
                     <th class="text-center py-3 px-4 font-semibold text-ink">企业微信</th>
+                    <th class="text-center py-3 px-4 font-semibold text-ink">钉钉</th>
+                    <th class="text-center py-3 px-4 font-semibold text-ink">飞书</th>
                 </tr>
             </thead>
             <tbody id="rules-body">
-                <tr><td colspan="4" class="text-center py-8" style="color: var(--c-ink-subtle);">加载中...</td></tr>
+                <tr><td colspan="6" class="text-center py-8" style="color: var(--c-ink-subtle);">加载中...</td></tr>
             </tbody>
         </table>
     </div>
@@ -69,6 +71,8 @@
 .toggle-switch input:checked + .toggle-slider:before { transform: translateX(20px); }
 .sms-switch input:checked + .toggle-slider { background-color: #059669; }
 .wecom-switch input:checked + .toggle-slider { background-color: #059669; }
+.dingtalk-switch input:checked + .toggle-slider { background-color: #1677ff; }
+.feishu-switch input:checked + .toggle-slider { background-color: #3370ff; }
 </style>
 @endsection
 
@@ -87,8 +91,7 @@ async function loadRules() {
         eventLabels = data.events || {};
         renderRules();
     } catch (e) {
-        document.getElementById('rules-body').innerHTML = '<tr><td colspan="3" class="text-center py-8 text-red-500">加载失败</td></tr>';
-        document.getElementById('rules-body').innerHTML = '<tr><td colspan="4" class="text-center py-8 text-red-500">加载失败</td></tr>';
+        document.getElementById('rules-body').innerHTML = '<tr><td colspan="6" class="text-center py-8 text-red-500">加载失败</td></tr>';
     }
 }
 
@@ -101,6 +104,8 @@ function renderRules() {
         const inApp = (currentRules[key] || {}).in_app === true;
         const sms = (currentRules[key] || {}).sms === true;
         const wecom = (currentRules[key] || {}).wecom === true;
+        const dingtalk = (currentRules[key] || {}).dingtalk === true;
+        const feishu = (currentRules[key] || {}).feishu === true;
 
         const tr = document.createElement('tr');
         tr.className = 'border-b border-border';
@@ -121,6 +126,18 @@ function renderRules() {
             '<td class="text-center py-3 px-4">' +
                 '<label class="toggle-switch wecom-switch">' +
                     '<input type="checkbox" data-event="' + key + '" data-channel="wecom" ' + (wecom ? 'checked' : '') + ' onchange="updateRule(this)">' +
+                    '<span class="toggle-slider"></span>' +
+                '</label>' +
+            '</td>' +
+            '<td class="text-center py-3 px-4">' +
+                '<label class="toggle-switch dingtalk-switch">' +
+                    '<input type="checkbox" data-event="' + key + '" data-channel="dingtalk" ' + (dingtalk ? 'checked' : '') + ' onchange="updateRule(this)">' +
+                    '<span class="toggle-slider"></span>' +
+                '</label>' +
+            '</td>' +
+            '<td class="text-center py-3 px-4">' +
+                '<label class="toggle-switch feishu-switch">' +
+                    '<input type="checkbox" data-event="' + key + '" data-channel="feishu" ' + (feishu ? 'checked' : '') + ' onchange="updateRule(this)">' +
                     '<span class="toggle-slider"></span>' +
                 '</label>' +
             '</td>';

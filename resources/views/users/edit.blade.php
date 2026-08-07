@@ -98,8 +98,18 @@
                     </div>
                     <div>
                         <label class="label" for="wecom_userid">企业微信UserID</label>
-                        <input type="text" class="input" id="wecom_userid" name="wecom_userid" value="{{ old('wecom_userid', $user->wecom_userid) }}" maxlength="100" placeholder="可选，用于@提醒">
-                        @error('wecom_userid')<p class="text-xs text-red-500 mt-1">{{ $message }}</p>@enderror
+                       <input type="text" class="input" id="wecom_userid" name="wecom_userid" value="{{ old('wecom_userid', $user->wecom_userid) }}" maxlength="100" placeholder="可选，用于@提醒">
+                       @error('wecom_userid')<p class="text-xs text-red-500 mt-1">{{ $message }}</p>@enderror
+                   </div>
+                    <div>
+                        <label class="label" for="dingtalk_userid">钉钉userid</label>
+                        <input type="text" class="input" id="dingtalk_userid" name="dingtalk_userid" value="{{ old('dingtalk_userid', $user->dingtalk_userid) }}" maxlength="100" placeholder="可选，用于钉钉@提醒">
+                        @error('dingtalk_userid')<p class="text-xs text-red-500 mt-1">{{ $message }}</p>@enderror
+                    </div>
+                    <div>
+                        <label class="label" for="feishu_user_id">飞书user_id</label>
+                        <input type="text" class="input" id="feishu_user_id" name="feishu_user_id" value="{{ old('feishu_user_id', $user->feishu_user_id) }}" maxlength="100" placeholder="可选，用于飞书@提醒">
+                        @error('feishu_user_id')<p class="text-xs text-red-500 mt-1">{{ $message }}</p>@enderror
                     </div>
                     <div>
                         <label class="label" for="location">办公地点</label>

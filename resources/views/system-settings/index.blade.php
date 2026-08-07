@@ -214,6 +214,40 @@
                 </p>
             </a>
 
+            {{-- 钉钉 --}}
+            <a href="{{ route('system-settings.dingtalk') }}" class="block p-4 rounded-lg border border-border hover:border-brand-400 hover:shadow-sm transition-all">
+                <div class="flex items-center gap-3 mb-2">
+                    <div class="w-10 h-10 rounded-lg flex items-center justify-center bg-blue-50 dark:bg-blue-900/20">
+                        <svg class="w-5 h-5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 2a10 10 0 100 20 10 10 0 000-20zM8 14s1.5 2 4 2 4-2 4-2M9 9h.01M15 9h.01"/></svg>
+                    </div>
+                    <span class="text-sm font-semibold text-ink">钉钉</span>
+                </div>
+                <p class="text-xs" style="color: var(--c-ink-muted);">群机器人 / 工作通知
+                    @if(filter_var(\App\Models\SystemSetting::get('dingtalk_webhook_enabled', '0'), FILTER_VALIDATE_BOOLEAN) || filter_var(\App\Models\SystemSetting::get('dingtalk_app_enabled', '0'), FILTER_VALIDATE_BOOLEAN))
+                    <span class="text-green-600 font-medium ml-1">已启用</span>
+                    @else
+                    <span class="text-orange-500 ml-1">未启用</span>
+                    @endif
+                </p>
+            </a>
+
+            {{-- 飞书 --}}
+            <a href="{{ route('system-settings.feishu') }}" class="block p-4 rounded-lg border border-border hover:border-brand-400 hover:shadow-sm transition-all">
+                <div class="flex items-center gap-3 mb-2">
+                    <div class="w-10 h-10 rounded-lg flex items-center justify-center bg-indigo-50 dark:bg-indigo-900/20">
+                        <svg class="w-5 h-5 text-indigo-600 dark:text-indigo-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z"/></svg>
+                    </div>
+                    <span class="text-sm font-semibold text-ink">飞书</span>
+                </div>
+                <p class="text-xs" style="color: var(--c-ink-muted);">群机器人 / 自建应用
+                    @if(filter_var(\App\Models\SystemSetting::get('feishu_webhook_enabled', '0'), FILTER_VALIDATE_BOOLEAN) || filter_var(\App\Models\SystemSetting::get('feishu_app_enabled', '0'), FILTER_VALIDATE_BOOLEAN))
+                    <span class="text-green-600 font-medium ml-1">已启用</span>
+                    @else
+                    <span class="text-orange-500 ml-1">未启用</span>
+                    @endif
+                </p>
+            </a>
+
         </div>
     </div>
 

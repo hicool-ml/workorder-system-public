@@ -7,6 +7,28 @@
 
 ---
 
+## [未发布]
+
+### 新增
+- **钉钉通知通道**：自定义机器人（Webhook + 加签）/ 工作通知（企业内部应用）双模式，@ 逻辑与企业微信一致（userid 优先，手机号兜底），独立配置页与通知规则矩阵，支持测试发送
+- **飞书通知通道**：自定义机器人（Webhook + 签名校验）/ 自建应用双模式，@ 按 user_id/open_id，独立配置页与通知规则矩阵，支持测试发送
+- **用户字段扩展**：用户表新增 `dingtalk_userid`、`feishu_user_id` 字段，用于 IM 通道 @ 提醒（用户管理编辑页可填写）
+
+### 修复
+- **IM 通道创建事件 @全体静默失效**：`DingTalkService` / `FeishuService` 的 `sendText` 补齐 `isAtAll` 参数透传，工单创建时 @所有人恢复正常
+- **消息设置入口缺失**：消息设置页补充钉钉、飞书配置入口卡片，短信入口增加启用状态显示
+- **通知规则页面残留代码**：清理重复的加载占位行与 catch 块死代码
+
+### 安全
+- **强制修改默认密码**：首次登录或管理员重置密码后，用户必须修改密码才能使用系统（`ForcePasswordChange` 中间件 + `password_changed_at` 字段）
+- **接单/协作邀请乐观锁**：通过 `WHERE status='pending'` 条件更新 + 影响行数校验，杜绝并发重复接单的竞态条件
+
+### 性能
+- **报表查询索引优化**：`workorders` 表新增 5 个复合索引（`status+created_at`、`campus_id+created_at`、`category_id+created_at`、`is_emergency+created_at`、`expected_complete_at+status`），经 EXPLAIN 验证已被优化器采用
+
+### 新增
+- **系统备份脚本**：`php artisan backup:system` 命令，支持数据库（mysqldump 优先、纯 PHP 回退）+ 附件 zip 打包，自动清理旧备份，已注册每日 02:00 调度
+
 ## [1.3.0] - 2026-07-15
 
 ### 安全
@@ -25,30 +47,8 @@
 - **Docker 部署**：多阶段 Dockerfile + docker-compose（Nginx + PHP-FPM + Queue Worker + MySQL 一体化）
 - **`composer setup:prod`**：生产环境部署脚本，迁移前自动备份
 - **README 新增章节**：Docker 部署、生产环境优化、备份与恢复、常见问题排查、监控建议、性能基准参考
-# 变更日志 (CHANGELOG)
-
-本项目所有重要变更均会记录在此文件中。
-
-格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，
-版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
 ---
-
-## [未发布]
-
-### 安全
-- **强制修改默认密码**：首次登录或管理员重置密码后，用户必须修改密码才能使用系统（`ForcePasswordChange` 中间件 + `password_changed_at` 字段）
-- **接单/协作邀请乐观锁**：通过 `WHERE status='pending'` 条件更新 + 影响行数校验，杜绝并发重复接单的竞态条件
-
-### 性能
-- **报表查询索引优化**：`workorders` 表新增 5 个复合索引（`status+created_at`、`campus_id+created_at`、`category_id+created_at`、`is_emergency+created_at`、`expected_complete_at+status`），经 EXPLAIN 验证已被优化器采用
-
-### 新增
-- **系统备份脚本**：`php artisan backup:system` 命令，支持数据库（mysqldump 优先、纯 PHP 回退）+ 附件 zip 打包，自动清理旧备份，已注册每日 02:00 调度
-- **CHANGELOG.md** 变更日志
-
----
-
 ## [1.2.0] - 2026-07-15
 
 ### 新增
