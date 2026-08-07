@@ -124,9 +124,6 @@ class WorkorderSignatureController extends Controller
             }
            $workorder->addLog('signature_completed', $logContent);
 
-           // 发送通知
-           $workorder->sendNotification('signature_completed');
-
             // 将故障处理记录单保存为工单附件（快照）
             $this->saveRecordFormAsAttachment($workorder);
 

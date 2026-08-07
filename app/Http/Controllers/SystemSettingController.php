@@ -401,6 +401,18 @@ class SystemSettingController extends Controller
             'api_url'    => SystemSetting::get('sms_api_url', ''),
             'method'     => SystemSetting::get('sms_method', 'POST'),
             'api_key'    => SystemSetting::get('sms_api_key', ''),
+
+            // 报修人短信开关
+            'creator_sms_enabled'    => (bool) SystemSetting::get('creator_sms_enabled', false),
+            'creator_survey_enabled' => (bool) SystemSetting::get('creator_survey_enabled', false),
+
+            // 报修人短信模板
+            'tpl_acceptance_with_appt' => SystemSetting::get('sms_creator_acceptance_tpl_with_appt',
+                "【{系统名称}】您的报修已受理，工程师\"{工程师电话}\"预计{预约时间}上门为您服务。"),
+            'tpl_acceptance_no_appt' => SystemSetting::get('sms_creator_acceptance_tpl_no_appt',
+                "【{系统名称}】您的报修已受理，请保持电话畅通，便于工程师\"{工程师电话}\"能联系到您并为您服务。"),
+            'tpl_survey' => SystemSetting::get('sms_creator_survey_tpl',
+                "【{系统名称}】您的报修服务已完成，请对本次服务进行评价：满意回复 1，不满意回复 0。"),
         ];
 
         return view('system-settings.sms', compact('smsSettings'));
@@ -440,6 +452,15 @@ class SystemSettingController extends Controller
         foreach ($fields as $key => $value) {
             SystemSetting::set($key, $value, 'string');
         }
+
+        // 报修人短信开关
+        SystemSetting::set('creator_sms_enabled', $request->boolean('creator_sms_enabled') ? '1' : '0', 'boolean', '报修人受理短信开关', false);
+        SystemSetting::set('creator_survey_enabled', $request->boolean('creator_survey_enabled') ? '1' : '0', 'boolean', '报修人满意度调查开关', false);
+
+        // 报修人短信模板（支持 {系统名称} {工程师电话} {预约时间} {工单编号} 占位符）
+        SystemSetting::set('sms_creator_acceptance_tpl_with_appt', $request->input('tpl_acceptance_with_appt', ''), 'text', '受理短信模板（有预约）', false);
+        SystemSetting::set('sms_creator_acceptance_tpl_no_appt', $request->input('tpl_acceptance_no_appt', ''), 'text', '受理短信模板（无预约）', false);
+        SystemSetting::set('sms_creator_survey_tpl', $request->input('tpl_survey', ''), 'text', '满意度调查短信模板', false);
 
         return back()->with('success', '短信配置已保存');
     }

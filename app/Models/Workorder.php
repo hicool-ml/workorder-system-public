@@ -63,6 +63,10 @@ class Workorder extends Model
         'user_feedback',
         'user_signed_at',
         'visit_status',
+        'sms_acceptance_sent_at',
+        'sms_survey_sent_at',
+        'sms_satisfaction',
+        'sms_satisfaction_at',
     ];
 
     protected $casts = [
@@ -83,6 +87,10 @@ class Workorder extends Model
         'is_user_signed' => 'boolean',
         'user_satisfaction' => 'integer',
         'user_signed_at' => 'datetime',
+        'sms_acceptance_sent_at' => 'datetime',
+        'sms_survey_sent_at' => 'datetime',
+        'sms_satisfaction' => 'integer',
+        'sms_satisfaction_at' => 'datetime',
     ];
 
     /**
@@ -1052,7 +1060,7 @@ class Workorder extends Model
             
             // 发送通知 - 只发送给新的处理人
             try {
-                $this->sendNotification('assigned', [], [$assigneeId]);
+                $this->sendNotification('assigned');
             } catch (\Exception $e) {
                 // 通知发送失败不应该影响分配操作
                 \Log::warning('工单分配通知发送失败', [
@@ -1145,10 +1153,10 @@ class Workorder extends Model
     /**
      * 发送工单通知
      *
-     * Notification 工厂方法内部已根据工单字段决定通知对象
-     * （assignee_id 或 creator_id），因此此处不再逐用户循环调用。
+     * 接收者完全由 NotificationDispatcher::resolveRecipients 按事件类型决定，
+     * 并自动排除触发操作的用户本人；此方法仅转发事件，不再接收指定用户列表。
      */
-    public function sendNotification(string $type, array $data = [], array $userIds = null): void
+    public function sendNotification(string $type, array $data = []): void
     {
         try {
             // 多通道调度：根据通知规则决定站内/短信是否发送

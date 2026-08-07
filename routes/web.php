@@ -39,6 +39,9 @@ Route::prefix('cas')->group(function () {
     Route::get('logout', [App\Http\Controllers\Auth\CasAuthController::class, 'logout'])->name('cas.logout')->middleware('auth');
 });
 
+// 短信上行回复回调（服务商 → 系统，无需登录，CSRF 已在 bootstrap/app.php 排除）
+Route::post('sms/reply', [App\Http\Controllers\SmsReplyController::class, 'receive'])->name('sms.reply');
+
 // 通知规则 & 短信测试 API
 Route::middleware(['auth'])->group(function () {
     Route::get('api/notification-rules', [App\Http\Controllers\SystemSettingController::class, 'getNotificationRules'])->name('api.notification-rules');

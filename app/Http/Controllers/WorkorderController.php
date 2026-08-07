@@ -383,12 +383,8 @@ class WorkorderController extends Controller
             if ($request->boolean('phone_assisted')) {
                 $workorder->sendNotification('closed');
             } else {
-                // 如果有分配处理人，只发送给处理人；否则发送给创建人
-                if ($workorder->assignee_id) {
-                    $workorder->sendNotification('created', [], [$workorder->assignee_id]);
-                } else {
-                    $workorder->sendNotification('created', [], [$workorder->creator_id]);
-                }
+                // 接收者由 NotificationDispatcher 按事件统一决定
+                $workorder->sendNotification('created');
             }
             
             // 如果是电话协助完成，记录日志
@@ -589,7 +585,7 @@ class WorkorderController extends Controller
             
             // 如果分配了处理人，发送通知
             if ($workorder->wasChanged('assignee_id') && $workorder->assignee_id) {
-                $workorder->sendNotification('assigned', [], [$workorder->assignee_id]);
+                $workorder->sendNotification('assigned');
             }
             
             // 记录更新日志
@@ -755,9 +751,6 @@ class WorkorderController extends Controller
             // 记录日志
             $workorder->addLog('materials_updated', '更新了备件耗材使用情况');
             
-            // 发送通知
-            $workorder->sendNotification('resolved');
-
             // 系统设置不需要用户确认完结时，工程师解决后自动完结（签单工单除外）
             $requireConfirm = \App\Models\SystemSetting::get('require_user_completion_confirm', '0');
             if ($requireConfirm !== '1' && !$workorder->requires_signature) {
@@ -765,6 +758,10 @@ class WorkorderController extends Controller
                 $workorder->sendNotification('completed');
                 return back()->with('success', '工单已解决并自动完结');
             }
+
+            // 非自动完结（需用户确认或签单）才停在"已解决"，此时发 resolved 通知；
+            // 自动完结分支只发 completed，避免同一时刻连发两条近似通知
+            $workorder->sendNotification('resolved');
 
             return back()->with('success', '工单已标记为解决');
         }

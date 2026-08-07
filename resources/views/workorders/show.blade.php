@@ -414,6 +414,28 @@
                 @endforeach
             </div>
         </div>
+       @endif
+ 
+        {{-- 报修人短信满意度（工单完结后，仅发过调查短信时显示） --}}
+        @if($workorder->sms_survey_sent_at)
+        <div class="card p-5">
+            <h3 class="text-sm font-semibold text-ink mb-3">报修人评价</h3>
+            <div class="flex items-center gap-4">
+                @if($workorder->sms_satisfaction === 1)
+                    <span class="badge bg-green-100 text-green-700">满意</span>
+                @elseif($workorder->sms_satisfaction === 0)
+                    <span class="badge bg-red-100 text-red-700">不满意</span>
+                @else
+                    <span class="badge bg-slate-100 text-slate-500">未回复</span>
+                @endif
+                <span class="text-xs" style="color: var(--c-ink-muted);">
+                    调查发送于 {{ $workorder->sms_survey_sent_at->format('Y-m-d H:i') }}
+                    @if($workorder->sms_satisfaction_at)
+                        · 回复于 {{ $workorder->sms_satisfaction_at->format('Y-m-d H:i') }}
+                    @endif
+                </span>
+            </div>
+        </div>
         @endif
     </div>
 </div>

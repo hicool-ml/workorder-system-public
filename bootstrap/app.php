@@ -18,6 +18,11 @@ return Application::configure(basePath: dirname(__DIR__))
             'password.changed' => \App\Http\Middleware\ForcePasswordChange::class,
         ]);
 
+        // 短信上行回复回调由服务商发起，无法携带 CSRF token，需排除校验
+        $middleware->validateCsrfTokens(except: [
+            'sms/reply',
+        ]);
+
         // 全局注册TrustProxies中间件
         $middleware->append(\App\Http\Middleware\TrustProxies::class);
 

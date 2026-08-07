@@ -101,6 +101,24 @@ class NotificationDispatcher
     }
 
     /**
+     * 报修人短信开关（独立于事件×通道矩阵）
+     * 存于 system_settings.creator_sms_enabled，默认关闭。
+     */
+    public static function isCreatorSmsEnabled(): bool
+    {
+        return filter_var(SystemSetting::get('creator_sms_enabled', '0'), FILTER_VALIDATE_BOOLEAN);
+    }
+
+    /**
+     * 满意度调查短信开关（独立于受理通知开关）
+     * 存于 system_settings.creator_survey_enabled，默认关闭。
+     */
+    public static function isCreatorSurveyEnabled(): bool
+    {
+        return filter_var(SystemSetting::get('creator_survey_enabled', '0'), FILTER_VALIDATE_BOOLEAN);
+    }
+
+    /**
      * 获取事件标签（中文）
      */
     public static function getEventLabels(): array
@@ -139,6 +157,13 @@ class NotificationDispatcher
         // 确定接收者
         $recipients = $this->resolveRecipients($workorder, $event, $extra);
 
+        // Don't push a notification back to the user who triggered the action
+        // (e.g. an engineer clicking "start" shouldn't receive their own notice).
+        $actorId = auth()->id();
+        if ($actorId && isset($recipients[$actorId])) {
+            unset($recipients[$actorId]);
+        }
+
         if (empty($recipients)) {
             return;
         }
@@ -157,6 +182,17 @@ class NotificationDispatcher
         if ($wecomEnabled) {
             $this->sendWeCom($workorder, $event, $recipients);
         }
+
+        // 报修人短信：内容独立于内部广播通道，整单生命周期只发两条，
+        // 由 sent_at 标记保证不重复：
+        // 1. 受理通知——"已受理"时（创建即分配或后续接单），用 sms_acceptance_sent_at 防重
+        // 2. 满意度调查——完结（completed）时，用 sms_survey_sent_at 防重
+        if (($event === 'assigned') || ($event === 'created' && $workorder->assignee_id)) {
+            $this->sendCreatorAcceptanceSms($workorder);
+        }
+        if ($event === 'completed') {
+            $this->sendCreatorSurveySms($workorder);
+        }
     }
 
     /**
@@ -168,19 +204,14 @@ class NotificationDispatcher
 
         switch ($event) {
             case 'created':
-                // 创建事件通知管理员/工单管理员
-                $managers = User::whereIn('role', ['admin', 'workorder_manager'])
+                // 创建工单广播给内部人员（管理员/工单管理员/工程师），便于工程师接单；
+                // 报修人（CAS 用户）属服务对象、不在内部用户池，不参与此广播，
+                // 其服务确认短信在下方 sendCreatorConfirmationSms 单独处理。
+                $users = User::whereIn('role', ['admin', 'workorder_manager', 'engineer'])
                     ->where('status', 'active')
                     ->get();
-                foreach ($managers as $m) {
-                    $recipients[$m->id] = $m;
-                }
-                // assigned handler (if any) is also notified, preserving original coverage
-                if ($workorder->assignee_id) {
-                    $assignee = User::find($workorder->assignee_id);
-                    if ($assignee && $assignee->status === 'active') {
-                        $recipients[$assignee->id] = $assignee;
-                    }
+                foreach ($users as $u) {
+                    $recipients[$u->id] = $u;
                 }
                 break;
 
@@ -306,6 +337,131 @@ class NotificationDispatcher
                 'success' => $result['success'],
             ]);
         }
+    }
+
+    /**
+     * 报修人短信通用前置：短信接口、报修人电话是否就绪（不含开关，开关由各方法自查）。
+     * 返回报修人手机号，不满足前置条件返回 null。
+     */
+    private function resolveCreatorSmsTarget(Workorder $workorder): ?string
+    {
+        if (!app(SmsManager::class)->isEnabled()) {
+            return null;
+        }
+        // 报修人电话优先用工单联系电话，回退到报修人账号手机号
+        $phone = $workorder->contact_phone;
+        if (!$phone && $workorder->creator_id) {
+            $creator = User::find($workorder->creator_id);
+            $phone = $creator ? $creator->phone : null;
+        }
+        return $phone && trim($phone) !== '' ? trim($phone) : null;
+    }
+
+    /**
+     * 报修人受理通知短信（整单只发一次）
+     * 模板内容在「短信配置」页可改；工程师电话来自 assignee，无工程师不发。
+     * sms_acceptance_sent_at 既防重发，也作为回复关联依据。
+     */
+    private function sendCreatorAcceptanceSms(Workorder $workorder): void
+    {
+        // 受理通知独立开关
+        if (!self::isCreatorSmsEnabled()) {
+            return;
+        }
+        // 没有工程师接单就不算受理，不发
+        if (!$workorder->assignee_id) {
+            return;
+        }
+        // 整单只发一次：已发过则跳过（防 created+assigned 双触发等意外）
+        if ($workorder->sms_acceptance_sent_at) {
+            return;
+        }
+        $phone = $this->resolveCreatorSmsTarget($workorder);
+        if (!$phone) {
+            return;
+        }
+
+        $engineer = User::find($workorder->assignee_id);
+        $engineerPhone = $engineer ? trim((string) $engineer->phone) : '';
+
+        // 读取后台模板（带占位符 {工程师电话} {预约时间} {系统名称}），按是否有预约替换
+        $systemName = SystemSetting::get('system_name', '工单系统');
+        $appointment = trim((string) $workorder->appointment_time);
+        if ($appointment !== '') {
+            $template = SystemSetting::get(
+                'sms_creator_acceptance_tpl_with_appt',
+                "【{系统名称}】您的报修已受理，工程师\"{工程师电话}\"预计{预约时间}上门为您服务。"
+            );
+        } else {
+            $template = SystemSetting::get(
+                'sms_creator_acceptance_tpl_no_appt',
+                "【{系统名称}】您的报修已受理，请保持电话畅通，便于工程师\"{工程师电话}\"能联系到您并为您服务。"
+            );
+        }
+        $content = strtr($template, [
+            '{系统名称}' => $systemName,
+            '{工程师电话}' => $engineerPhone,
+            '{预约时间}' => $appointment,
+            '{工单编号}' => $workorder->ticket_no,
+        ]);
+
+        $sms = app(SmsManager::class);
+        $result = $sms->send($phone, SystemSetting::get('sms_creator_acceptance_code', 'SMS_ACCEPTANCE'), [
+            'workorder_number' => $workorder->ticket_no,
+            'content' => $content,
+        ]);
+
+        // 无论成功失败都记录发送时间（失败不重试，避免对报修人反复打扰）
+        if ($result['success'] ?? false) {
+            $workorder->forceFill(['sms_acceptance_sent_at' => now()])->save();
+        }
+        Log::info('报修人受理短信', [
+            'workorder_id' => $workorder->id, 'to' => $phone, 'success' => $result['success'] ?? false,
+        ]);
+    }
+
+    /**
+     * 报修人满意度调查短信（整单只发一次，工单完结时发送）
+     * 报修人回复 1=满意 / 0=不满意，由 SmsReplyController 回写 sms_satisfaction。
+     * sms_survey_sent_at 既防重发，也作为回复关联依据。
+     */
+    private function sendCreatorSurveySms(Workorder $workorder): void
+    {
+        // 满意度调查独立开关（与受理通知开关相互独立）
+        if (!self::isCreatorSurveyEnabled()) {
+            return;
+        }
+        // 整单只发一次：已发过则跳过
+        if ($workorder->sms_survey_sent_at) {
+            return;
+        }
+        $phone = $this->resolveCreatorSmsTarget($workorder);
+        if (!$phone) {
+            return;
+        }
+
+        $systemName = SystemSetting::get('system_name', '工单系统');
+        $template = SystemSetting::get(
+            'sms_creator_survey_tpl',
+            "【{系统名称}】您的报修服务已完成，请对本次服务进行评价：满意回复 1，不满意回复 0。"
+        );
+        $content = strtr($template, [
+            '{系统名称}' => $systemName,
+            '{工单编号}' => $workorder->ticket_no,
+        ]);
+
+        $sms = app(SmsManager::class);
+        $result = $sms->send($phone, SystemSetting::get('sms_creator_survey_code', 'SMS_SURVEY'), [
+            'workorder_number' => $workorder->ticket_no,
+            'content' => $content,
+        ]);
+
+        if ($result['success'] ?? false) {
+            $workorder->forceFill(['sms_survey_sent_at' => now()])->save();
+        }
+        Log::info('报修人满意度调查短信', [
+            'workorder_id' => $workorder->id, 'to' => $phone, 'success' => $result['success'] ?? false,
+        ]);
     }
 
     /**

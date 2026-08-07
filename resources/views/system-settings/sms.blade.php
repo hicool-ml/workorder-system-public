@@ -86,6 +86,69 @@
         </div>
     </div>
 
+    {{-- 报修人短信 --}}
+    <div class="card p-5 mb-4 mt-4">
+        <h3 class="font-semibold text-ink mb-1">报修人短信</h3>
+        <p class="text-sm mb-4" style="color: var(--c-ink-muted);">工单生命周期内最多向报修人发送两条短信：受理通知、满意度调查。各自由独立开关控制，互不影响。</p>
+
+        {{-- 受理通知开关 --}}
+        <div class="flex items-center justify-between py-2 border-b border-border">
+            <div>
+                <span class="text-sm font-medium text-ink">受理通知</span>
+                <p class="text-xs mt-0.5" style="color: var(--c-ink-subtle);">工单受理时（创建即分配或工程师接单）发送一次</p>
+            </div>
+            <label class="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" name="creator_sms_enabled" value="1" class="w-4 h-4" {{ $smsSettings['creator_sms_enabled'] ? 'checked' : '' }}>
+                <span class="text-sm" style="color: var(--c-ink-muted);">{{ $smsSettings['creator_sms_enabled'] ? '开启' : '关闭' }}</span>
+            </label>
+        </div>
+
+        {{-- 满意度调查开关 --}}
+        <div class="flex items-center justify-between py-2 border-b border-border">
+            <div>
+                <span class="text-sm font-medium text-ink">满意度调查</span>
+                <p class="text-xs mt-0.5" style="color: var(--c-ink-subtle);">工单完结时发送一次，报修人回复 1=满意 / 0=不满意</p>
+            </div>
+            <label class="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" name="creator_survey_enabled" value="1" class="w-4 h-4" {{ $smsSettings['creator_survey_enabled'] ? 'checked' : '' }}>
+                <span class="text-sm" style="color: var(--c-ink-muted);">{{ $smsSettings['creator_survey_enabled'] ? '开启' : '关闭' }}</span>
+            </label>
+        </div>
+
+        {{-- 模板编辑 --}}
+        <h4 class="text-sm font-semibold text-ink mt-5 mb-2">短信模板</h4>
+        <p class="text-xs mb-3" style="color: var(--c-ink-muted);">支持占位符：<code class="px-1 rounded bg-slate-100">{系统名称}</code> <code class="px-1 rounded bg-slate-100">{工程师电话}</code> <code class="px-1 rounded bg-slate-100">{预约时间}</code> <code class="px-1 rounded bg-slate-100">{工单编号}</code>，发送时自动替换。</p>
+
+        <div class="space-y-3">
+            <div>
+                <label class="label">受理通知（有预约时间）</label>
+                <textarea name="tpl_acceptance_with_appt" class="input" rows="2">{{ $smsSettings['tpl_acceptance_with_appt'] }}</textarea>
+            </div>
+            <div>
+                <label class="label">受理通知（无预约时间）</label>
+                <textarea name="tpl_acceptance_no_appt" class="input" rows="2">{{ $smsSettings['tpl_acceptance_no_appt'] }}</textarea>
+            </div>
+            <div>
+                <label class="label">满意度调查</label>
+                <textarea name="tpl_survey" class="input" rows="2">{{ $smsSettings['tpl_survey'] }}</textarea>
+            </div>
+        </div>
+    </div>
+
+    {{-- 模板修改说明 --}}
+    <div class="card p-4 mb-4" style="background: rgba(245,158,11,0.06); border-left: 4px solid #f59e0b;">
+        <h4 class="text-sm font-semibold text-ink mb-1.5">模板修改说明</h4>
+        <ul class="text-xs space-y-1" style="color: var(--c-ink-muted);">
+            <li><b>自定义接口</b>：在此修改后保存即可立即生效，系统直接使用上面的文案发送。</li>
+            <li><b>阿里云 / 腾讯云</b>：以上文案仅作参考。云服务商要求模板必须在 <b>服务商控制台预先报备审核</b>，实际发送用的是控制台里报备通过的模板。修改文案的步骤：</li>
+            <li class="pl-4">1. 登录短信服务商控制台（阿里云：短信服务 → 国内消息 → 模板管理；腾讯云：短信 → 国内短信 → 正文模板）。</li>
+            <li class="pl-4">2. 新建或修改模板，内容使用对应占位符（阿里云 <code class="px-1 rounded bg-slate-100">${name}</code>、腾讯云 <code class="px-1 rounded bg-slate-100">{1}</code>），提交审核（通常 2 小时内）。</li>
+            <li class="pl-4">3. 审核通过后记下 <b>模板 CODE / ID</b>，此处文案保持一致，便于核对。</li>
+            <li class="pl-4">4. 模板审核期间，短信可能发送失败；建议先用「自定义接口」或「测试短信」验证流程。</li>
+            <li class="pt-2"><b>满意度回复回调</b>：开启满意度调查后，报修人回复短信需回写系统。请在服务商后台配置上行回调地址为 <code class="px-1 rounded bg-slate-100">{{ rtrim(config('app.url'), '/') }}/sms/reply</code>。系统自动适配各服务商字段（阿里云 <code class="px-1 rounded bg-slate-100">phone_number/content</code>、腾讯云 <code class="px-1 rounded bg-slate-100">PhoneNumber/ReplyContent</code>），自定义接口默认取 <code class="px-1 rounded bg-slate-100">phone/content</code>。</li>
+        </ul>
+    </div>
+
     <div class="flex justify-end">
         <button type="submit" class="btn btn-primary">
             <svg class="w-4 h-4 inline" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
