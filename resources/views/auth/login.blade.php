@@ -31,10 +31,16 @@
             <span>登录</span>
         </button>
     </form>
-    @if(\App\Models\SystemSetting::get('cas_enabled', false) || \App\Models\SystemSetting::get('oidc_enabled', false))
+    @if(\App\Models\SystemSetting::get('cas_enabled', false) || \App\Models\SystemSetting::get('oidc_enabled', false) || \App\Models\SystemSetting::get('wechat_oauth_enabled', false))
     <div class="mt-5 pt-5 border-t border-border">
         <p class="text-center text-xs mb-3" style="color: var(--c-ink-subtle);">─── 其他登录方式 ───</p>
         <div class="flex flex-col gap-2">
+            @if(\App\Models\SystemSetting::get('wechat_oauth_enabled', false))
+            <a href="{{ route('wechat.login') }}" class="btn btn-secondary w-full">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.86 9.86 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+                <span>微信登录</span>
+            </a>
+            @endif
             @if(\App\Models\SystemSetting::get('oidc_enabled', false))
             <a href="{{ route('oidc.login') }}" class="btn btn-secondary w-full">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>

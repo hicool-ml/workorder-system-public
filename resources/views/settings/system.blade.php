@@ -36,5 +36,22 @@
             </div>
         </form>
     </x-settings._card>
+
+    <x-settings._card title="会话有效期">
+        <form method="POST" action="{{ route('system-settings.update') }}" class="p-5">
+            @csrf
+            <div class="max-w-xs">
+                <label class="label" for="session_lifetime">登录会话有效期（分钟）</label>
+                <input type="number" class="input" id="session_lifetime" name="settings[session_lifetime]" value="{{ \App\Models\SystemSetting::get('session_lifetime', 120) }}" min="5" max="43200">
+                <p class="text-xs mt-1" style="color: var(--c-ink-subtle);">超过该空闲时间未操作需重新登录，默认 120 分钟。微信内置浏览器可能清理 Cookie 导致掉线，如需长期保持登录可调大（如 43200 = 30 天）。</p>
+            </div>
+            <div class="mt-4">
+                <button type="submit" class="btn btn-primary">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                    <span>保存设置</span>
+                </button>
+            </div>
+        </form>
+    </x-settings._card>
 </div>
 @endsection

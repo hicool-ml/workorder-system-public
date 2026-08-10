@@ -26,6 +26,12 @@ return Application::configure(basePath: dirname(__DIR__))
         // 全局注册TrustProxies中间件
         $middleware->append(\App\Http\Middleware\TrustProxies::class);
 
+        // 动态会话有效期：必须在 StartSession 之前执行，否则本次请求的会话已按
+        // config('session.lifetime') 创建，新的 session_lifetime 只能下次请求生效
+        $middleware->web(prepend: [
+            \App\Http\Middleware\ApplySessionLifetime::class,
+        ]);
+
         // 强制修改默认密码：所有 web 请求都会经过，仅对已登录且未修改密码的用户生效
         $middleware->web(append: [
             \App\Http\Middleware\ForcePasswordChange::class,

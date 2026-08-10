@@ -112,6 +112,11 @@
                         @error('feishu_user_id')<p class="text-xs text-red-500 mt-1">{{ $message }}</p>@enderror
                     </div>
                     <div>
+                        <label class="label" for="wechat_openid">微信OpenID</label>
+                        <input type="text" class="input" id="wechat_openid" name="wechat_openid" value="{{ old('wechat_openid', $user->wechat_openid) }}" maxlength="128" placeholder="可选，微信登录绑定；清空后该微信需重新绑定">
+                        @error('wechat_openid')<p class="text-xs text-red-500 mt-1">{{ $message }}</p>@enderror
+                    </div>
+                    <div>
                         <label class="label" for="location">办公地点</label>
                         <input type="text" class="input" id="location" name="location" value="{{ old('location', $user->location) }}" maxlength="255">
                         @error('location')<p class="text-xs text-red-500 mt-1">{{ $message }}</p>@enderror

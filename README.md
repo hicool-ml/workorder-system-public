@@ -34,7 +34,7 @@
 - **用户管理** — 角色权限、状态切换、批量操作、统计数据
 - **工单模板** — 预设模板快速创建常见工单
 - **PWA** — Service Worker 离线缓存、推送通知、添加到主屏幕
-- **系统设置** — 按职能拆分为「设置」折叠菜单下的子页：注册设置、系统设置（名称/版本/访问地址）、版本管理、备份&恢复、消息设置（通知规则/短信/企业微信）、详细设置、统一身份认证（CAS / OIDC）；支持浅色/暗色主题切换。每个子页有独立说明文档，见 [系统设置文档](docs/settings/README.md)
+- **系统设置** — 按职能拆分为「设置」折叠菜单下的子页：注册设置、系统设置（名称/版本/访问地址）、版本管理、备份&恢复、消息设置（通知规则/短信/企业微信）、详细设置、统一身份认证（CAS / OIDC / 微信）；支持浅色/暗色主题切换。每个子页有独立说明文档，见 [系统设置文档](docs/settings/README.md)
 - **数据备份与恢复** — Web 界面一键备份/上传/下载/删除/恢复，恢复前自动创建安全网备份以便回滚；自动每日 02:00 备份，保留最近 30 份。详细说明见 [备份 & 恢复文档](docs/settings/04-backup-restore.md)
 
 ### 用户角色与权限
@@ -53,7 +53,7 @@
 
 ### 集成扩展
 
-- **统一身份认证（CAS / OIDC）** — 与本地认证共存；CAS 用户通过简化报修表单提交工单；OIDC 支持任意标准 OAuth2/OIDC IAM 平台（泛微令信通、派拉、宁盾、阿里云 IDaaS、TOPIAM 等），Authorization Code + PKCE + id_token 校验，接入说明见 [OIDC 配置文档](docs/settings/08-oidc.md)
+- **统一身份认证（CAS / OIDC / 微信）** — 与本地认证共存；CAS 用户通过简化报修表单提交工单；OIDC 支持任意标准 OAuth2/OIDC IAM 平台（泛微令信通、派拉、宁盾、阿里云 IDaaS、TOPIAM 等），Authorization Code + PKCE + id_token 校验；微信登录支持普通微信免密认证（需已认证公众号，首次绑定一次），接入说明见 [OIDC 配置文档](docs/settings/08-oidc.md) 与 [微信登录文档](docs/settings/09-wechat-oauth.md)
 - **短信通知** — 通用短信网关（阿里云 / 腾讯云 / 自定义），按事件 x 通道规则矩阵控制内部通知发送；另有独立的「报修人短信」通道（受理通知 + 满意度调查），由各自开关单独控制，报修人回复经 `/sms/reply` 回调自动回写满意度
 - **通知调度器** — 站内通知 + 短信统一调度，规则化配置哪些事件触发哪些通道
 - **企业微信群通知** — 群机器人 / 自建应用双模式，工单创建 @所有人，分配/超时 @指定工程师（UserID 优先，手机号兜底），系统公告自动推送
@@ -89,10 +89,11 @@
 ```
 app/
 ├── Http/Controllers/
-│   ├── Auth/                      # 认证（本地登录 + CAS + OIDC）
+│   ├── Auth/                      # 认证（本地登录 + CAS + OIDC + 微信）
 │   │   ├── AuthenticatedSessionController.php
 │   │   ├── CasAuthController.php  # CAS/LinkID 统一身份认证
 │   │   ├── OidcAuthController.php # OIDC/OAuth2 统一身份认证（PKCE + id_token 校验）
+│   │   ├── WechatOauthController.php # 微信公众号 OAuth2 登录（openid 绑定 + 免密）
 │   │   └── RegisteredUserController.php
 │   ├── Traits/
 │   │   └── HandlesReport.php      # CAS 用户简化报修逻辑
@@ -347,7 +348,7 @@ CAS 用户属性映射在 `config/services.php` 的 `cas` 节配置。
 
 | 文档 | 内容 |
 |------|------|
-| [系统设置文档](docs/settings/README.md) | 8 个设置子页（注册/系统/版本/备份恢复/消息/详细/CAS/OIDC）的逐页说明 |
+| [系统设置文档](docs/settings/README.md) | 9 个设置子页（注册/系统/版本/备份恢复/消息/详细/CAS/OIDC/微信）的逐页说明 |
 | [备份 & 恢复](docs/settings/04-backup-restore.md) | Web 备份恢复操作、自动备份、命令行备份、排错 |
 | [通知配置指南](docs/NOTIFICATION_GUIDE.md) | 短信、企业微信、钉钉、飞书的完整接入步骤与常见报错排查 |
 

@@ -50,7 +50,7 @@ class SystemSettingController extends Controller
         $groupedSettings = [
             'registration' => $settings->filter(fn($s) => str_contains($s->key, 'registration')),
             'user' => $settings->filter(fn($s) => str_contains($s->key, 'user')),
-            'system' => $settings->filter(fn($s) => str_contains($s->key, 'system')),
+            'system' => $settings->filter(fn($s) => str_contains($s->key, 'system') || $s->key === 'session_lifetime'),
             'version' => $settings->filter(fn($s) => in_array($s->key, ['system_version', 'system_release_date'])),
             'other' => $settings->filter(fn($s) => !in_array($s->key, [
                 'registration_enabled', 'default_user_role', 'require_email_verification', 'system_name', 'system_version', 'system_release_date'
@@ -595,6 +595,51 @@ class SystemSettingController extends Controller
         SystemSetting::set('oidc_enabled', $enabled, 'boolean', '是否启用OIDC统一身份认证', false);
 
         return back()->with('success', 'OIDC认证配置已保存' . ($enabled ? '（已启用）' : '（未启用）'));
+    }
+
+    /**
+     * 微信公众号 OAuth 登录配置页面
+     */
+    public function wechatOauth()
+    {
+        if (!Auth::user() || !Auth::user()->isAdmin()) {
+            return redirect()->route('system-settings.index')->with('error', '无权操作');
+        }
+
+        $wechatOauthSettings = [
+            'enabled' => (bool) SystemSetting::get('wechat_oauth_enabled', false),
+            'appid'   => SystemSetting::get('wechat_oauth_appid', ''),
+            'secret'  => SystemSetting::get('wechat_oauth_secret', ''),
+            'scope'   => SystemSetting::get('wechat_oauth_scope', 'snsapi_base'),
+        ];
+
+        return view('system-settings.wechat-oauth', compact('wechatOauthSettings'));
+    }
+
+    /**
+     * 更新微信公众号 OAuth 登录配置
+     */
+    public function updateWechatOauth(Request $request)
+    {
+        if (!Auth::user() || !Auth::user()->isAdmin()) {
+            return redirect()->route('system-settings.index')->with('error', '无权操作');
+        }
+
+        $request->validate([
+            'wechat_oauth_appid'  => 'nullable|string|max:128',
+            'wechat_oauth_secret' => 'nullable|string|max:200',
+            'wechat_oauth_scope'  => 'nullable|string|max:50|in:snsapi_base,snsapi_userinfo',
+        ]);
+
+        SystemSetting::set('wechat_oauth_appid', trim($request->input('wechat_oauth_appid', '')), 'string', '微信公众号 AppID', false);
+        SystemSetting::set('wechat_oauth_secret', trim($request->input('wechat_oauth_secret', '')), 'string', '微信公众号 AppSecret', false);
+        SystemSetting::set('wechat_oauth_scope', $request->input('wechat_oauth_scope') ?: 'snsapi_base', 'string', '微信网页授权 scope', false);
+
+        // 启用/禁用
+        $enabled = $request->boolean('wechat_oauth_enabled');
+        SystemSetting::set('wechat_oauth_enabled', $enabled, 'boolean', '是否启用微信登录', false);
+
+        return back()->with('success', '微信登录配置已保存' . ($enabled ? '（已启用）' : '（未启用）'));
     }
 
     /**

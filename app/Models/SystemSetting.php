@@ -185,6 +185,13 @@ class SystemSetting extends Model
                 'description' => '是否需要邮箱验证',
                 'is_public' => true,
             ],
+            [
+                'key' => 'session_lifetime',
+                'value' => '120',
+                'type' => 'integer',
+                'description' => '登录会话有效期（分钟）',
+                'is_public' => false,
+            ],
         ];
 
         foreach ($defaults as $setting) {

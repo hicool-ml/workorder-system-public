@@ -30,6 +30,7 @@ class User extends Authenticatable
         'dingtalk_userid',
         'feishu_user_id',
         'oidc_sub',
+        'wechat_openid',
         'department_id',
         'role',
         'status',

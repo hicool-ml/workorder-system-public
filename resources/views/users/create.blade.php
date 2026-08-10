@@ -94,6 +94,11 @@
             <input type="text" class="input" id="feishu_user_id" name="feishu_user_id" value="{{ old('feishu_user_id') }}" maxlength="100" placeholder="可选，用于飞书@提醒">
             @error('feishu_user_id')<p class="text-xs text-red-500 mt-1">{{ $message }}</p>@enderror
         </div>
+        <div>
+            <label class="label" for="wechat_openid">微信OpenID</label>
+            <input type="text" class="input" id="wechat_openid" name="wechat_openid" value="{{ old('wechat_openid') }}" maxlength="128" placeholder="可选，微信登录绑定">
+            @error('wechat_openid')<p class="text-xs text-red-500 mt-1">{{ $message }}</p>@enderror
+        </div>
      </div>
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>

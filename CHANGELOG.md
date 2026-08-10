@@ -10,6 +10,8 @@
 ## [未发布]
 
 ### 新增
+- **微信登录（公众号 OAuth2）**：普通微信直接认证，支持 `snsapi_base` 静默 / `snsapi_userinfo` 授权两种 Scope；`users` 表新增 `wechat_openid`（按 AppID 唯一）；首次使用需一次性绑定系统账号，之后免密登录；独立配置页（`system-settings/wechat-oauth`），回调地址 `wechat/callback`
+- **会话有效期设置**：系统设置新增「登录会话有效期（分钟）」参数（`session_lifetime`，默认 120），`ApplySessionLifetime` 中间件在 StartSession 之前动态应用，保存后立即生效；用于缓解微信内置浏览器清 Cookie 导致的频繁掉线，可调大至如 30 天
 - **钉钉通知通道**：自定义机器人（Webhook + 加签）/ 工作通知（企业内部应用）双模式，@ 逻辑与企业微信一致（userid 优先，手机号兜底），独立配置页与通知规则矩阵，支持测试发送
 - **飞书通知通道**：自定义机器人（Webhook + 签名校验）/ 自建应用双模式，@ 按 user_id/open_id，独立配置页与通知规则矩阵，支持测试发送
 - **OIDC 统一身份认证**：OpenID Connect（OAuth2 Authorization Code + PKCE）接入，支持 OIDC Discovery 自动发现端点、state/nonce 校验、`id_token` 的 exp/aud/iss 校验与 JWKS RSA 签名验证（仅 RS256），与本地/CAS 认证共存，独立配置页；`users` 表新增 `oidc_sub` 唯一用户标识字段

@@ -47,6 +47,14 @@ Route::prefix('oidc')->group(function () {
     Route::get('logout', [App\Http\Controllers\Auth\OidcAuthController::class, 'logout'])->name('oidc.logout')->middleware('auth');
 });
 
+// 微信公众号 OAuth 登录路由
+Route::prefix('wechat')->group(function () {
+    Route::get('login', [App\Http\Controllers\Auth\WechatOauthController::class, 'login'])->name('wechat.login');
+    Route::get('callback', [App\Http\Controllers\Auth\WechatOauthController::class, 'callback'])->name('wechat.callback');
+    Route::get('bind', [App\Http\Controllers\Auth\WechatOauthController::class, 'bindPage'])->name('wechat.bind');
+    Route::post('bind', [App\Http\Controllers\Auth\WechatOauthController::class, 'bind']);
+});
+
 // 短信上行回复回调（服务商 → 系统，无需登录，CSRF 已在 bootstrap/app.php 排除）
 Route::post('sms/reply', [App\Http\Controllers\SmsReplyController::class, 'receive'])->name('sms.reply');
 
@@ -273,6 +281,8 @@ Route::middleware(['auth'])->group(function () {
       Route::post('system-settings/cas', [SystemSettingController::class, 'updateCas'])->name('system-settings.update-cas');
       Route::get('system-settings/oidc', [SystemSettingController::class, 'oidc'])->name('system-settings.oidc');
       Route::post('system-settings/oidc', [SystemSettingController::class, 'updateOidc'])->name('system-settings.update-oidc');
+      Route::get('system-settings/wechat-oauth', [SystemSettingController::class, 'wechatOauth'])->name('system-settings.wechat-oauth');
+      Route::post('system-settings/wechat-oauth', [SystemSettingController::class, 'updateWechatOauth'])->name('system-settings.update-wechat-oauth');
       Route::delete('system-settings/{systemSetting}', [SystemSettingController::class, 'destroy'])->name('system-settings.destroy');
 
         // 数据备份与恢复（仅管理员）

@@ -165,6 +165,7 @@
                     <a href="{{ route('settings.page', 'all') }}" class="nav-item text-sm {{ request()->is('settings/all') ? 'nav-active' : 'text-brand-100 hover:bg-brand-700' }}"><span class="w-1 h-1 rounded-full bg-current"></span><span>详细设置</span></a>
                     <a href="{{ route('system-settings.cas') }}" class="nav-item text-sm {{ request()->routeIs('system-settings.cas') ? 'nav-active' : 'text-brand-100 hover:bg-brand-700' }}"><span class="w-1 h-1 rounded-full bg-current"></span><span>CAS 认证</span></a>
                     <a href="{{ route('system-settings.oidc') }}" class="nav-item text-sm {{ request()->routeIs('system-settings.oidc') ? 'nav-active' : 'text-brand-100 hover:bg-brand-700' }}"><span class="w-1 h-1 rounded-full bg-current"></span><span>OIDC 认证</span></a>
+                    <a href="{{ route('system-settings.wechat-oauth') }}" class="nav-item text-sm {{ request()->routeIs('system-settings.wechat-oauth') ? 'nav-active' : 'text-brand-100 hover:bg-brand-700' }}"><span class="w-1 h-1 rounded-full bg-current"></span><span>微信登录</span></a>
                 </div>
             </div>
             @endif
