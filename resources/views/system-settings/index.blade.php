@@ -56,20 +56,12 @@
         </div>
         <form method="POST" action="{{ route('system-settings.update') }}" class="p-5">
             @csrf
-            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div class="sm:col-span-1">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
                     <label class="label" for="system_name">系统名称</label>
                     <input type="text" class="input" id="system_name" name="settings[system_name]" value="{{ $groupedSettings['system']->firstWhere('key', 'system_name')?->typed_value ?? '工单管理系统' }}">
                 </div>
                 <div>
-                    <label class="label" for="system_version">版本号</label>
-                    <input type="text" class="input" id="system_version" name="settings[system_version]" value="{{ $groupedSettings['version']->firstWhere('key', 'system_version')?->typed_value ?? '2.0.0' }}">
-                </div>
-                <div>
-                    <label class="label" for="system_release_date">发布日期</label>
-                    <input type="date" class="input" id="system_release_date" name="settings[system_release_date]" value="{{ $groupedSettings['version']->firstWhere('key', 'system_release_date')?->typed_value ?? date('Y-m-d') }}">
-                </div>
-                <div class="sm:col-span-3">
                     <label class="label" for="system_url">系统访问地址</label>
                     <input type="url" class="input" id="system_url" name="settings[system_url]" value="{{ $groupedSettings['system']->firstWhere('key', 'system_url')?->typed_value ?? '' }}" placeholder="http://192.168.1.100:8099">
                     <p class="text-xs mt-1" style="color: var(--c-ink-subtle);">企业微信通知中的工单链接会使用此地址，需填实际可访问的 IP/域名</p>
@@ -89,7 +81,7 @@
         <div class="px-5 py-4 border-b border-border flex items-center justify-between gap-3">
             <h3 class="text-sm font-semibold text-ink">版本管理</h3>
             <div class="flex items-center gap-2">
-                <button type="button" onclick="openModal('versionUpdateModal')" class="btn btn-secondary btn-sm">
+                <button type="button" onclick="openVersionModal()" class="btn btn-secondary btn-sm">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 5v14M5 12h14"/></svg>
                     <span>更新版本</span>
                 </button>
@@ -252,12 +244,13 @@
     </div>
 
         {{-- All settings table --}}
+    @foreach($categorizedSettings as $label => $items)
     <div class="card overflow-hidden">
         <div class="px-5 py-4 border-b border-border">
-            <h3 class="text-sm font-semibold text-ink">所有设置</h3>
+            <h3 class="text-sm font-semibold text-ink">{{ $label }}</h3>
         </div>
         <div class="md:hidden divide-y divide-border">
-            @foreach($settings as $setting)
+            @foreach($items as $setting)
             <div class="p-4">
                 <div class="flex items-center justify-between gap-2 mb-1">
                     <code class="text-sm text-ink">{{ $setting->key }}</code>
@@ -282,7 +275,7 @@
                     <th class="px-5 py-3 font-medium text-right" style="color: var(--c-ink-muted);">操作</th>
                 </tr></thead>
                 <tbody>
-                @foreach($settings as $setting)
+                @foreach($items as $setting)
                 <tr class="border-b border-border">
                     <td class="px-5 py-3"><code class="text-ink">{{ $setting->key }}</code></td>
                     <td class="px-5 py-3 text-ink">@if($setting->type === 'boolean')<span class="badge {{ $setting->typed_value ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600' }}">{{ $setting->typed_value ? '是' : '否' }}</span>@else{{ Str::limit($setting->value, 50) }}@endif</td>
@@ -303,6 +296,7 @@
             </table>
         </div>
     </div>
+    @endforeach
 </div>
 
 {{-- Edit setting modal --}}
@@ -353,8 +347,8 @@
                 <input type="date" class="input" id="new_release_date" name="release_date" required value="{{ date('Y-m-d') }}">
             </div>
             <div>
-                <label class="label" for="release_notes">发布说明</label>
-                <textarea class="input" id="release_notes" name="release_notes" rows="4" placeholder="请输入此版本的更新内容和改进..."></textarea>
+                <label class="label" for="release_notes">发布说明 <span class="text-red-500">*</span></label>
+                <textarea class="input" id="release_notes" name="release_notes" rows="4" required placeholder="请输入此版本的更新内容和改进..."></textarea>
             </div>
             <div class="flex items-center justify-end gap-2">
                 <button type="button" onclick="closeModal('versionUpdateModal')" class="btn btn-secondary">取消</button>
@@ -443,6 +437,42 @@ function initializeDefaults() {
       .catch(function(err) { alert('初始化失败：' + (err.message || '网络错误')); });
 }
 
+var CURRENT_VERSION = '{{ $groupedSettings['version']->firstWhere('key', 'system_version')?->typed_value ?? '2.0.0' }}';
+
+function nextVersion(v) {
+    v = String(v || '2.0.0').trim();
+    var m = v.match(/^(\d+)\.(\d+)\.(\d+)/);
+    if (!m) return v;
+    return m[1] + '.' + m[2] + '.' + (parseInt(m[3], 10) + 1);
+}
+
+function todayStr() {
+    var d = new Date();
+    var mm = ('0' + (d.getMonth() + 1)).slice(-2);
+    var dd = ('0' + d.getDate()).slice(-2);
+    return d.getFullYear() + '-' + mm + '-' + dd;
+}
+
+function openVersionModal() {
+    document.getElementById('new_version').value = nextVersion(CURRENT_VERSION);
+    document.getElementById('new_release_date').value = todayStr();
+    openModal('versionUpdateModal');
+}
+
+function deleteVersionHistory(version) {
+    if (!confirm('确定删除版本 ' + version + ' 的发布记录吗？')) return;
+    fetch('{{ route("system-settings.version-history.delete") }}', {
+        method: 'DELETE',
+        headers: { 'Accept': 'application/json', 'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content },
+        body: JSON.stringify({ version: version })
+    }).then(function(r) { return r.json(); })
+      .then(function(data) {
+          if (data.success) { loadVersionHistory(); }
+          else alert('删除失败：' + (data.message || '未知错误'));
+      })
+      .catch(function(err) { alert('删除失败：' + (err.message || '网络错误')); });
+}
+
 function loadVersionHistory() {
     var historyDiv = document.getElementById('versionHistory');
     var historyList = document.getElementById('versionHistoryList');
@@ -461,7 +491,12 @@ function loadVersionHistory() {
                     html += '<div class="p-3 rounded-lg border border-border">' +
                         '<div class="flex items-center justify-between mb-1">' +
                             '<span class="text-sm font-medium text-ink">版本 ' + item.version + '</span>' +
-                            '<span class="text-xs" style="color: var(--c-ink-subtle);">' + item.created_at + '</span>' +
+                            '<div class="flex items-center gap-2">' +
+                                '<span class="text-xs" style="color: var(--c-ink-subtle);">' + item.created_at + '</span>' +
+                                '<button type="button" onclick="deleteVersionHistory(\'' + item.version + '\')" class="btn btn-ghost btn-icon btn-sm text-red-500" title="删除记录">' +
+                                    '<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 6h18 M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>' +
+                                '</button>' +
+                            '</div>' +
                         '</div>' +
                         '<p class="text-xs" style="color: var(--c-ink-muted);">' + (item.notes || '') + '</p>' +
                     '</div>';

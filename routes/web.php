@@ -283,6 +283,7 @@ Route::middleware(['auth'])->group(function () {
       Route::post('system-settings/oidc', [SystemSettingController::class, 'updateOidc'])->name('system-settings.update-oidc');
       Route::get('system-settings/wechat-oauth', [SystemSettingController::class, 'wechatOauth'])->name('system-settings.wechat-oauth');
       Route::post('system-settings/wechat-oauth', [SystemSettingController::class, 'updateWechatOauth'])->name('system-settings.update-wechat-oauth');
+      Route::delete('system-settings/version-history', [SystemSettingController::class, 'deleteVersionHistory'])->name('system-settings.version-history.delete');
       Route::delete('system-settings/{systemSetting}', [SystemSettingController::class, 'destroy'])->name('system-settings.destroy');
 
         // 数据备份与恢复（仅管理员）

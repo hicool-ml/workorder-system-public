@@ -4,7 +4,7 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
 
 /**
- * SSL ??? HTTPS ????
+ * SSL 安全与 HTTPS 证书验证配置
  */
 return new class extends Migration
 {
@@ -15,14 +15,14 @@ return new class extends Migration
                 'key'         => 'ssl_verify_enabled',
                 'value'       => '1',
                 'type'        => 'boolean',
-                'description' => '???? HTTPS SSL ????',
+                'description' => '是否启用 HTTPS SSL 证书验证',
                 'is_public'   => false,
             ],
             [
                 'key'         => 'ssl_cacert_path',
                 'value'       => '',
                 'type'        => 'string',
-                'description' => '??? CA ??????????????????????',
+                'description' => '自定义 CA 证书路径（留空使用系统默认证书库）',
                 'is_public'   => false,
             ],
         ];

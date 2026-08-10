@@ -57,7 +57,63 @@ class SystemSettingController extends Controller
             ])),
         ];
 
-        return compact('groupedSettings', 'settings');
+        // 详细设置：按类别分组并按定义顺序排序（未归类项追加到"其他配置"）
+        $categoryKeys = [
+            '基础设置' => [
+                'system_name', 'system_url', 'session_lifetime',
+                'registration_enabled', 'require_email_verification', 'default_user_role',
+                'require_user_completion_confirm',
+            ],
+            '版本信息' => [
+                'system_version', 'system_release_date',
+            ],
+            '短信通知' => [
+                'sms_enabled', 'sms_provider', 'sms_method', 'sms_api_url',
+                'sms_api_key', 'sms_access_key', 'sms_access_secret', 'sms_sdk_app_id',
+                'sms_sign_name', 'sms_template_codes',
+                'sms_creator_acceptance_tpl_no_appt', 'sms_creator_acceptance_tpl_with_appt', 'sms_creator_survey_tpl',
+                'creator_sms_enabled', 'creator_survey_enabled',
+                'sms_test_phone', 'sms_daily_limit', 'sms_notification_types',
+            ],
+            '企业微信' => [
+                'wecom_send_mode',
+                'wecom_webhook_enabled', 'wecom_webhook_url',
+                'wecom_app_enabled', 'wecom_app_corpid', 'wecom_app_secret', 'wecom_app_agentid',
+            ],
+            'SSL 安全' => [
+                'ssl_verify_enabled', 'ssl_cacert_path',
+            ],
+            '其他配置' => [
+                'notification_rules', 'campus_mapping',
+            ],
+        ];
+
+        $categorizedSettings = [];
+        $mappedKeys = [];
+        foreach ($categoryKeys as $label => $keys) {
+            $items = [];
+            foreach ($keys as $key) {
+                $item = $settings->firstWhere('key', $key);
+                if ($item) {
+                    $items[] = $item;
+                    $mappedKeys[] = $key;
+                }
+            }
+            if (!empty($items)) {
+                $categorizedSettings[$label] = collect($items);
+            }
+        }
+
+        $leftover = $settings->filter(fn($s) => !in_array($s->key, $mappedKeys));
+        if ($leftover->isNotEmpty()) {
+            if (isset($categorizedSettings['其他配置'])) {
+                $categorizedSettings['其他配置'] = $categorizedSettings['其他配置']->merge($leftover);
+            } else {
+                $categorizedSettings['其他配置'] = $leftover;
+            }
+        }
+
+        return compact('groupedSettings', 'settings', 'categorizedSettings');
     }
 
     /**
@@ -238,7 +294,7 @@ class SystemSettingController extends Controller
         $request->validate([
             'version' => 'required|string|max:20',
             'release_date' => 'required|date',
-            'release_notes' => 'nullable|string|max:1000',
+            'release_notes' => 'required|string|max:1000',
         ]);
 
         DB::beginTransaction();
@@ -261,16 +317,14 @@ class SystemSettingController extends Controller
                 true
             );
 
-            // 如果有发布说明，保存到版本历史
-            if ($request->filled('release_notes')) {
-                SystemSetting::set(
-                    'version_notes_' . str_replace('.', '_', $request->input('version')),
-                    $request->input('release_notes'),
-                    'text',
-                    "版本 {$request->input('version')} 发布说明",
-                    false
-                );
-            }
+            // 保存发布说明到版本历史（必填）
+            SystemSetting::set(
+                'version_notes_' . str_replace('.', '_', $request->input('version')),
+                $request->input('release_notes'),
+                'text',
+                "版本 {$request->input('version')} 发布说明",
+                false
+            );
 
             DB::commit();
             
@@ -327,6 +381,23 @@ class SystemSettingController extends Controller
         }
 
        return response()->json($versionHistory);
+    }
+
+    /**
+     * 删除单条版本历史记录
+     */
+    public function deleteVersionHistory(Request $request)
+    {
+        if (!Auth::user() || !Auth::user()->isAdmin()) {
+            return response()->json(['success' => false, 'message' => '无权操作'], 403);
+        }
+
+        $request->validate(['version' => 'required|string|max:20']);
+
+        $key = 'version_notes_' . str_replace('.', '_', $request->input('version'));
+        SystemSetting::where('key', $key)->delete();
+
+        return response()->json(['success' => true, 'message' => '版本记录已删除']);
     }
 
     /**
@@ -450,8 +521,19 @@ class SystemSettingController extends Controller
             'sms_api_key'    => $request->input('sms_api_key'),
         ];
 
+        $fieldDescriptions = [
+            'sms_provider'      => '短信服务提供商（aliyun/tencent/custom）',
+            'sms_sign_name'     => '短信签名',
+            'sms_access_key'    => '短信服务 Access Key ID',
+            'sms_access_secret' => '短信服务 Access Key Secret',
+            'sms_sdk_app_id'    => '短信服务 SDK AppID（腾讯云等使用）',
+            'sms_api_url'       => '短信服务商自定义接口地址',
+            'sms_method'        => '短信接口请求方式（GET/POST）',
+            'sms_api_key'       => '短信服务商 API 密钥',
+        ];
+
         foreach ($fields as $key => $value) {
-            SystemSetting::set($key, $value, 'string');
+            SystemSetting::set($key, $value, 'string', $fieldDescriptions[$key] ?? null);
         }
 
         // 报修人短信开关

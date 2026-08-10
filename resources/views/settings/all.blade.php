@@ -6,9 +6,10 @@
 </div>
 
 <div class="space-y-6">
-    <x-settings._card title="所有设置">
+    @foreach($categorizedSettings as $label => $items)
+    <x-settings._card :title="$label">
         <div class="md:hidden divide-y divide-border">
-            @foreach($settings as $setting)
+            @foreach($items as $setting)
             <div class="p-4">
                 <div class="flex items-center justify-between gap-2 mb-1">
                     <code class="text-sm text-ink">{{ $setting->key }}</code>
@@ -33,7 +34,7 @@
                     <th class="px-5 py-3 font-medium text-right" style="color: var(--c-ink-muted);">操作</th>
                 </tr></thead>
                 <tbody>
-                @foreach($settings as $setting)
+                @foreach($items as $setting)
                 <tr class="border-b border-border">
                     <td class="px-5 py-3"><code class="text-ink">{{ $setting->key }}</code></td>
                     <td class="px-5 py-3 text-ink">@if($setting->type === 'boolean')<span class="badge {{ $setting->typed_value ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600' }}">{{ $setting->typed_value ? '是' : '否' }}</span>@else{{ Str::limit($setting->value, 50) }}@endif</td>
@@ -54,6 +55,7 @@
             </table>
         </div>
     </x-settings._card>
+    @endforeach
 </div>
 
 {{-- 编辑设置弹窗 --}}
