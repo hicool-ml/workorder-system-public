@@ -27,31 +27,14 @@ return new class extends Migration
             $table->index('sort_order');
         });
 
-        // 插入默认校区数据
+       // 插入默认校区数据
+        // 通用工单系统默认园区数据（可在管理后台自行增删）
         DB::table('campuses')->insert([
             [
-                'name' => '老校区',
-                'code' => 'old_campus',
-                'description' => '包含1-7教学楼、1-10学生宿舍、行政楼、图书馆等',
+                'name' => '总部园区',
+                'code' => 'hq',
+                'description' => '总部办公园区',
                 'sort_order' => 1,
-                'status' => 'active',
-                'created_at' => now(),
-                'updated_at' => now(),
-            ],
-            [
-                'name' => '新校区',
-                'code' => 'new_campus',
-                'description' => '包含8-14教学楼、11-18学生宿舍等',
-                'sort_order' => 2,
-                'status' => 'active',
-                'created_at' => now(),
-                'updated_at' => now(),
-            ],
-            [
-                'name' => '东盟校区',
-                'code' => 'asean_campus',
-                'description' => '包含A-J教学楼、19-20学生宿舍等',
-                'sort_order' => 3,
                 'status' => 'active',
                 'created_at' => now(),
                 'updated_at' => now(),

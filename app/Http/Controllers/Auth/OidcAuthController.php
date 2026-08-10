@@ -1,0 +1,658 @@
+<?php
+
+namespace App\Http\Controllers\Auth;
+
+use App\Http\Controllers\Controller;
+use App\Models\User;
+use App\Models\SystemSetting;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
+
+/**
+ * OIDC / OAuth2 统一身份认证控制器
+ *
+ * 认证流程 (Authorization Code Flow):
+ * 1. 用户点击「统一身份认证」按钮 -> redirect to IdP authorization endpoint
+ * 2. 用户在 IdP 页面登录成功后 -> 回调 /oidc/callback?code=xxx&state=xxx
+ * 3. 系统用 code 向 IdP token endpoint 换取 access_token + id_token
+ * 4. 用 access_token 向 userinfo endpoint 获取用户属性
+ * 5. 根据返回的用户标识在本地查找/创建用户，自动登录
+ *
+ * 支持 OIDC Discovery（自动发现 endpoint）和手动配置 endpoint 两种模式。
+ * 兼容泛微令信通、派拉、宁盾、阿里云 IDaaS、TOPIAM 等主流 IAM 平台。
+ */
+class OidcAuthController extends Controller
+{
+    /**
+     * 跳转到 IdP 授权页面
+     */
+    public function login(Request $request)
+    {
+        if (!SystemSetting::get('oidc_enabled', false)) {
+            return redirect()->route('login')->with('error', '统一身份认证未启用');
+        }
+
+        $config = $this->getConfig();
+        if (!$config) {
+            return redirect()->route('login')->with('error', 'OIDC 配置不完整，请联系管理员');
+        }
+
+        // PKCE: 生成 code_verifier 和 code_challenge，增强安全性
+        $codeVerifier = Str::random(64);
+        $codeChallenge = rtrim(strtr(base64_encode(hash('sha256', $codeVerifier, true)), '+/', '-_'), '=');
+
+        // state: 防止 CSRF
+        $state = Str::random(32);
+        $nonce = Str::random(32);
+
+        session([
+            'oidc.state'         => $state,
+            'oidc.nonce'         => $nonce,
+            'oidc.code_verifier' => $codeVerifier,
+        ]);
+
+        // 保存 intended URL 以便登录后跳转
+        if ($request->has('intended')) {
+            session(['oidc.intended' => $request->input('intended')]);
+        }
+
+        $params = http_build_query([
+            'response_type'      => 'code',
+            'client_id'          => $config['client_id'],
+            'redirect_uri'       => route('oidc.callback'),
+            'scope'              => $config['scope'],
+            'state'              => $state,
+            'nonce'              => $nonce,
+            'code_challenge'      => $codeChallenge,
+            'code_challenge_method' => 'S256',
+        ]);
+
+        return redirect($config['authorize_endpoint'] . '?' . $params);
+    }
+
+    /**
+     * OIDC 回调处理
+     */
+    public function callback(Request $request)
+    {
+        if (!SystemSetting::get('oidc_enabled', false)) {
+            return redirect()->route('login')->with('error', '统一身份认证未启用');
+        }
+
+        // 检查错误回调（用户拒绝授权等）
+        if ($request->has('error')) {
+            $errorDesc = $request->input('error_description', $request->input('error'));
+            Log::warning('OIDC 授权失败', ['error' => $errorDesc]);
+            return redirect()->route('login')->with('error', '认证失败：' . $errorDesc);
+        }
+
+        // 验证 state（CSRF 防护）
+        $state = $request->input('state');
+        $sessionState = session('oidc.state');
+
+        if (!$state || $state !== $sessionState) {
+            Log::error('OIDC state 验证失败', [
+                'received' => $state,
+                'expected' => $sessionState,
+            ]);
+            return redirect()->route('login')->with('error', '认证回调验证失败，请重试');
+        }
+
+        $code = $request->input('code');
+        if (!$code) {
+            return redirect()->route('login')->with('error', '认证回调缺少授权码');
+        }
+
+        $config = $this->getConfig();
+        if (!$config) {
+            return redirect()->route('login')->with('error', 'OIDC 配置不完整');
+        }
+
+        // 用 code 换取 token
+        $tokens = $this->exchangeCodeForToken($code, $config);
+
+        if (!$tokens) {
+            return redirect()->route('login')->with('error', '统一身份认证失败，请重试');
+        }
+
+        // 校验 id_token（nonce / exp / aud / iss，签名在可用时验证）
+        if (empty($tokens['id_token'])) {
+            return redirect()->route('login')->with('error', '统一身份认证响应缺少身份令牌');
+        }
+
+        if (!$this->validateIdToken($tokens['id_token'], $config)) {
+            return redirect()->route('login')->with('error', '身份令牌验证失败，请重试');
+        }
+
+        // 获取用户信息
+        $userInfo = $this->getUserInfo($tokens, $config);
+
+        if (!$userInfo) {
+            return redirect()->route('login')->with('error', '无法获取用户信息');
+        }
+
+        // 查找或创建本地用户
+        $user = $this->findOrCreateUser($userInfo);
+
+        if (!$user) {
+            return redirect()->route('login')->with('error', '无法创建用户账户');
+        }
+
+        // 禁用账号禁止通过 SSO 登录
+        if ($user->status !== 'active') {
+            return redirect()->route('login')->with('error', '该账号已被禁用，请联系管理员');
+        }
+
+        // 清理 session 中的临时数据
+        session()->forget(['oidc.state', 'oidc.nonce', 'oidc.code_verifier']);
+
+        // 登录并重新生成会话
+        auth()->login($user, true);
+        session()->regenerate(true);
+
+        $intended = session('oidc.intended', route('workorders.index'));
+        session()->forget('oidc.intended');
+
+        return redirect($intended);
+    }
+
+    /**
+     * OIDC 登出
+     */
+    public function logout(Request $request)
+    {
+        $config = $this->getConfig();
+        auth()->logout();
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
+
+        // 如果 IdP 支持 end_session_endpoint，跳转到 IdP 统一登出
+        if ($config && !empty($config['end_session_endpoint'])) {
+            $params = http_build_query([
+                'post_logout_redirect_uri' => route('login'),
+            ]);
+            return redirect($config['end_session_endpoint'] . '?' . $params);
+        }
+
+        return redirect()->route('login');
+    }
+
+    /**
+     * 获取 OIDC 配置（合并 Discovery 和手动配置）
+     */
+    private function getConfig(): ?array
+    {
+        $clientId = SystemSetting::get('oidc_client_id', '');
+        $clientSecret = SystemSetting::get('oidc_client_secret', '');
+
+        if (empty($clientId)) {
+            return null;
+        }
+
+        $scope = SystemSetting::get('oidc_scope', 'openid profile email');
+        $issuer = SystemSetting::get('oidc_issuer', '');
+
+        // 优先使用手动配置的 endpoints
+        $authorizeEndpoint = SystemSetting::get('oidc_authorize_endpoint', '');
+        $tokenEndpoint = SystemSetting::get('oidc_token_endpoint', '');
+        $userinfoEndpoint = SystemSetting::get('oidc_userinfo_endpoint', '');
+        $endSessionEndpoint = SystemSetting::get('oidc_end_session_endpoint', '');
+        $jwksUri = SystemSetting::get('oidc_jwks_uri', '');
+
+        // 如果没有手动配置 endpoints，则尝试 OIDC Discovery
+        if ((empty($tokenEndpoint) || empty($jwksUri)) && !empty($issuer)) {
+            $discovery = $this->discover($issuer);
+            if ($discovery) {
+                $authorizeEndpoint = $authorizeEndpoint ?: ($discovery['authorization_endpoint'] ?? '');
+                $tokenEndpoint = $tokenEndpoint ?: ($discovery['token_endpoint'] ?? '');
+                $userinfoEndpoint = $userinfoEndpoint ?: ($discovery['userinfo_endpoint'] ?? '');
+                $endSessionEndpoint = $endSessionEndpoint ?: ($discovery['end_session_endpoint'] ?? '');
+                $jwksUri = $jwksUri ?: ($discovery['jwks_uri'] ?? '');
+            }
+        }
+
+        if (empty($authorizeEndpoint) || empty($tokenEndpoint)) {
+            return null;
+        }
+
+        return [
+            'client_id'             => $clientId,
+            'client_secret'         => $clientSecret,
+            'scope'                 => $scope,
+            'authorize_endpoint'    => $authorizeEndpoint,
+            'token_endpoint'        => $tokenEndpoint,
+            'userinfo_endpoint'     => $userinfoEndpoint,
+            'end_session_endpoint'  => $endSessionEndpoint,
+            'jwks_uri'              => $jwksUri,
+        ];
+    }
+
+    /**
+     * OIDC Discovery: 从 Issuer 的 /.well-known/openid-configuration 获取配置
+     */
+    private function discover(string $issuer): ?array
+    {
+        // 缓存 discovery 结果 1 小时，避免每次请求都查
+        return Cache::remember('oidc_discovery', 3600, function () use ($issuer) {
+            $url = rtrim($issuer, '/') . '/.well-known/openid-configuration';
+
+            try {
+                $response = Http::timeout(15)->get($url);
+
+                if (!$response->ok()) {
+                    Log::error('OIDC Discovery 请求失败', [
+                        'url' => $url,
+                        'status' => $response->status(),
+                    ]);
+                    return null;
+                }
+
+                $data = $response->json();
+
+                Log::info('OIDC Discovery 成功', ['issuer' => $issuer]);
+
+                return $data;
+            } catch (\Exception $e) {
+                Log::error('OIDC Discovery 异常', [
+                    'url' => $url,
+                    'error' => $e->getMessage(),
+                ]);
+                return null;
+            }
+        });
+    }
+
+    /**
+     * 用 authorization code 换取 token
+     */
+    private function exchangeCodeForToken(string $code, array $config): ?array
+    {
+        $codeVerifier = session('oidc.code_verifier');
+
+        $payload = [
+            'grant_type'    => 'authorization_code',
+            'code'          => $code,
+            'redirect_uri'  => route('oidc.callback'),
+            'client_id'     => $config['client_id'],
+        ];
+
+        // client_secret 非空时使用 (confidential client)
+        // 为空时依赖 PKCE (public client)
+        if (!empty($config['client_secret'])) {
+            $payload['client_secret'] = $config['client_secret'];
+        }
+
+        if ($codeVerifier) {
+            $payload['code_verifier'] = $codeVerifier;
+        }
+
+        try {
+            $response = Http::timeout(15)->asForm()->post($config['token_endpoint'], $payload);
+
+            if (!$response->ok()) {
+                Log::error('OIDC Token 交换失败', [
+                    'status' => $response->status(),
+                    'body' => $response->body(),
+                ]);
+                return null;
+            }
+
+            return $response->json();
+        } catch (\Exception $e) {
+            Log::error('OIDC Token 交换异常', ['error' => $e->getMessage()]);
+            return null;
+        }
+    }
+
+    /**
+     * 用 access_token 获取用户信息
+     */
+    private function getUserInfo(array $tokens, array $config): ?array
+    {
+        // 如果没有 userinfo endpoint，尝试从 id_token 解析
+        if (empty($config['userinfo_endpoint'])) {
+            if (isset($tokens['id_token'])) {
+                return $this->parseIdToken($tokens['id_token']);
+            }
+            Log::error('OIDC 无法获取用户信息：无 userinfo endpoint 且无 id_token');
+            return null;
+        }
+
+        $accessToken = $tokens['access_token'] ?? null;
+
+        if (!$accessToken) {
+            Log::error('OIDC Token 响应中缺少 access_token', ['tokens' => array_keys($tokens)]);
+            return null;
+        }
+
+        try {
+            $response = Http::timeout(15)
+                ->withToken($accessToken)
+                ->get($config['userinfo_endpoint']);
+
+            if (!$response->ok()) {
+                Log::error('OIDC UserInfo 请求失败', [
+                    'status' => $response->status(),
+                    'body' => $response->body(),
+                ]);
+                return null;
+            }
+
+            return $response->json();
+        } catch (\Exception $e) {
+            Log::error('OIDC UserInfo 请求异常', ['error' => $e->getMessage()]);
+            return null;
+        }
+    }
+
+    /**
+     * 解析 id_token (JWT) 的 payload 部分（不验签，验签应由 IdP 保证）
+     */
+    private function parseIdToken(string $idToken): ?array
+    {
+        $parts = explode('.', $idToken);
+        if (count($parts) < 2) {
+            return null;
+        }
+
+        $payload = $parts[1];
+        // JWT base64url 补齐 padding
+        $payload = str_pad($payload, strlen($payload) % 4 === 0 ? strlen($payload) : strlen($payload) + 4 - (strlen($payload) % 4), '=', STR_PAD_RIGHT);
+
+        $decoded = json_decode(base64_decode(strtr($payload, '-_', '+/')), true);
+
+        return $decoded ?: null;
+    }
+
+    /**
+     * 校验 id_token：nonce / exp / aud / iss，签名在拿到 jwks_uri 时验证（失败即拒）
+     */
+    private function validateIdToken(string $idToken, array $config): bool
+    {
+        $payload = $this->parseIdToken($idToken);
+        if (!$payload) {
+            Log::error('OIDC id_token 解析失败');
+            return false;
+        }
+
+        // nonce：防止重放
+        $expectedNonce = session('oidc.nonce');
+        if (!empty($payload['nonce']) && $expectedNonce && !hash_equals((string) $expectedNonce, (string) $payload['nonce'])) {
+            Log::error('OIDC id_token nonce 不匹配', ['nonce' => $payload['nonce']]);
+            return false;
+        }
+
+        // exp：过期时间
+        if (!empty($payload['exp']) && (int) $payload['exp'] < time()) {
+            Log::error('OIDC id_token 已过期');
+            return false;
+        }
+
+        // aud：必须包含本应用的 client_id
+        if (!empty($payload['aud'])) {
+            $auds = is_array($payload['aud']) ? $payload['aud'] : [$payload['aud']];
+            if (!in_array($config['client_id'], $auds, true)) {
+                Log::error('OIDC id_token aud 不匹配', ['aud' => $payload['aud']]);
+                return false;
+            }
+        }
+
+        // iss：与配置的 issuer 一致（若已配置）
+        $issuer = SystemSetting::get('oidc_issuer', '');
+        if (!empty($issuer) && !empty($payload['iss']) && rtrim((string) $payload['iss'], '/') !== rtrim((string) $issuer, '/')) {
+            Log::error('OIDC id_token iss 不匹配', ['iss' => $payload['iss'] ?? null]);
+            return false;
+        }
+
+        // 签名验证（best-effort：仅在拿到 jwks_uri 时执行，任何失败直接拒绝）
+        if (!empty($config['jwks_uri'])) {
+            if (!$this->verifyIdTokenSignature($idToken, $config['jwks_uri'])) {
+                Log::error('OIDC id_token 签名验证失败');
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * 使用 JWKS 验证 id_token 签名（仅支持 RS256）
+     */
+    private function verifyIdTokenSignature(string $idToken, string $jwksUri): bool
+    {
+        $parts = explode('.', $idToken);
+        if (count($parts) !== 3) {
+            return false;
+        }
+
+        $header = $this->decodeJwtPart($parts[0]);
+        if (!$header || ($header['alg'] ?? '') !== 'RS256') {
+            Log::error('OIDC id_token 算法不支持（仅 RS256）', ['alg' => $header['alg'] ?? null]);
+            return false;
+        }
+
+        try {
+            $response = Http::timeout(15)->get($jwksUri);
+            if (!$response->ok()) {
+                Log::error('OIDC JWKS 获取失败', ['status' => $response->status()]);
+                return false;
+            }
+
+            $keys = $response->json('keys', []);
+            $kid = $header['kid'] ?? null;
+            $key = null;
+            foreach ($keys as $candidate) {
+                if (($candidate['kty'] ?? '') !== 'RSA') continue;
+                if ($kid && ($candidate['kid'] ?? null) === $kid) {
+                    $key = $candidate;
+                    break;
+                }
+                if (!$kid && !$key) {
+                    $key = $candidate;
+                }
+            }
+
+            if (!$key || empty($key['n']) || empty($key['e'])) {
+                Log::error('OIDC JWKS 中未找到匹配密钥', ['kid' => $kid]);
+                return false;
+            }
+
+            $pem = $this->rsaJwkToPem($key['n'], $key['e']);
+            if (!$pem) {
+                return false;
+            }
+
+            $signature = $this->base64UrlDecode($parts[2]);
+            $data = $parts[0] . '.' . $parts[1];
+            $verified = openssl_verify($data, $signature, $pem, OPENSSL_ALGO_SHA256);
+
+            return $verified === 1;
+        } catch (\Exception $e) {
+            Log::error('OIDC 签名验证异常', ['error' => $e->getMessage()]);
+            return false;
+        }
+    }
+
+    /**
+     * 解析 JWT 的 header / payload 段
+     */
+    private function decodeJwtPart(string $part): ?array
+    {
+        $decoded = $this->base64UrlDecode($part);
+        if ($decoded === null) {
+            return null;
+        }
+        $data = json_decode($decoded, true);
+        return is_array($data) ? $data : null;
+    }
+
+    /**
+     * base64url 解码（自动补齐 padding）
+     */
+    private function base64UrlDecode(string $data): ?string
+    {
+        $remainder = strlen($data) % 4;
+        if ($remainder) {
+            $data .= str_repeat('=', 4 - $remainder);
+        }
+        $decoded = base64_decode(strtr($data, '-_', '+/'), true);
+        return $decoded === false ? null : $decoded;
+    }
+
+    /**
+     * 将 RSA JWK（n / e）转换为 X.509 SubjectPublicKeyInfo PEM
+     */
+    private function rsaJwkToPem(string $n, string $e): ?string
+    {
+        $nBytes = $this->base64UrlDecode($n);
+        $eBytes = $this->base64UrlDecode($e);
+        if ($nBytes === null || $eBytes === null) {
+            return null;
+        }
+
+        $pkcs1 = "\x30" . $this->derLength(strlen($this->derInteger($nBytes) . $this->derInteger($eBytes)))
+            . $this->derInteger($nBytes) . $this->derInteger($eBytes);
+
+        // AlgorithmIdentifier: rsaEncryption (1.2.840.113549.1.1.1) + NULL
+        $algId = "\x30\x0d\x06\x09\x2a\x86\x48\x86\xf7\x0d\x01\x01\x01\x05\x00";
+
+        // BIT STRING 包裹 PKCS#1
+        $bitString = "\x03" . $this->derLength(strlen($pkcs1) + 1) . "\x00" . $pkcs1;
+
+        $spki = "\x30" . $this->derLength(strlen($algId) + strlen($bitString)) . $algId . $bitString;
+
+        $pem = "-----BEGIN PUBLIC KEY-----\n" . chunk_split(base64_encode($spki), 64, "\n") . "-----END PUBLIC KEY-----";
+        return $pem;
+    }
+
+    /**
+     * DER 长度编码
+     */
+    private function derLength(int $length): string
+    {
+        if ($length < 0x80) {
+            return chr($length);
+        }
+        $bytes = '';
+        while ($length > 0) {
+            $bytes = chr($length & 0xff) . $bytes;
+            $length >>= 8;
+        }
+        return chr(0x80 | strlen($bytes)) . $bytes;
+    }
+
+    /**
+     * DER INTEGER 编码（正数，必要时补 0x00）
+     */
+    private function derInteger(string $bytes): string
+    {
+        if (ord($bytes[0]) & 0x80) {
+            $bytes = "\x00" . $bytes;
+        }
+        return "\x02" . $this->derLength(strlen($bytes)) . $bytes;
+    }
+
+    /**
+     * 根据 OIDC 用户信息查找或创建本地用户
+     */
+    private function findOrCreateUser(array $oidcUser): ?User
+    {
+        $sub = $oidcUser['sub'] ?? '';
+
+        // 安全检查：OIDC 必须返回唯一的用户标识 (sub)
+        if (empty($sub)) {
+            Log::error('OIDC 认证返回的用户标识(sub)为空，拒绝登录', ['userinfo' => $oidcUser]);
+            return null;
+        }
+
+        $username = $oidcUser['preferred_username']
+            ?? $oidcUser['username']
+            ?? $oidcUser['login']
+            ?? $sub;
+
+        $name = $oidcUser['name']
+            ?? $oidcUser['nickname']
+            ?? $oidcUser['cn']
+            ?? $username;
+
+        $email = $oidcUser['email'] ?? null;
+        $phone = $oidcUser['phone_number']
+            ?? $oidcUser['phone']
+            ?? $oidcUser['mobile']
+            ?? null;
+        $department = $oidcUser['department']
+            ?? $oidcUser['department_name']
+            ?? null;
+
+        // 清理手机号（去掉可能的 +86 前缀或空格）
+        if ($phone) {
+            $phone = preg_replace('/[^0-9]/', '', $phone);
+            // 86 + 11 位国内手机号 = 13 位；仅当去掉 86 后恰好是 11 位才剥离，避免误删
+            if (str_starts_with($phone, '86') && strlen($phone) === 13) {
+                $phone = substr($phone, 2);
+            }
+        }
+
+        // 先按 OIDC sub 查找
+        $user = User::where('oidc_sub', $sub)->first();
+
+        // 再按工号/学号查找
+        if (!$user && $username !== $sub) {
+            $user = User::where('employee_id', $username)->first();
+        }
+
+        // 再按用户名查找（OIDC 账号）
+        if (!$user) {
+            $user = User::where('username', 'oidc_' . $username)->first();
+        }
+
+        // 按手机号查找（已有本地用户手机号匹配则关联）
+        if (!$user && $phone) {
+            $user = User::where('phone', $phone)->first();
+        }
+
+        // 按邮箱查找
+        if (!$user && $email) {
+            $user = User::where('email', $email)->first();
+        }
+
+        if ($user) {
+            // 已有用户，更新 OIDC 相关信息
+            // 注意：不重置 status，避免把管理员已禁用的账号在 SSO 登录时自动重新激活
+            $user->update([
+                'oidc_sub'     => $sub,
+                'name'         => $name ?: $user->name,
+                'phone'        => $phone ?: $user->phone,
+                'email'        => $email ?: $user->email,
+                'account_type' => 'oidc',
+            ]);
+            return $user->fresh();
+        }
+
+        // 创建新用户（默认为报修人）
+        try {
+            return User::create([
+                'name'         => $name ?: $username,
+                'username'     => 'oidc_' . $username,
+                'employee_id'  => ($username !== $sub) ? $username : null,
+                'oidc_sub'     => $sub,
+                'phone'        => $phone,
+                'email'        => $email,
+                'password'     => bcrypt(Str::random(32)),
+                'role'         => 'user',
+                'status'       => 'active',
+                'account_type' => 'oidc',
+                'remarks'      => $department ? "部门：{$department}" : null,
+            ]);
+        } catch (\Exception $e) {
+            Log::error('OIDC 用户创建失败', [
+                'sub' => $sub,
+                'error' => $e->getMessage(),
+            ]);
+            return null;
+        }
+    }
+}

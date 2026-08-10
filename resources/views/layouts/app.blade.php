@@ -163,7 +163,8 @@
                     <a href="{{ route('settings.page', 'backup') }}" class="nav-item text-sm {{ request()->is('settings/backup') ? 'nav-active' : 'text-brand-100 hover:bg-brand-700' }}"><span class="w-1 h-1 rounded-full bg-current"></span><span>备份&恢复</span></a>
                     <a href="{{ route('settings.page', 'messaging') }}" class="nav-item text-sm {{ request()->is('settings/messaging') ? 'nav-active' : 'text-brand-100 hover:bg-brand-700' }}"><span class="w-1 h-1 rounded-full bg-current"></span><span>消息设置</span></a>
                     <a href="{{ route('settings.page', 'all') }}" class="nav-item text-sm {{ request()->is('settings/all') ? 'nav-active' : 'text-brand-100 hover:bg-brand-700' }}"><span class="w-1 h-1 rounded-full bg-current"></span><span>详细设置</span></a>
-                    <a href="{{ route('system-settings.cas') }}" class="nav-item text-sm {{ request()->routeIs('system-settings.cas') ? 'nav-active' : 'text-brand-100 hover:bg-brand-700' }}"><span class="w-1 h-1 rounded-full bg-current"></span><span>统一身份认证</span></a>
+                    <a href="{{ route('system-settings.cas') }}" class="nav-item text-sm {{ request()->routeIs('system-settings.cas') ? 'nav-active' : 'text-brand-100 hover:bg-brand-700' }}"><span class="w-1 h-1 rounded-full bg-current"></span><span>CAS 认证</span></a>
+                    <a href="{{ route('system-settings.oidc') }}" class="nav-item text-sm {{ request()->routeIs('system-settings.oidc') ? 'nav-active' : 'text-brand-100 hover:bg-brand-700' }}"><span class="w-1 h-1 rounded-full bg-current"></span><span>OIDC 认证</span></a>
                 </div>
             </div>
             @endif

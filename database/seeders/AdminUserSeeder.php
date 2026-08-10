@@ -22,10 +22,10 @@ class AdminUserSeeder extends Seeder
 
         // 创建默认工单类型（firstOrCreate 保证幂等）
         $workorderTypes = [
-            ['name' => '网络故障', 'code' => 'NETWORK_ISSUE', 'description' => '网络连接、网速慢、无法上网等问题', 'source' => 'web', 'subcategory' => '网络', 'default_priority' => 2, 'default_hours' => 24, 'status' => 'active', 'sort_order' => 1],
-            ['name' => '设备故障', 'code' => 'DEVICE_ISSUE', 'description' => '电脑、打印机、投影仪等设备故障', 'source' => 'web', 'subcategory' => '设备', 'default_priority' => 2, 'default_hours' => 48, 'status' => 'active', 'sort_order' => 2],
-            ['name' => '机房故障', 'code' => 'SERVER_ROOM', 'description' => '服务器机房相关故障', 'source' => 'web', 'subcategory' => '机房', 'default_priority' => 1, 'default_hours' => 4, 'status' => 'active', 'sort_order' => 3],
-            ['name' => '多媒体教室故障', 'code' => 'CLASSROOM', 'description' => '多媒体教室设备故障', 'source' => 'web', 'subcategory' => '多媒体教室', 'default_priority' => 2, 'default_hours' => 24, 'status' => 'active', 'sort_order' => 4],
+            ['name' => '硬件支持', 'code' => 'HARDWARE', 'description' => '电脑、打印机及终端设备故障', 'source' => 'web', 'subcategory' => '硬件', 'default_priority' => 2, 'default_hours' => 24, 'status' => 'active', 'sort_order' => 1],
+            ['name' => '软件支持', 'code' => 'SOFTWARE', 'description' => '操作系统与应用软件问题', 'source' => 'web', 'subcategory' => '软件', 'default_priority' => 2, 'default_hours' => 12, 'status' => 'active', 'sort_order' => 2],
+            ['name' => '网络与通信', 'code' => 'NETWORK', 'description' => '网络连接、VPN及通信故障', 'source' => 'web', 'subcategory' => '网络', 'default_priority' => 2, 'default_hours' => 8, 'status' => 'active', 'sort_order' => 3],
+            ['name' => '综合服务', 'code' => 'GENERAL', 'description' => '账号权限、咨询及其他综合事务', 'source' => 'web', 'subcategory' => '综合', 'default_priority' => 3, 'default_hours' => 48, 'status' => 'active', 'sort_order' => 4],
         ];
 
         foreach ($workorderTypes as $type) {
@@ -43,7 +43,7 @@ class AdminUserSeeder extends Seeder
             'department_id' => $itDepartment?->id,
             'role' => 'admin',
             'status' => 'active',
-            'location' => '行政楼',
+            'location' => '综合办公楼',
             'remarks' => '系统默认管理员账户',
         ]);
 
@@ -58,15 +58,14 @@ class AdminUserSeeder extends Seeder
             'department_id' => $networkDepartment?->id,
             'role' => 'engineer',
             'status' => 'active',
-            'location' => '行政楼',
+            'location' => '综合办公楼',
             'remarks' => '系统测试工程师账户',
         ]);
 
-        // 普通用户
-        // ��������Ա
+        // 工单管理员
         User::firstOrCreate(['email' => 'manager@workorder.com'], [
             'username' => 'manager',
-            'name' => '���Թ�������Ա',
+            'name' => '测试工单管理员',
             'email' => 'manager@workorder.com',
             'password' => Hash::make('manager123'),
             'phone' => '13800000003',
@@ -74,10 +73,11 @@ class AdminUserSeeder extends Seeder
             'department_id' => $itDepartment?->id,
             'role' => 'workorder_manager',
             'status' => 'active',
-            'location' => '����¥',
-            'remarks' => 'ϵͳ���Թ�������Ա�˺�',
+            'location' => '综合办公楼',
+            'remarks' => '系统测试工单管理员账户',
         ]);
 
+        // 普通用户
         User::firstOrCreate(['email' => 'user@workorder.com'], [
             'username' => 'user',
             'name' => '测试用户',
@@ -88,7 +88,7 @@ class AdminUserSeeder extends Seeder
             'department_id' => $itDepartment?->id,
             'role' => 'user',
             'status' => 'active',
-            'location' => '教学楼',
+            'location' => '综合办公楼',
             'remarks' => '系统测试普通用户账户',
         ]);
 

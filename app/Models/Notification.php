@@ -1034,8 +1034,8 @@ class Notification extends Model
     }
 
     /**
-     * 获取校区映射配置
-     * 从系统设置中获取校区标识到人类可读名称的映射
+     * 获取区域映射配置
+     * 从系统设置中获取区域标识到人类可读名称的映射
      */
     private static function getCampusMapping(): array
     {
@@ -1046,7 +1046,7 @@ class Notification extends Model
                 ->pluck('name', 'name')
                 ->toArray();
         } catch (\Exception $e) {
-            \Log::warning('获取校区列表失败', ['error' => $e->getMessage()]);
+            \Log::warning('获取区域列表失败', ['error' => $e->getMessage()]);
         }
 
         return [];

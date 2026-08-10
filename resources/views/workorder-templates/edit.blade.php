@@ -88,7 +88,7 @@
         <h3 class="text-sm font-semibold text-ink mb-3">位置信息</h3>
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
-                <label class="label" for="campus_id">校区</label>
+                <label class="label" for="campus_id">区域</label>
                 <select class="input" id="campus_id" name="campus_id">
                     <option value="">请选择</option>
                     @foreach(\App\Models\WorkorderTemplate::getCampusOptions() as $value => $label)

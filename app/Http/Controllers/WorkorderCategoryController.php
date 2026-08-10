@@ -45,7 +45,7 @@ class WorkorderCategoryController extends Controller
         
         // 获取顶级分类用于筛选
         $topLevelCategories = WorkorderCategorySimplified::whereNull('parent_id')
-            ->where('status', 'active')
+            ->where('status', true)
             ->orderBy('sort_order')
             ->get();
         

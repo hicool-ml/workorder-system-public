@@ -359,11 +359,13 @@ class WorkorderType extends Model
      */
     public static function getPrefixOptions(): array
     {
-        return [
-            'N' => 'N-网络故障',
-            'M' => 'M-多媒体教室',
-            'Z' => 'Z-专项',
-            'WO' => 'WO-通用工单',
+       return [
+            'H' => 'H-硬件支持',
+            'S' => 'S-软件与应用',
+            'N' => 'N-网络与通信',
+            'E' => 'E-办公环境',
+            'O' => 'O-其他服务',
+           'WO' => 'WO-通用工单',
         ];
     }
 }

@@ -10,15 +10,22 @@ return new class extends Migration
 {
     public function up(): void
     {
-        // 检查是否已有默认模板
-        $exists = DB::table('workorder_templates')->where('name', '系统默认模板')->exists();
-        if ($exists) {
+       // 检查是否已有默认模板
+       $exists = DB::table('workorder_templates')->where('name', '系统默认模板')->exists();
+       if ($exists) {
+           return;
+       }
+
+        // 全新部署时尚无用户，creator_id 为 NOT NULL，此时跳过模板插入，
+        // 交给 AdminUserSeeder / DatabaseSeeder 在有用户后再创建。
+        $creatorId = DB::table('users')->value('id');
+        if (!$creatorId) {
             return;
         }
 
-        // 获取第一个分类作为默认值
-        $category = DB::table('workorder_categories_simplified')->first();
-        $campus = DB::table('campuses')->orderBy('sort_order')->first();
+       // 获取第一个分类作为默认值
+       $category = DB::table('workorder_categories_simplified')->first();
+       $campus = DB::table('campuses')->orderBy('sort_order')->first();
 
         DB::table('workorder_templates')->insert([
             'name'             => '系统默认模板',

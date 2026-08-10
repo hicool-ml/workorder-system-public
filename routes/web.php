@@ -14,6 +14,7 @@ use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\WorkorderTemplateController;
 use App\Http\Controllers\SystemSettingController;
 use App\Http\Controllers\WorkorderSourceController;
+use App\Http\Controllers\LocationLevelController;
 
 // 首页
 Route::get('/', function () {
@@ -39,11 +40,18 @@ Route::prefix('cas')->group(function () {
     Route::get('logout', [App\Http\Controllers\Auth\CasAuthController::class, 'logout'])->name('cas.logout')->middleware('auth');
 });
 
+// OIDC / OAuth2 统一身份认证路由
+Route::prefix('oidc')->group(function () {
+    Route::get('login', [App\Http\Controllers\Auth\OidcAuthController::class, 'login'])->name('oidc.login');
+    Route::get('callback', [App\Http\Controllers\Auth\OidcAuthController::class, 'callback'])->name('oidc.callback');
+    Route::get('logout', [App\Http\Controllers\Auth\OidcAuthController::class, 'logout'])->name('oidc.logout')->middleware('auth');
+});
+
 // 短信上行回复回调（服务商 → 系统，无需登录，CSRF 已在 bootstrap/app.php 排除）
 Route::post('sms/reply', [App\Http\Controllers\SmsReplyController::class, 'receive'])->name('sms.reply');
 
-// 通知规则 & 短信测试 API
-Route::middleware(['auth'])->group(function () {
+// 通知规则 & 短信测试 API（仅管理员）
+Route::middleware(['auth', 'role:admin'])->group(function () {
     Route::get('api/notification-rules', [App\Http\Controllers\SystemSettingController::class, 'getNotificationRules'])->name('api.notification-rules');
     Route::put('api/notification-rules', [App\Http\Controllers\SystemSettingController::class, 'updateNotificationRules'])->name('api.notification-rules.update');
    Route::post('api/sms/test', [App\Http\Controllers\SystemSettingController::class, 'testSms'])->name('api.sms.test');
@@ -81,7 +89,8 @@ Route::middleware(['auth'])->group(function () {
     Route::post('workorders/batch/close', [WorkorderController::class, 'batchClose'])->name('workorders.batch.close');
     
     // 工单管理
-    Route::resource('workorders', WorkorderController::class)->names([
+    // whereNumber: 限制 {workorder} 为数字，避免非法 URL（如 /workorders/report）触发 PG bigint 崩溃
+    Route::resource('workorders', WorkorderController::class)->whereNumber('workorder')->names([
         'index' => 'workorders.index',
         'create' => 'workorders.create',
         'store' => 'workorders.store',
@@ -125,7 +134,6 @@ Route::middleware(['auth'])->group(function () {
     // 附件相关
     Route::get('attachments/{attachment}/download', [AttachmentController::class, 'download'])->name('attachments.download');
     Route::get('attachments/{attachment}/preview', [AttachmentController::class, 'preview'])->name('attachments.preview');
-    Route::get('attachments/{attachment}/preview/v/{version}', [AttachmentController::class, 'previewWithVersion'])->name('attachments.preview.version');
     Route::get('attachments/{attachment}/info', [AttachmentController::class, 'info'])->name('attachments.info');
     Route::delete('attachments/{attachment}', [AttachmentController::class, 'destroy'])->name('attachments.destroy');
    Route::post('workorders/{workorder}/attachments/upload', [WorkorderController::class, 'uploadAttachments'])->name('workorders.attachments.upload');
@@ -147,7 +155,20 @@ Route::middleware(['auth'])->group(function () {
     // 地址管理（需要登录即可访问）
     Route::middleware(['auth'])->group(function () {
         Route::middleware(['role:admin,workorder_manager'])->group(function () {
-        // 校区管理
+        // 区域管理
+        // 地址层级定义（用户自主分级）
+        Route::resource('location-levels', LocationLevelController::class)->except(['show'])->names([
+            'index' => 'location-levels.index',
+            'create' => 'location-levels.create',
+            'store' => 'location-levels.store',
+            'edit' => 'location-levels.edit',
+            'update' => 'location-levels.update',
+            'destroy' => 'location-levels.destroy',
+        ]);
+
+        // AJAX：获取地址子节点（级联选择用）
+        Route::get('locations/{parentId}/children', [LocationController::class, 'children'])->name('locations.children');
+
         Route::get('locations/campuses', [LocationController::class, 'campuses'])->name('locations.campuses');
         Route::get('locations/create-campus', [LocationController::class, 'createCampus'])->name('locations.create-campus');
         Route::post('locations/store-campus', [LocationController::class, 'storeCampus'])->name('locations.store-campus');
@@ -157,7 +178,7 @@ Route::middleware(['auth'])->group(function () {
         Route::delete('locations/{campus}/destroy-campus', [LocationController::class, 'destroyCampus'])->name('locations.destroy-campus');
         Route::patch('locations/{campus}/toggle-campus-status', [LocationController::class, 'toggleCampusStatus'])->name('locations.toggle-campus-status');
         
-        // 校区重定向
+        // 区域重定向
         Route::redirect('/campuses', '/locations/campuses', 301);
         Route::redirect('/campuses/create', '/locations/create-campus', 301);
         
@@ -202,6 +223,9 @@ Route::middleware(['auth'])->group(function () {
     
     // 用户管理（仅管理员）
     Route::middleware(['role:admin'])->group(function () {
+        // 静态路径需先于 Route::resource 注册，否则 GET users/engineers 会被 users/{user} 遮蔽
+        Route::get('users/engineers', [UserController::class, 'engineers'])->name('users.engineers');
+
         Route::resource('users', UserController::class)->names([
             'index' => 'users.index',
             'create' => 'users.create',
@@ -215,7 +239,6 @@ Route::middleware(['auth'])->group(function () {
         Route::post('users/{user}/reset-password', [UserController::class, 'resetPassword'])->name('users.reset-password');
         Route::post('users/{user}/toggle-status', [UserController::class, 'toggleStatus'])->name('users.toggle-status');
         Route::get('users/{user}/statistics', [UserController::class, 'statistics'])->name('users.statistics');
-        Route::get('users/engineers', [UserController::class, 'engineers'])->name('users.engineers');
         Route::post('users/batch-operation', [UserController::class, 'batchOperation'])->name('users.batch-operation');
         
         // 用户管理（安全删除功能）
@@ -246,9 +269,11 @@ Route::middleware(['auth'])->group(function () {
         Route::post('system-settings/dingtalk', [SystemSettingController::class, 'updateDingtalk'])->name('system-settings.update-dingtalk');
         Route::get('system-settings/feishu', [SystemSettingController::class, 'feishu'])->name('system-settings.feishu');
         Route::post('system-settings/feishu', [SystemSettingController::class, 'updateFeishu'])->name('system-settings.update-feishu');
-       Route::get('system-settings/cas', [SystemSettingController::class, 'cas'])->name('system-settings.cas');
-       Route::post('system-settings/cas', [SystemSettingController::class, 'updateCas'])->name('system-settings.update-cas');
-       Route::delete('system-settings/{systemSetting}', [SystemSettingController::class, 'destroy'])->name('system-settings.destroy');
+      Route::get('system-settings/cas', [SystemSettingController::class, 'cas'])->name('system-settings.cas');
+      Route::post('system-settings/cas', [SystemSettingController::class, 'updateCas'])->name('system-settings.update-cas');
+      Route::get('system-settings/oidc', [SystemSettingController::class, 'oidc'])->name('system-settings.oidc');
+      Route::post('system-settings/oidc', [SystemSettingController::class, 'updateOidc'])->name('system-settings.update-oidc');
+      Route::delete('system-settings/{systemSetting}', [SystemSettingController::class, 'destroy'])->name('system-settings.destroy');
 
         // 数据备份与恢复（仅管理员）
         Route::get('system-settings/backups', [App\Http\Controllers\BackupController::class, 'index'])->name('system-settings.backups.index');
@@ -305,7 +330,7 @@ Route::middleware(['auth'])->group(function () {
     })->name('profile');
     
     Route::put('/profile', function (Illuminate\Http\Request $request) {
-        if (auth()->user()->isCasUser()) {
+        if (auth()->user()->isSsoUser()) {
             return back()->with('error', '统一身份认证用户的个人信息由学校信息中心管理，无法在此修改');
         }
         $request->validate([
@@ -327,7 +352,7 @@ Route::middleware(['auth'])->group(function () {
     })->name('profile.update');
     
     Route::put('/profile/password', function (Illuminate\Http\Request $request) {
-        if (auth()->user()->isCasUser()) {
+        if (auth()->user()->isSsoUser()) {
             return back()->with('error', 'CAS 用户的密码由统一身份认证系统管理，无法在此修改');
         }
         $request->validate([

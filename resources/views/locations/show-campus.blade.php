@@ -1,12 +1,12 @@
 @extends('layouts.app')
 
-@section('title', '校区详情')
+@section('title', '区域详情')
 
 @section('content')
 <div class="flex items-center justify-between mb-6">
     <div>
         <h1 class="text-xl font-semibold text-ink">{{ $campus->name }}</h1>
-        <p class="text-sm text-ink-muted mt-0.5">校区详情</p>
+        <p class="text-sm text-ink-muted mt-0.5">区域详情</p>
     </div>
     <div class="flex items-center gap-2">
         <a href="{{ route('locations.campuses') }}" class="btn btn-secondary">
@@ -15,7 +15,7 @@
         </a>
         <a href="{{ route('locations.edit-campus', $campus->id) }}" class="btn btn-primary">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7 M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-            <span>编辑校区</span>
+            <span>编辑区域</span>
         </a>
     </div>
 </div>
@@ -27,11 +27,11 @@
             <h3 class="text-sm font-semibold text-ink mb-4">基本信息</h3>
             <div class="space-y-3">
                 <div class="flex items-center justify-between py-2 border-b border-border">
-                    <span class="text-sm text-ink-muted">校区ID</span>
+                    <span class="text-sm text-ink-muted">区域ID</span>
                     <span class="text-sm font-medium text-ink">{{ $campus->id }}</span>
                 </div>
                 <div class="flex items-center justify-between py-2 border-b border-border">
-                    <span class="text-sm text-ink-muted">校区名称</span>
+                    <span class="text-sm text-ink-muted">区域名称</span>
                     <span class="text-sm font-medium text-ink">{{ $campus->name }}</span>
                 </div>
                 @if($campus->code)
@@ -71,10 +71,10 @@
                     <button type="submit" class="btn btn-outline-warning w-full">
                         @if($campus->status == 'active')
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 8L21 12L17 16 M3 12h18"/></svg>
-                            <span>禁用校区</span>
+                            <span>禁用区域</span>
                         @else
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 8L21 12L17 16 M3 12h18"/></svg>
-                            <span>启用校区</span>
+                            <span>启用区域</span>
                         @endif
                     </button>
                 </form>
@@ -83,12 +83,12 @@
                     <span>新增地址</span>
                 </a>
                 <form action="{{ route('locations.destroy-campus', $campus->id) }}" method="POST"
-                      onsubmit="return confirm('确定要删除这个校区吗？删除后无法恢复！')">
+                      onsubmit="return confirm('确定要删除这个区域吗？删除后无法恢复！')">
                     @csrf
                     @method('DELETE')
                     <button type="submit" class="btn btn-outline-danger w-full" @if(!$campus->canBeDeleted()) disabled @endif>
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 6h18 M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2 M10 11v6 M14 11v6"/></svg>
-                        <span>删除校区</span>
+                        <span>删除区域</span>
                     </button>
                     @if(!$campus->canBeDeleted())
                         <p class="text-xs text-ink-subtle mt-1">有关联地址，无法删除</p>
@@ -153,7 +153,7 @@
             @else
             <div class="px-4 py-12 text-center text-ink-muted">
                 <svg class="w-12 h-12 mx-auto mb-3 text-ink-subtle" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 21h18 M5 21V7l8-4v18 M19 21V11l-6-4"/></svg>
-                <p>该校区暂无关联地址</p>
+                <p>该区域暂无关联地址</p>
                 <a href="{{ route('locations.create') }}?campus_id={{ $campus->id }}" class="btn btn-primary btn-sm mt-3">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 5v14M5 12h14"/></svg>
                     <span>新增地址</span>

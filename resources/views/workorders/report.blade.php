@@ -76,7 +76,7 @@
             </h3>
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
-                    <label class="label">校区 <span class="text-red-500">*</span></label>
+                    <label class="label">区域 <span class="text-red-500">*</span></label>
                     <select name="campus_id" id="campus_id" class="input" required onchange="updateBuildings(this.value)">
                         <option value="">请选择</option>
                         @foreach($campuses as $campus)
@@ -87,7 +87,7 @@
                 <div>
                     <label class="label">楼栋 <span class="text-red-500">*</span></label>
                     <select name="building" id="building" class="input" required disabled>
-                        <option value="">请先选择校区</option>
+                        <option value="">请先选择区域</option>
                     </select>
                 </div>
                 <div>
@@ -129,7 +129,6 @@
         <input type="hidden" name="contact_phone" value="{{ auth()->user()->phone ?? '' }}">
         <input type="hidden" name="source" value="本台">
         <input type="hidden" name="priority" value="medium">
-        <input type="hidden" name="department_name" value="{{ auth()->user()->remarks ?? '' }}">
 
         <div class="flex gap-3 justify-end">
             <a href="{{ route('workorders.index') }}" class="btn btn-secondary">取消</a>
@@ -173,13 +172,13 @@ function updateBuildings(campusId) {
     if (data && data.buildings && data.buildings.length > 0) {
         data.buildings.forEach(function(b) {
             var opt = document.createElement('option');
-            opt.value = b.name;
+            opt.value = b.id;
             opt.textContent = b.name;
             sel.appendChild(opt);
         });
         sel.disabled = false;
     } else {
-        sel.innerHTML = '<option value="">该校区暂无楼栋数据</option>';
+        sel.innerHTML = '<option value="">该区域暂无楼栋数据</option>';
         sel.disabled = false;
     }
 }

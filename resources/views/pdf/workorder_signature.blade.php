@@ -243,7 +243,7 @@
                     @php
                         $addressParts = [];
                         
-                        // 添加校区
+                        // 添加区域
                         if($workorder->campus) {
                             $addressParts[] = $workorder->campus;
                         }

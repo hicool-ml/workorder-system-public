@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
@@ -19,6 +19,8 @@ return new class extends Migration
             foreach ($campuses as $code => $id) {
                 DB::table('locations')->where('campus', $code)->update(['campus_id' => $id]);
             }
+        } elseif (DB::getDriverName() === 'pgsql') {
+            DB::statement("UPDATE locations SET campus_id = c.id FROM campuses c WHERE locations.campus = c.code AND locations.campus IS NOT NULL AND locations.campus != ''");
         } else {
             DB::statement('UPDATE locations l JOIN campuses c ON l.campus = c.code SET l.campus_id = c.id WHERE l.campus IS NOT NULL AND l.campus != ""');
         }

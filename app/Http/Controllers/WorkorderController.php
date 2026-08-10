@@ -34,7 +34,7 @@ class WorkorderController extends Controller
         
         // 根据用户角色获取不同的查询范围
        $query = $user->getWorkorderQueryScope()
-          ->with(['category', 'creator', 'assignee', 'department', 'locationInfo', 'campusInfo'])
+          ->with(['category', 'creator', 'assignee', 'department', 'campusInfo'])
           ->orderBy('created_at', 'desc');
 
         
@@ -69,10 +69,10 @@ class WorkorderController extends Controller
                   ->orWhere('custom_source', 'like', "%{$keyword}%")
                   ->orWhere('department_name', 'like', "%{$keyword}%")
                   // 楼栋编码翻译：关键词匹配到 locations 名称时，用其 ID 匹配工单 building
-                  ->orWhereHas('locationInfo', function($lq) use ($keyword) {
-                      $lq->where('name', 'like', "%{$keyword}%")
-                         ->orWhere('building_code', 'like', "%{$keyword}%");
-                  })
+                  // 注意 building 列可能存文本楼名，whereIn 数字 ID 与字符串比较是安全的
+                  ->orWhereIn('building', \App\Models\Location::where('name', 'like', "%{$keyword}%")
+                      ->orWhere('building_code', 'like', "%{$keyword}%")
+                      ->pluck('id'))
                   // 关联：创建人姓名
                   ->orWhereHas('creator', function($uq) use ($keyword) {
                       $uq->where('name', 'like', "%{$keyword}%");
@@ -130,7 +130,7 @@ class WorkorderController extends Controller
             $query->where('assignee_id', $request->input('assignee_id'));
         }
 
-        // 校区筛选
+        // 区域筛选
         if ($request->filled('campus_id')) {
             $query->where('campus_id', $request->input('campus_id'));
         }
@@ -175,6 +175,7 @@ class WorkorderController extends Controller
         // 权限控制已经在查询范围中处理，这里不需要额外的权限过滤
 
         $workorders = $query->paginate(15);
+        $this->attachBuildingLocations($workorders);
         
         // 获取分类数据
         $mainCategories = WorkorderCategorySimplified::getTopLevelCategories();
@@ -192,6 +193,36 @@ class WorkorderController extends Controller
         $engineers = User::getAssignableEngineers();
 
         return view('workorders.index', compact('workorders', 'categories', 'engineers'));
+    }
+
+    /**
+     * 为工单列表手动解析 building（location id）对应的 Location 并挂载到 locationInfo 关系。
+     *
+     * building 列历史混存数字 id 与文本楼名，不能直接 `with(['locationInfo'])`，
+     * 否则 PostgreSQL 会因 locations.id 上出现非整数文本而报 invalid input syntax。
+     * 这里只把数字 id 批量查出后 setRelation，文本楼名交给 accessor 原样返回。
+     */
+    private function attachBuildingLocations($paginator): void
+    {
+        $ids = collect($paginator->items())
+            ->pluck('building')
+            ->filter(fn ($v) => $v !== null && $v !== '' && is_numeric($v))
+            ->map(fn ($v) => (int) $v)
+            ->unique()
+            ->values();
+
+        if ($ids->isEmpty()) {
+            return;
+        }
+
+        $locations = Location::whereIn('id', $ids)->get()->keyBy('id');
+
+        foreach ($paginator->items() as $workorder) {
+            $building = $workorder->building;
+            if ($building !== null && $building !== '' && is_numeric($building) && $locations->has((int) $building)) {
+                $workorder->setRelation('locationInfo', $locations->get((int) $building));
+            }
+        }
     }
 
     /**
@@ -295,6 +326,7 @@ class WorkorderController extends Controller
                     $data['assignee_id'] = null;
                     // 验证other_reason是否为空
                     if (!$request->filled('other_reason')) {
+                        DB::rollBack();
                         return back()->withInput()->with('error', '选择其他部门时，必须填写原因说明');
                     }
                     $data['other_reason'] = $request->input('other_reason');
@@ -310,6 +342,7 @@ class WorkorderController extends Controller
             if ($request->boolean('phone_assisted')) {
                 // 验证电话协助权限
                 if (!Auth::user()->canUsePhoneAssist()) {
+                    DB::rollBack();
                     return back()->withInput()->with('error', '您没有权限使用电话协助功能');
                 }
                 
@@ -365,8 +398,10 @@ class WorkorderController extends Controller
             $campus = Campus::find($data['campus_id']);
             $data['location'] = ($campus ? $campus->name : '') . ' - ' . $data['building'];
             $data['campus'] = $campus ? $campus->name : '';
-            // 同时保存校区ID
+            // 同时保存区域ID
             $data['campus_id'] = $data['campus_id'];
+            // 地址树节点：create 表单提交的 building 即 Location id
+            $data['location_id'] = is_numeric($data['building']) ? (int) $data['building'] : null;
             
             // 设置电话协助完成标记
             $data['phone_assisted'] = $request->boolean('phone_assisted');
@@ -520,6 +555,7 @@ class WorkorderController extends Controller
         DB::beginTransaction();
         try {
             $oldStatus = $workorder->status;
+            $originalCreatedAt = $workorder->created_at;
             $data = $request->all();
             
             // 设置分类ID为子分类ID
@@ -532,6 +568,7 @@ class WorkorderController extends Controller
                 $campus = Campus::find($data['campus_id']);
                 $data['location'] = ($campus ? $campus->name : '') . ' - ' . $data['building'];
                 $data['campus'] = $campus ? $campus->name : '';
+                $data['location_id'] = is_numeric($data['building']) ? (int) $data['building'] : null;
             }
             
             // 设置预计完成时间
@@ -590,8 +627,15 @@ class WorkorderController extends Controller
             
             // 记录更新日志
             $logContent = '工单信息已更新';
-            if (Auth::user()->isAdmin() && isset($data['created_at']) && $data['created_at'] !== $workorder->created_at->format('Y-m-d H:i:s')) {
-                $logContent .= '（创建时间已修改）';
+            if (Auth::user()->isAdmin() && !empty($data['created_at'])) {
+                try {
+                    $submittedCreatedAt = \Carbon\Carbon::parse($data['created_at']);
+                    if (!$originalCreatedAt || !$submittedCreatedAt->equalTo($originalCreatedAt)) {
+                        $logContent .= '（创建时间已修改）';
+                    }
+                } catch (\Exception $e) {
+                    // 忽略解析错误
+                }
             }
             $workorder->addLog('comment', $logContent);
             
@@ -1447,20 +1491,20 @@ class WorkorderController extends Controller
                 
                 foreach ($workorderIds as $workorderId) {
                     $workorder = Workorder::find($workorderId);
-                    
+
+                    if (!$workorder || !$workorder->canBeResolved()) {
+                        $failedCount++;
+                        $failedWorkorders[] = $workorder->ticket_no ?? 'Unknown';
+                        continue;
+                    }
+
                     // 权限检查：只能处理分配给自己的工单，或者管理员/工单管理员可以处理所有工单
                     if (!$workorder->canBeOperatedBy(auth()->user(), 'resolve')) {
                         $failedCount++;
                         $failedWorkorders[] = $workorder->ticket_no ?? 'Unknown';
                         continue;
                     }
-                    
-                    if (!$workorder || !$workorder->canBeResolved()) {
-                        $failedCount++;
-                        $failedWorkorders[] = $workorder->ticket_no ?? 'Unknown';
-                        continue;
-                    }
-                    
+
                     if ($workorder->resolve($solution)) {
                         // 更新备件耗材使用情况
                         $workorder->materials_usage = $materialsUsage;
@@ -1483,20 +1527,20 @@ class WorkorderController extends Controller
                 
                 foreach ($workorderIds as $workorderId) {
                     $workorder = Workorder::find($workorderId);
-                    
+
+                    if (!$workorder || !$workorder->canBeResolved()) {
+                        $failedCount++;
+                        $failedWorkorders[] = $workorder->ticket_no ?? 'Unknown';
+                        continue;
+                    }
+
                     // 权限检查：只能处理分配给自己的工单，或者管理员/工单管理员可以处理所有工单
                     if (!$workorder->canBeOperatedBy(auth()->user(), 'resolve')) {
                         $failedCount++;
                         $failedWorkorders[] = $workorder->ticket_no ?? 'Unknown';
                         continue;
                     }
-                    
-                    if (!$workorder || !$workorder->canBeResolved()) {
-                        $failedCount++;
-                        $failedWorkorders[] = $workorder->ticket_no ?? 'Unknown';
-                        continue;
-                    }
-                    
+
                     $solution = $solutions[$workorderId] ?? '';
                     $noMaterials = $noMaterialsArray[$workorderId] ?? false;
                     $materialsUsage = $noMaterials ? '无备件耗材使用' : ($materialsUsageArray[$workorderId] ?? '');

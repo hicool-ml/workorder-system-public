@@ -18,7 +18,7 @@ class SystemHelper
         }
         
         // 如果没有设置，使用配置文件中的值
-        return config('app.name', '校园网工单系统');
+        return config('app.name', '工单管理系统');
     }
     
     /**

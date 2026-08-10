@@ -1,4 +1,4 @@
-﻿@extends('layouts.app')
+@extends('layouts.app')
 
 @section('title', '工单详情 - ' . $workorder->ticket_no)
 

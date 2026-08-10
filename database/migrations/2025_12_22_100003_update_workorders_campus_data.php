@@ -9,29 +9,37 @@ return new class extends Migration
 {
     /**
      * Run the migrations.
+     *
+     * 注意：本迁移早于 2025_12_22_100004（添加 campus_id 列），因此这里需要先确保
+     * campus_id 列存在，再回填历史数据，避免在全新部署时因列不存在而失败。
      */
     public function up(): void
     {
-        // 获取校区映射关系
+        if (!Schema::hasColumn('workorders', 'campus_id')) {
+            Schema::table('workorders', function (Blueprint $table) {
+                $table->unsignedBigInteger('campus_id')->nullable()->after('campus')->comment('校区ID');
+            });
+        }
+
+        // 将已有工单的 campus 文本映射到 campus_id（一次性数据迁移）。
         $campusMapping = [
-            'old_campus' => 1,  // 老校区
-            'new_campus' => 2,  // 新校区
-            'asean_campus' => 3, // 东盟校区
+            'old_campus' => 1,    // 老校区
+            'new_campus' => 2,    // 新校区
+            'asean_campus' => 3,  // 东盟校区
         ];
-        
-        // 更新工单表中的校区数据
+
+        $keys = array_keys($campusMapping);
+
         DB::table('workorders')
             ->whereNotNull('campus')
-            ->where(function ($query) use ($campusMapping) {
-                $query->whereIn('campus', array_keys($campusMapping));
-            })
+            ->whereIn('campus', $keys)
             ->update([
-                'campus_id' => DB::raw('CASE campus 
-                    WHEN "old_campus" THEN ' . $campusMapping['old_campus'] . '
-                    WHEN "new_campus" THEN ' . $campusMapping['new_campus'] . '
-                    WHEN "asean_campus" THEN ' . $campusMapping['asean_campus'] . '
-                    ELSE NULL
-                END')
+                'campus_id' => DB::raw(sprintf(
+                    "CASE campus %s ELSE NULL END",
+                    implode(' ', array_map(function ($key) use ($campusMapping) {
+                        return sprintf("WHEN '%s' THEN %d", $key, $campusMapping[$key]);
+                    }, $keys))
+                )),
             ]);
     }
 
@@ -40,7 +48,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        // 回滚操作：将campus_id设置回NULL
         DB::table('workorders')
             ->whereNotNull('campus_id')
             ->update(['campus_id' => null]);

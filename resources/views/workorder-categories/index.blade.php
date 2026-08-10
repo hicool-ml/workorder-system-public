@@ -1,4 +1,4 @@
-﻿@extends('layouts.app')
+@extends('layouts.app')
 @section('title', '工单分类管理')
 @section('content')
 <div class="flex items-center justify-between mb-6 gap-3 flex-wrap">

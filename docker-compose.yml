@@ -9,11 +9,11 @@ services:
       - app-storage:/var/www/html/storage/app/public
       - app-logs:/var/www/html/storage/logs
     environment:
-      - DB_HOST=db
-      - DB_PORT=3306
-      - DB_DATABASE=workorder_db
-      - DB_USERNAME=workorder
-      - DB_PASSWORD=${DB_PASSWORD:-secret}
+         - DB_HOST=db
+          - DB_PORT=5432
+         - DB_DATABASE=workorder_db
+         - DB_USERNAME=workorder
+         - DB_PASSWORD=${DB_PASSWORD:-secret}
       - APP_ENV=production
       - APP_DEBUG=false
       - QUEUE_CONNECTION=database
@@ -23,23 +23,21 @@ services:
       db:
         condition: service_healthy
 
-  db:
-    image: mysql:8.0
-    container_name: workorder-db
-    restart: unless-stopped
-    environment:
-      - MYSQL_DATABASE=workorder_db
-      - MYSQL_USER=workorder
-      - MYSQL_PASSWORD=${DB_PASSWORD:-secret}
-      - MYSQL_ROOT_PASSWORD=${DB_ROOT_PASSWORD:-rootsecret}
-    volumes:
-      - db-data:/var/lib/mysql
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+ db:
+    image: postgres:16-alpine
+   container_name: workorder-db
+   restart: unless-stopped
+   environment:
+      - POSTGRES_DB=workorder_db
+      - POSTGRES_USER=workorder
+      - POSTGRES_PASSWORD=${DB_PASSWORD:-secret}
+   volumes:
+      - db-data:/var/lib/postgresql/data
+   healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U workorder -d workorder_db"]
+     interval: 10s
+     timeout: 5s
+     retries: 5
 
 volumes:
   app-storage:

@@ -103,7 +103,7 @@
             <div class="space-y-3 text-sm">
                 <div>
                     <p class="font-medium text-ink">一级分类</p>
-                    <p class="text-xs mt-0.5" style="color: var(--c-ink-muted);">如：网络、多媒体教室</p>
+        <p class="text-xs mt-0.5" style="color: var(--c-ink-muted);">如：硬件支持、软件与应用</p>
                 </div>
                 <div>
                     <p class="font-medium text-ink">二级分类</p>

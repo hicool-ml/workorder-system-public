@@ -125,9 +125,9 @@
                         <div>
                             <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
                                 <div>
-                                    <label for="campus_id" class="label">æ ¡åŒº <span class="text-red-500">*</span></label>
+                                    <label for="campus_id" class="label">åŒºåŸŸ <span class="text-red-500">*</span></label>
                                     <select class="input" id="campus_id" name="campus_id" required>
-                                        <option value="">è¯·é€‰æ‹©æ ¡åŒº</option>
+                                        <option value="">è¯·é€‰æ‹©åŒºåŸŸ</option>
                                         @foreach(\App\Models\Campus::where('status', 'active')->orderBy('sort_order')->orderBy('name')->get() as $campus)
                                         <option value="{{ $campus->id }}" {{ old('campus_id') == $campus->id ? 'selected' : '' }}>{{ $campus->name }}</option>
                                         @endforeach
@@ -139,7 +139,7 @@
                                 <div>
                                     <label for="building" class="label">æ¥¼æ ‹ <span class="text-red-500">*</span></label>
                                     <select class="input" id="building" name="building" required>
-                                        <option value="">è¯·å…ˆé€‰æ‹©æ ¡åŒº</option>
+                                        <option value="">è¯·å…ˆé€‰æ‹©åŒºåŸŸ</option>
                                     </select>
                                     @error('building')
                                         <div class="text-xs text-red-600 mt-1">{{ $message }}</div>
@@ -284,10 +284,10 @@
                                 </div>
                                 @endif
                                 <div id="phone_solution_div" class="hidden mb-4">
-                                    <label for="phone_solution" class="label">µç»°½â¾ö·½°¸£¨Ñ¡Ìî£©</label>
+                                    <label for="phone_solution" class="label">ï¿½ç»°ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ñ¡ï¿½î£©</label>
                                     <textarea class="input" id="phone_solution" name="phone_solution" rows="4"
-                                              placeholder="ÇëÃèÊöÈçºÎÍ¨¹ıµç»°Ğ­ÖúÓÃ»§½â¾öÎÊÌâ£¨¿ÉÁô¿Õ£©">{{ old('phone_solution') }}</textarea>
-                                    <div class="text-xs text-ink-muted mt-1">¹´Ñ¡ºó½«Ö±½Ó´´½¨ÎªÒÑ½â¾ö¹¤µ¥£¬ÎŞĞèºóĞø´¦Àí</div>
+                                              placeholder="ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Í¨ï¿½ï¿½ï¿½ç»°Ğ­ï¿½ï¿½ï¿½Ã»ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½â£¨ï¿½ï¿½ï¿½ï¿½Õ£ï¿½">{{ old('phone_solution') }}</textarea>
+                                    <div class="text-xs text-ink-muted mt-1">ï¿½ï¿½Ñ¡ï¿½ï¿½Ö±ï¿½Ó´ï¿½ï¿½ï¿½Îªï¿½Ñ½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½</div>
                                 </div>
                             </div>
                             
@@ -462,7 +462,7 @@
 
 @section('scripts')
 <script>
-// ä»åœ°å€ç®¡ç†è·å–æ ¡åŒºæ¥¼æ ‹æ•°æ®
+// ä»åœ°å€ç®¡ç†è·å–åŒºåŸŸæ¥¼æ ‹æ•°æ®
 var campusBuildings = @json(\App\Models\Location::getCampusBuildings());
 var campuses = @json(\App\Models\Campus::where('status', 'active')->orderBy('sort_order')->orderBy('name')->get());
 
@@ -470,14 +470,14 @@ var campuses = @json(\App\Models\Campus::where('status', 'active')->orderBy('sor
 var categoryData = @json($categories);
 
 $(document).ready(function() {
-    // æ ¡åŒºå˜æ›´æ—¶æ›´æ–°æ¥¼æ ‹é€‰é¡¹
+    // åŒºåŸŸå˜æ›´æ—¶æ›´æ–°æ¥¼æ ‹é€‰é¡¹
     $('#campus_id').change(function() {
         var campusId = $(this).val();
         var buildingSelect = $('#building');
         
         buildingSelect.empty().append('<option value="">è¯·é€‰æ‹©æ¥¼æ ‹</option>');
         
-        // å°†æ ¡åŒºIDè½¬æ¢ä¸ºæ•°å­—ç±»å‹ï¼Œç¡®ä¿èƒ½æ­£ç¡®åŒ¹é…campusBuildingsçš„é”®
+        // å°†åŒºåŸŸIDè½¬æ¢ä¸ºæ•°å­—ç±»å‹ï¼Œç¡®ä¿èƒ½æ­£ç¡®åŒ¹é…campusBuildingsçš„é”®
         var campusIdNum = parseInt(campusId);
         
         if (campusId && campusBuildings[campusIdNum]) {
@@ -522,12 +522,12 @@ $(document).ready(function() {
     });
     
     // ç”µè¯ååŠ©å®Œæˆé€‰é¡¹å¤„ç†
-    // µç»°Ğ­ÖúÍê³ÉÑ¡Ïî´¦Àí£º½öÏÔÊ¾/Òş²Ø¾²Ì¬·½°¸ÊäÈë¿ò
+    // ï¿½ç»°Ğ­ï¿½ï¿½ï¿½ï¿½ï¿½Ñ¡ï¿½î´¦ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ê¾/ï¿½ï¿½ï¿½Ø¾ï¿½Ì¬ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
     $('#phone_assisted').on('change', function() {
         var show = $(this).is(':checked');
         $('#phone_solution_div').toggleClass('hidden', !show);
         if (show) {
-            // Òş²Ø²»±ØÒªµÄ×Ö¶Î
+            // ï¿½ï¿½ï¿½Ø²ï¿½ï¿½ï¿½Òªï¿½ï¿½ï¿½Ö¶ï¿½
             $('#appointment_time_start').closest('.col-md-6').hide();
             $('#need_visit').closest('.col-md-3').hide();
         } else {
@@ -535,7 +535,7 @@ $(document).ready(function() {
             $('#need_visit').closest('.col-md-3').show();
         }
     });
-    // ³õÊ¼»¯£ºÈôÒÑ¹´Ñ¡£¨Ò³ÃæË¢ĞÂ»ØÌîºó£©ÔòÏÔÊ¾·½°¸¿ò
+    // ï¿½ï¿½Ê¼ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ñ¹ï¿½Ñ¡ï¿½ï¿½Ò³ï¿½ï¿½Ë¢ï¿½Â»ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ê¾ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
     if ($('#phone_assisted').is(':checked')) { $('#phone_solution_div').removeClass('hidden'); }
     
     // é™„ä»¶é¢„è§ˆ

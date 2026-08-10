@@ -132,9 +132,9 @@
             <div id="advancedFilters" class="hidden">
                 <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 pt-3 border-t border-border">
                     <div>
-                        <label class="label" for="campus_id">校区</label>
+                        <label class="label" for="campus_id">区域</label>
                         <select class="input" id="campus_id" name="campus_id">
-                            <option value="">全部校区</option>
+                            <option value="">全部区域</option>
                             @foreach(\App\Models\Campus::orderBy('sort_order')->orderBy('name')->get() as $campus)
                             <option value="{{ $campus->id }}" {{ request('campus_id') == $campus->id ? 'selected' : '' }}>{{ $campus->name }}</option>
                             @endforeach

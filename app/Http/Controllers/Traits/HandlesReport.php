@@ -54,7 +54,7 @@ trait HandlesReport
             'category_main' => 'required|exists:workorder_categories_simplified,id',
             'category_sub' => 'required|exists:workorder_categories_simplified,id',
             'campus_id' => 'required|exists:campuses,id',
-            'building' => 'required|string|max:200',
+            'building' => 'required|exists:locations,id',
             'location_detail' => 'nullable|string|max:500',
             'other_reason' => 'nullable|string|max:500',
             'attachments' => 'nullable|array',
@@ -68,6 +68,7 @@ trait HandlesReport
             $mainCategory = WorkorderCategorySimplified::find($request->input('category_main'));
             $subCategory = WorkorderCategorySimplified::find($request->input('category_sub'));
             $campus = Campus::find($request->input('campus_id'));
+            $buildingLocation = Location::find($request->input('building'));
 
             $ticketPrefix = $mainCategory ? $mainCategory->getTicketPrefix() : 'WO';
 
@@ -84,13 +85,14 @@ trait HandlesReport
                 'contact_email'  => $user->email,
                 'campus'         => $campus ? $campus->name : '',
                 'campus_id'      => $request->input('campus_id'),
-                'building'       => $request->input('building'),
-                'location'       => ($campus ? $campus->name : '') . ' - ' . $request->input('building'),
+                'building'       => (string) $request->input('building'),
+                'location_id'    => $buildingLocation ? $buildingLocation->id : null,
+                'location'       => ($campus ? $campus->name : '') . ' - ' . ($buildingLocation ? $buildingLocation->name : $request->input('building')),
                 'location_detail'=> $request->input('location_detail'),
                 'source'         => '本台',
                 'priority'       => 'medium',
                 'status'         => 'pending',
-                'department_name'=> $user->remarks,
+                'department_name'=> $this->resolveDepartmentName($user),
                 'other_reason'   => $request->input('other_reason'),
                 'need_visit'        => false,
                 'is_emergency'      => false,
@@ -130,5 +132,20 @@ trait HandlesReport
                 ->withInput()
                 ->with('error', '提交失败：' . $e->getMessage());
         }
+    }
+
+    /**
+     * 解析申报人所属部门名称
+     * 优先取 users.department_id -> departments.name；若取不到则从 remarks 中剥掉「部门：」前缀。
+     */
+    private function resolveDepartmentName($user): ?string
+    {
+        if ($user && $user->department) {
+            return $user->department->name;
+        }
+        if ($user && $user->remarks) {
+            return trim(str_replace('部门：', '', (string) $user->remarks));
+        }
+        return null;
     }
 }

@@ -32,9 +32,11 @@ class Workorder extends Model
         'contact_phone',
         'contact_email',
         'campus',
+        'campus_id',
         'building',
         'location',
         'location_detail',
+        'location_id',
         'appointment_time_start',
         'appointment_time_end',
         'appointment_time',
@@ -168,6 +170,14 @@ class Workorder extends Model
     }
 
     /**
+     * 地址树节点（自引用树结构，优先于旧的 campus_id / building）。
+     */
+    public function treeLocation(): BelongsTo
+    {
+        return $this->belongsTo(Location::class, 'location_id');
+    }
+
+    /**
      * Building/Location (via building column, which stores the location id).
      */
     public function locationInfo(): BelongsTo
@@ -180,6 +190,11 @@ class Workorder extends Model
      */
     public function getCampusNameAttribute(): string
     {
+        // 新地址树结构优先：返回祖先链拼出的完整地址
+        if ($this->location_id && $this->treeLocation) {
+            return $this->treeLocation->full_address_delimited;
+        }
+
         if ($this->campusInfo) {
             return $this->campusInfo->name;
         }
@@ -192,12 +207,18 @@ class Workorder extends Model
      */
     public function getBuildingNameAttribute(): string
     {
-        if ($this->locationInfo) {
-            return $this->locationInfo->name;
+        // 新地址树：building_name 已包含在 campus_name 的完整路径中
+        if ($this->location_id && $this->treeLocation) {
+            return '';
         }
 
         $building = $this->building;
+        // 仅当 building 是数字 ID 时才走关联查询；文本楼名（旧数据/简化报修）直接原样返回，
+        // 否则 PostgreSQL 会因 locations.id 上出现非整数文本而报 invalid input syntax。
         if ($building && is_numeric($building)) {
+            if ($this->locationInfo) {
+                return $this->locationInfo->name;
+            }
             $location = Location::find($building);
             if ($location) {
                 return $location->name;
@@ -1369,8 +1390,8 @@ class Workorder extends Model
      */
     public function getOperableUsers(string $action = 'view'): \Illuminate\Database\Eloquent\Collection
     {
-        $userIds = [];
-        
+        $userIds = collect();
+
         // 管理员和工单管理员
         $adminUsers = User::whereIn('role', ['admin', 'workorder_manager'])
             ->where('status', 'active')

@@ -26,7 +26,8 @@ FROM php:8.4-fpm-alpine AS runtime
 RUN apk add --no-cache \
     nginx \
     supervisor \
-    mysql-client \
+    postgresql-client \
+    postgresql-dev \
     libzip-dev \
     libpng-dev \
     libjpeg-turbo-dev \
@@ -34,8 +35,7 @@ RUN apk add --no-cache \
     oniguruma-dev \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
     && docker-php-ext-install -j$(nproc) \
-        pdo_mysql \
-        mysqli \
+        pdo_pgsql \
         gd \
         zip \
         mbstring \

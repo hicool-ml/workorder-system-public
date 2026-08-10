@@ -59,7 +59,7 @@
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div class="sm:col-span-1">
                     <label class="label" for="system_name">系统名称</label>
-                    <input type="text" class="input" id="system_name" name="settings[system_name]" value="{{ $groupedSettings['system']->firstWhere('key', 'system_name')?->typed_value ?? '校园网工单系统' }}">
+                    <input type="text" class="input" id="system_name" name="settings[system_name]" value="{{ $groupedSettings['system']->firstWhere('key', 'system_name')?->typed_value ?? '工单管理系统' }}">
                 </div>
                 <div>
                     <label class="label" for="system_version">版本号</label>
@@ -125,7 +125,7 @@
                     </div>
                     <div>
                         <p class="text-xs" style="color: var(--c-ink-muted);">系统名称</p>
-                        <p class="text-sm font-medium text-ink truncate">{{ $groupedSettings['system']->firstWhere('key', 'system_name')?->typed_value ?? '校园网工单系统' }}</p>
+                        <p class="text-sm font-medium text-ink truncate">{{ $groupedSettings['system']->firstWhere('key', 'system_name')?->typed_value ?? '工单管理系统' }}</p>
                     </div>
                 </div>
             </div>

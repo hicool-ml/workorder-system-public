@@ -1,21 +1,21 @@
 @extends('layouts.app')
 
-@section('title', '校区管理')
+@section('title', '区域管理')
 
 @section('content')
 <div class="flex items-center justify-between mb-6">
     <div>
-        <h1 class="text-xl font-semibold text-ink">校区管理</h1>
-        <p class="text-sm text-ink-muted mt-0.5">管理学校的校区信息</p>
+        <h1 class="text-xl font-semibold text-ink">区域管理</h1>
+        <p class="text-sm text-ink-muted mt-0.5">管理区域/分区信息</p>
     </div>
     <a href="{{ route('locations.create-campus') }}" class="btn btn-primary">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 5v14M5 12h14"/></svg>
-        <span>新增校区</span>
+        <span>新增区域</span>
     </a>
 </div>
 
 <div class="flex gap-1 mb-4">
-    <a href="{{ route('locations.campuses') }}" class="px-4 py-2 text-sm font-medium rounded-lg bg-brand-600 text-white">校区管理</a>
+    <a href="{{ route('locations.campuses') }}" class="px-4 py-2 text-sm font-medium rounded-lg bg-brand-600 text-white">区域管理</a>
     <a href="{{ route('locations.index') }}" class="px-4 py-2 text-sm font-medium rounded-lg text-ink-muted hover:bg-surface-muted">楼宇地址</a>
 </div>
 
@@ -25,7 +25,7 @@
             <div>
                 <label class="label" for="keyword">关键词</label>
                 <input type="text" class="input" id="keyword" name="keyword"
-                       value="{{ request('keyword') }}" placeholder="校区名称、描述" autocomplete="off">
+                       value="{{ request('keyword') }}" placeholder="区域名称、描述" autocomplete="off">
             </div>
             <div>
                 <label class="label" for="status">状态</label>
@@ -53,7 +53,7 @@
         <table class="w-full text-sm">
             <thead>
                 <tr class="border-b border-border bg-surface-muted">
-                    <th class="px-4 py-3 text-left font-medium text-ink-muted">校区名称</th>
+                    <th class="px-4 py-3 text-left font-medium text-ink-muted">区域名称</th>
                     <th class="px-4 py-3 text-left font-medium text-ink-muted">描述</th>
                     <th class="px-4 py-3 text-center font-medium text-ink-muted">排序</th>
                     <th class="px-4 py-3 text-center font-medium text-ink-muted">状态</th>
@@ -94,7 +94,7 @@
                                     @endif
                                 </button>
                             </form>
-                            <form action="{{ route('locations.destroy-campus', $campus->id) }}" method="POST" onsubmit="return confirm('确定要删除校区「{{ $campus->name }}」吗？')">
+                            <form action="{{ route('locations.destroy-campus', $campus->id) }}" method="POST" onsubmit="return confirm('确定要删除区域「{{ $campus->name }}」吗？')">
                                 @csrf
                                 @method('DELETE')
                                 <button type="submit" class="btn btn-icon btn-ghost text-red-600" title="删除">
@@ -108,7 +108,7 @@
                 <tr>
                     <td colspan="6" class="px-4 py-12 text-center text-ink-muted">
                         <svg class="w-12 h-12 mx-auto mb-3 text-ink-subtle" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35 M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16z"/></svg>
-                        <p>暂无校区数据</p>
+                        <p>暂无区域数据</p>
                     </td>
                 </tr>
                 @endforelse

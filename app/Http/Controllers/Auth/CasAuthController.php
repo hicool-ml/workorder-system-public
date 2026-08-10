@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Models\SystemSetting;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -27,12 +28,12 @@ class CasAuthController extends Controller
      */
     public function login(Request $request)
     {
-        if (!config('services.cas.enabled')) {
+        if (!SystemSetting::get('cas_enabled', false)) {
             return redirect()->route('login')->with('error', '统一身份认证未启用');
         }
 
         $serviceUrl = route('cas.callback');
-        $casBaseUrl = rtrim(config('services.cas.base_url'), '/');
+        $casBaseUrl = rtrim(SystemSetting::get('cas_base_url', ''), '/');
 
         // CAS 标准登录入口
         $loginUrl = "{$casBaseUrl}/login?service=" . urlencode($serviceUrl);
@@ -50,7 +51,7 @@ class CasAuthController extends Controller
      */
     public function callback(Request $request)
     {
-        if (!config('services.cas.enabled')) {
+        if (!SystemSetting::get('cas_enabled', false)) {
             return redirect()->route('login')->with('error', '统一身份认证未启用');
         }
 
@@ -74,6 +75,11 @@ class CasAuthController extends Controller
             return redirect()->route('login')->with('error', '无法创建用户账户');
         }
 
+        // 禁用账号禁止通过 SSO 登录
+        if ($user->status !== 'active') {
+            return redirect()->route('login')->with('error', '该账号已被禁用，请联系管理员');
+        }
+
         // 登录并重新生成会话（防止会话固定攻击）
         auth()->login($user, true);
         session()->regenerate(true);
@@ -93,8 +99,8 @@ class CasAuthController extends Controller
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
-        if (config('services.cas.enabled')) {
-            $casBaseUrl = rtrim(config('services.cas.base_url'), '/');
+        if (SystemSetting::get('cas_enabled', false)) {
+            $casBaseUrl = rtrim(SystemSetting::get('cas_base_url', ''), '/');
             return redirect("{$casBaseUrl}/logout?service=" . urlencode(route('login')));
         }
 
@@ -111,7 +117,7 @@ class CasAuthController extends Controller
     private function validateTicket(string $ticket): ?array
     {
         $serviceUrl = route('cas.callback');
-        $casBaseUrl = rtrim(config('services.cas.base_url'), '/');
+        $casBaseUrl = rtrim(SystemSetting::get('cas_base_url', ''), '/');
         $validateUrl = "{$casBaseUrl}/serviceValidate?ticket=" . urlencode($ticket)
             . "&service=" . urlencode($serviceUrl);
 
@@ -217,7 +223,13 @@ class CasAuthController extends Controller
      */
     private function findOrCreateUser(array $casAttrs): ?User
     {
-        $attrMap = config('services.cas.attributes', []);
+        $attrMap = [
+            'username' => SystemSetting::get('cas_attr_username', 'uid'),
+            'name'     => SystemSetting::get('cas_attr_name', 'cn'),
+            'phone'    => SystemSetting::get('cas_attr_phone', 'mobile'),
+            'email'    => SystemSetting::get('cas_attr_email', 'mail'),
+            'department' => SystemSetting::get('cas_attr_department', 'department'),
+        ];
 
         // 根据 CAS 返回的属性映射到本地字段
         $casUsername = $casAttrs['username'] ?? '';
@@ -235,7 +247,8 @@ class CasAuthController extends Controller
         // 清理手机号（去掉可能的 +86 前缀或空格）
         if ($phone) {
             $phone = preg_replace('/[^0-9]/', '', $phone);
-            if (str_starts_with($phone, '86') && strlen($phone) > 11) {
+            // 86 + 11 位国内手机号 = 13 位；仅当去掉 86 后恰好是 11 位才剥离，避免误删
+            if (str_starts_with($phone, '86') && strlen($phone) === 13) {
                 $phone = substr($phone, 2);
             }
         }
@@ -255,13 +268,13 @@ class CasAuthController extends Controller
 
         if ($user) {
             // 已有用户，更新 CAS 相关信息
+            // 注意：不重置 status，避免把管理员已禁用的账号在 SSO 登录时自动重新激活
             $user->update([
                 'employee_id' => $user->employee_id ?: $casUsername,
                 'name'        => $name ?: $user->name,
                 'phone'       => $phone ?: $user->phone,
                 'email'       => $email ?: $user->email,
                 'account_type' => 'cas',
-                'status'      => 'active',
             ]);
             return $user->fresh();
         }

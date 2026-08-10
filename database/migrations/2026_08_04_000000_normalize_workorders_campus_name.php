@@ -25,6 +25,13 @@ return new class extends Migration
                     ->where('campus_id', $id)
                     ->update(['campus' => $name]);
             }
+        } elseif (DB::getDriverName() === 'pgsql') {
+            DB::statement(
+                'UPDATE workorders SET campus = c.name ' .
+                'FROM campuses c ' .
+                'WHERE workorders.campus_id = c.id ' .
+                'AND workorders.campus_id IS NOT NULL'
+            );
         } else {
             DB::statement(
                 'UPDATE workorders w ' .

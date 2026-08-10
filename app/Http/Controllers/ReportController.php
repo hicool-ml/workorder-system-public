@@ -40,8 +40,11 @@ class ReportController extends Controller
 
         $days = max($rangeStart->diffInDays($rangeEnd) + 1, 1);
         $recentStats = $this->getRecentStats($days, $rangeStart, $rangeEnd);
-        $networkSubDistribution = $this->getSubCategoryDistribution(1, $rangeStart, $rangeEnd);
-        $mediaSubDistribution = $this->getSubCategoryDistribution(2, $rangeStart, $rangeEnd);
+        // 按名称解析「网络」「多媒体」根分类 id，避免硬编码 1/2
+        $networkRoot = WorkorderCategorySimplified::whereNull('parent_id')->where('name', '网络')->first();
+        $mediaRoot = WorkorderCategorySimplified::whereNull('parent_id')->where('name', '多媒体')->first();
+        $networkSubDistribution = $this->getSubCategoryDistribution($networkRoot?->id, $rangeStart, $rangeEnd);
+        $mediaSubDistribution = $this->getSubCategoryDistribution($mediaRoot?->id, $rangeStart, $rangeEnd);
         $sourceDistribution = $this->getSourceDistribution($rangeStart, $rangeEnd);
         $statusDistribution = $this->getStatusDistribution($rangeStart, $rangeEnd);
         $categoryDistribution = $this->getCategoryDistribution($rangeStart, $rangeEnd);
@@ -142,12 +145,13 @@ class ReportController extends Controller
         }
         $topCats = WorkorderCategorySimplified::whereNull('parent_id')->orderBy('sort_order')->orderBy('name')->get();
         $topCatNames = $topCats->pluck('name', 'id')->toArray();
-        $created = Workorder::selectRaw("DATE(created_at) as d, COUNT(*) as c")->whereBetween('created_at', [$rangeStart, $rangeEnd])->groupByRaw("DATE(created_at)")->pluck('c', 'd');
+        $dateExpr = DB::getDriverName() === 'pgsql' ? 'created_at::date' : 'DATE(created_at)';
+        $created = Workorder::selectRaw("{$dateExpr} as d, COUNT(*) as c")->whereBetween('created_at', [$rangeStart, $rangeEnd])->groupByRaw($dateExpr)->pluck('c', 'd');
         $byCat = [];
         foreach ($topCatNames as $rootId => $rootName) {
             $subIds = array_keys(array_filter($catToRoot, function($v) use ($rootId) { return $v == $rootId; }));
             if (!empty($subIds)) {
-                $byCat[$rootId] = Workorder::selectRaw("DATE(created_at) as d, COUNT(*) as c")->whereBetween('created_at', [$rangeStart, $rangeEnd])->whereIn('category_id', $subIds)->groupByRaw("DATE(created_at)")->pluck('c', 'd');
+                $byCat[$rootId] = Workorder::selectRaw("{$dateExpr} as d, COUNT(*) as c")->whereBetween('created_at', [$rangeStart, $rangeEnd])->whereIn('category_id', $subIds)->groupByRaw($dateExpr)->pluck('c', 'd');
             }
         }
         $stats = [];
@@ -206,8 +210,6 @@ class ReportController extends Controller
             $catToRoot[$id] = $current;
         }
         $topCats = WorkorderCategorySimplified::whereNull('parent_id')->orderBy('sort_order')->orderBy('name')->get();
-        $catOrder = ['网络' => 1, '多媒体' => 2, '专项' => 3, '其它' => 4];
-        $topCats = $topCats->sortBy(function ($c) use ($catOrder) { return $catOrder[$c->name] ?? 99; })->values();
 
         $categories = [];
         foreach ($topCats as $cat) {
@@ -266,13 +268,25 @@ class ReportController extends Controller
 
     private function getCampusName($campus) { $m = \App\Models\Campus::find($campus); return $m ? $m->name : $campus; }
 
-    private function getBuildingName($buildingId): string { if (!$buildingId) return ''; $l = Location::find($buildingId); return $l ? $l->name : $buildingId; }
+    private function getBuildingName($buildingId): string
+    {
+        if (!$buildingId) return '';
+        // building 可能是数字 id，也可能是历史遗留文本；文本直接返回原文，避免触发 PG 类型错误
+        if (!is_numeric($buildingId)) return (string) $buildingId;
+        $l = Location::find($buildingId);
+        return $l ? $l->name : (string) $buildingId;
+    }
 
     private function getProcessingTimeStats($rs = null, $re = null)
     {
         $q = Workorder::whereIn('status', ['resolved', 'closed'])->whereNotNull('resolved_at')->whereNotNull('started_at');
         if ($rs && $re) $q->whereBetween('created_at', [$rs, $re]);
-        $r = $q->selectRaw("COUNT(*) as total, AVG(TIMESTAMPDIFF(MINUTE, started_at, resolved_at)) as avg_time, MIN(TIMESTAMPDIFF(MINUTE, started_at, resolved_at)) as min_time, MAX(TIMESTAMPDIFF(MINUTE, started_at, resolved_at)) as max_time")->first();
+        $minuteDiff = DB::getDriverName() === 'pgsql'
+            ? "EXTRACT(EPOCH FROM (resolved_at - started_at)) / 60"
+            : (DB::getDriverName() === 'sqlite'
+                ? "(julianday(resolved_at) - julianday(started_at)) * 24 * 60"
+                : "TIMESTAMPDIFF(MINUTE, started_at, resolved_at)");
+        $r = $q->selectRaw("COUNT(*) as total, AVG({$minuteDiff}) as avg_time, MIN({$minuteDiff}) as min_time, MAX({$minuteDiff}) as max_time")->first();
         if (!$r || $r->total == 0) return ['average_time' => 0, 'min_time' => 0, 'max_time' => 0, 'total_completed' => 0];
         return ['average_time' => round($r->avg_time), 'min_time' => (int)$r->min_time, 'max_time' => (int)$r->max_time, 'total_completed' => (int)$r->total];
     }
@@ -341,7 +355,7 @@ class ReportController extends Controller
         $format = $request->input('format');
 
         // 构建查询
-        $query = Workorder::with(['creator', 'assignee', 'category', 'department', 'collaborations.collaborator'])
+        $query = Workorder::with(['creator', 'assignee', 'category.parent', 'department', 'collaborations.collaborator', 'visits', 'campusInfo'])
             ->whereBetween('created_at', [$startDate, $endDate . ' 23:59:59']);
 
         // 应用筛选条件
@@ -359,6 +373,12 @@ class ReportController extends Controller
 
         $workorders = $query->get();
 
+        // 预取楼栋/区域名称，避免逐行 N+1 查询
+        $locationIds = $workorders->pluck('location_id')
+            ->merge($workorders->pluck('building')->filter(fn ($v) => is_numeric($v))->map(fn ($v) => (int) $v))
+            ->filter()->unique();
+        $locationNameMap = \App\Models\Location::whereIn('id', $locationIds)->get()->pluck('name', 'id');
+
         if ($format === 'xlsx') {
             // 导出Excel格式 - 使用CSV格式但设置Excel的MIME类型
             $filename = 'workorders_' . date('Y-m-d') . '.csv';
@@ -375,7 +395,7 @@ class ReportController extends Controller
             ];
         }
 
-        $callback = function() use ($workorders) {
+        $callback = function() use ($workorders, $locationNameMap) {
             $file = fopen('php://output', 'w');
             
             // 添加BOM以支持中文
@@ -385,7 +405,7 @@ class ReportController extends Controller
             // CSV头部
             $headers = [
                 '日期', '创建时间', '工单号', '类型（工单大类）', '故障分类', '问题描述',
-                '报修人', '校区', '地点', '联系电话', '处理人', '处理方式',
+                '报修人', '区域', '地点', '联系电话', '处理人', '处理方式',
                 '处理时长', '解决方案', '备件耗材使用', '备注', '是否回访', '回访结果'
             ];
             
@@ -402,22 +422,20 @@ class ReportController extends Controller
                 
                 // 获取回访信息
                 $visitResult = '';
-                $hasVisit = $workorder->visits()->exists();
+                $hasVisit = $workorder->visits->isNotEmpty();
                 if ($hasVisit) {
-                    $visit = $workorder->visits()->first();
+                    $visit = $workorder->visits->first();
                     $visitResult = $visit->satisfaction_score ? "满意度：{$visit->satisfaction_score}分" : '已回访';
                 }
                 
-                // 获取工单大类（从分类的父级获取）
+                // 获取工单大类（从分类的父级获取，已 eager load）
                 $mainCategory = '';
                 $subCategory = '';
                 if ($workorder->category) {
                     $subCategory = $workorder->category->name;
-                    if ($workorder->category->parent_id) {
-                        $parentCategory = \App\Models\WorkorderCategorySimplified::find($workorder->category->parent_id);
-                        if ($parentCategory) {
-                            $mainCategory = $parentCategory->name;
-                        }
+                    $parentCategory = $workorder->category->parent;
+                    if ($parentCategory) {
+                        $mainCategory = $parentCategory->name;
                     } else {
                         $mainCategory = $subCategory;
                     }
@@ -439,6 +457,13 @@ class ReportController extends Controller
                 // 用顿号连接所有处理人
                 $processorsText = implode('、', array_unique($processors));
                 
+                // 区域与地点（优先走预取的映射）
+                $campusName = $workorder->campusInfo?->name ?? $workorder->campus ?? (string) $workorder->campus_id;
+                $locationId = $workorder->location_id ?? (is_numeric($workorder->building) ? (int) $workorder->building : null);
+                $buildingName = $locationId && isset($locationNameMap[$locationId])
+                    ? $locationNameMap[$locationId]
+                    : (string) $workorder->building;
+                
                 // 确保所有字段都是UTF-8编码
                 $rowData = [
                     $workorder->created_at->format('Y-m-d'),
@@ -448,8 +473,8 @@ class ReportController extends Controller
                     $subCategory,
                     $workorder->description,
                     $workorder->contact_name,
-                    $this->getCampusName($workorder->campus_id),
-                    $this->getBuildingName($workorder->building) . ($workorder->location_detail ? ' - ' . $workorder->location_detail : ''),
+                    $campusName,
+                    $buildingName . ($workorder->location_detail ? ' - ' . $workorder->location_detail : ''),
                     $workorder->contact_phone,
                     $processorsText,
                     $workorder->phone_assisted ? '电话协助' : '现场处理',

@@ -58,3 +58,7 @@ database/*.sqlite*
 /deploy/.changes.json
 /scripts/_*.js
 /scripts/_*.cjs
+
+# Python 缓存（scripts/ 下的转换脚本）
+__pycache__/
+*.py[cod]

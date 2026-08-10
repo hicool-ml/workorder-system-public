@@ -159,7 +159,7 @@ class SystemSetting extends Model
             ],
             [
                 'key' => 'system_name',
-                'value' => '校园网工单系统',
+                'value' => '工单管理系统',
                 'type' => 'string',
                 'description' => '系统名称',
                 'is_public' => true,

@@ -317,7 +317,8 @@ class SystemSettingController extends Controller
 
         $versionHistory = [];
         foreach ($versionSettings as $setting) {
-            $version = str_replace(['version_notes_', '_'], ['.', '.'], $setting->key);
+            $version = \Illuminate\Support\Str::after($setting->key, 'version_notes_');
+            $version = str_replace('_', '.', $version);
             $versionHistory[] = [
                 'version' => $version,
                 'notes' => $setting->value,
@@ -476,7 +477,7 @@ class SystemSettingController extends Controller
 
         $casSettings = [
             'enabled'    => (bool) SystemSetting::get('cas_enabled', false),
-            'base_url'   => SystemSetting::get('cas_base_url', config('services.cas.base_url')),
+            'base_url'   => SystemSetting::get('cas_base_url', ''),
             'service_id' => SystemSetting::get('cas_service_id', ''),
             'attr_username' => SystemSetting::get('cas_attr_username', 'uid'),
             'attr_name'  => SystemSetting::get('cas_attr_name', 'cn'),
@@ -527,6 +528,74 @@ class SystemSettingController extends Controller
 
        return back()->with('success', 'CAS认证配置已保存' . ($enabled ? '（已启用）' : '（未启用）'));
    }
+    /**
+     * OIDC / OAuth2 统一身份认证配置页面
+     */
+    public function oidc()
+    {
+        if (!Auth::user() || !Auth::user()->isAdmin()) {
+            return redirect()->route('system-settings.index')->with('error', '无权操作');
+        }
+
+        $oidcSettings = [
+            'enabled'             => (bool) SystemSetting::get('oidc_enabled', false),
+            'issuer'              => SystemSetting::get('oidc_issuer', ''),
+            'client_id'           => SystemSetting::get('oidc_client_id', ''),
+            'client_secret'       => SystemSetting::get('oidc_client_secret', ''),
+            'scope'               => SystemSetting::get('oidc_scope', 'openid profile email'),
+            'authorize_endpoint'  => SystemSetting::get('oidc_authorize_endpoint', ''),
+            'token_endpoint'      => SystemSetting::get('oidc_token_endpoint', ''),
+            'userinfo_endpoint'   => SystemSetting::get('oidc_userinfo_endpoint', ''),
+            'end_session_endpoint' => SystemSetting::get('oidc_end_session_endpoint', ''),
+        ];
+
+        return view('system-settings.oidc', compact('oidcSettings'));
+    }
+
+    /**
+     * 更新 OIDC 配置
+     */
+    public function updateOidc(Request $request)
+    {
+        if (!Auth::user() || !Auth::user()->isAdmin()) {
+            return redirect()->route('system-settings.index')->with('error', '无权操作');
+        }
+
+        $request->validate([
+            'oidc_issuer'               => 'nullable|string|max:500',
+            'oidc_client_id'            => 'nullable|string|max:200',
+            'oidc_client_secret'        => 'nullable|string|max:500',
+            'oidc_scope'                => 'nullable|string|max:200',
+            'oidc_authorize_endpoint'   => 'nullable|string|max:500',
+            'oidc_token_endpoint'       => 'nullable|string|max:500',
+            'oidc_userinfo_endpoint'    => 'nullable|string|max:500',
+            'oidc_end_session_endpoint' => 'nullable|string|max:500',
+        ]);
+
+        $fields = [
+            'oidc_issuer'              => $request->input('oidc_issuer'),
+            'oidc_client_id'           => $request->input('oidc_client_id'),
+            'oidc_client_secret'       => $request->input('oidc_client_secret'),
+            'oidc_scope'               => $request->input('oidc_scope') ?: 'openid profile email',
+            'oidc_authorize_endpoint'  => $request->input('oidc_authorize_endpoint'),
+            'oidc_token_endpoint'      => $request->input('oidc_token_endpoint'),
+            'oidc_userinfo_endpoint'   => $request->input('oidc_userinfo_endpoint'),
+            'oidc_end_session_endpoint' => $request->input('oidc_end_session_endpoint'),
+        ];
+
+        foreach ($fields as $key => $value) {
+            SystemSetting::set($key, $value, 'string');
+        }
+
+        // 清除 Discovery 缓存，使配置变更后重新发现
+        Cache::forget('oidc_discovery');
+
+        // 启用/禁用
+        $enabled = $request->boolean('oidc_enabled');
+        SystemSetting::set('oidc_enabled', $enabled, 'boolean', '是否启用OIDC统一身份认证', false);
+
+        return back()->with('success', 'OIDC认证配置已保存' . ($enabled ? '（已启用）' : '（未启用）'));
+    }
 
     /**
      * 企业微信通知配置页面

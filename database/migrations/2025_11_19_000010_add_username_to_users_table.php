@@ -18,7 +18,7 @@ return new class extends Migration
         });
         
         // 更新现有用户的username字段，使其与name相同
-        DB::statement('UPDATE users SET username = name WHERE username IS NULL OR username = ""');
+        DB::statement("UPDATE users SET username = name WHERE username IS NULL OR username = ''");
     }
 
     /**

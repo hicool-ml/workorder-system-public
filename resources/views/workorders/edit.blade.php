@@ -149,9 +149,9 @@
                     <h6 class="mb-4">位置信息</h6>
                     <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
                        <div>
-                           <label for="campus_id" class="label">校区 <span class="text-red-500">*</span></label>
+                           <label for="campus_id" class="label">区域 <span class="text-red-500">*</span></label>
                            <select class="input" id="campus_id" name="campus_id" required>
-                                <option value="">请选择校区</option>
+                                <option value="">请选择区域</option>
                                 @foreach(\App\Models\Campus::where('status', 'active')->orderBy('sort_order')->orderBy('name')->get() as $campus)
                                 <option value="{{ $campus->id }}" {{ old('campus_id', $workorder->campus_id) == $campus->id ? 'selected' : '' }}>{{ $campus->name }}</option>
                                 @endforeach
@@ -160,7 +160,7 @@
                         <div>
                             <label for="building" class="label">楼栋 <span class="text-red-500">*</span></label>
                             <select class="input" id="building" name="building" required>
-                                <option value="">请先选择校区</option>
+                                <option value="">请先选择区域</option>
                             </select>
                         </div>
                         <div>
@@ -446,7 +446,7 @@
 // 工单分类数据
 var categoryData = @json($categories);
 
-// 从地址管理获取校区楼栋数据
+// 从地址管理获取区域楼栋数据
 var campusBuildings = @json(\App\Models\Location::getCampusBuildings());
 
 $(document).ready(function() {
@@ -474,7 +474,7 @@ $(document).ready(function() {
         }
     });
     
-    // 校区变更时更新楼栋选项
+    // 区域变更时更新楼栋选项
     $('#campus_id').change(function() {
         var campusId = $(this).val();
         var buildingSelect = $('#building');
@@ -491,7 +491,7 @@ $(document).ready(function() {
     // 初始化当前工单的分类选择
     initializeCurrentCategory();
     
-    // 初始化校区楼栋选择
+    // 初始化区域楼栋选择
     initializeCampusBuilding();
     
     // 初始化其他来源显示状态
@@ -546,7 +546,7 @@ function initializeCampusBuilding() {
     var campusId = $('#campus_id').val();
     var buildingSelect = $('#building');
     
-    // 设置当前工单的校区
+    // 设置当前工单的区域
     var currentCampusId = '{{ $workorder->campus_id ?? '' }}';
     if (currentCampusId) {
         $('#campus_id').val(currentCampusId);
@@ -562,7 +562,7 @@ function initializeCampusBuilding() {
     }
     
     // 设置当前工单的楼栋
-    var currentBuildingId = {{ $workorder->building ?? 'null' }};
+    var currentBuildingId = {{ is_numeric($workorder->building ?? '') ? (int) $workorder->building : 'null' }};
     if (currentBuildingId) {
         buildingSelect.val(currentBuildingId);
     }

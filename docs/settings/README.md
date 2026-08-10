@@ -1,8 +1,8 @@
 # 系统设置文档
 
-「设置」是侧边栏的折叠主菜单，仅**管理员**可见。它把原来臃肿的单页设置拆成了 7 个职责清晰的子页，每个子页只负责一类配置。
+「设置」是侧边栏的折叠主菜单，仅**管理员**可见。它把原来臃肿的单页设置拆成了职责清晰的子页，每个子页只负责一类配置。
 
-所有子页都挂载在 `settings/{section}` 路由下（统一身份认证除外，它在 `system-settings/cas`），入口为侧边栏 → **设置** → 对应子项。
+所有子页都挂载在 `settings/{section}` 路由下（统一身份认证除外，它在 `system-settings/cas` 与 `system-settings/oidc`），入口为侧边栏 → **设置** → 对应子项。
 
 ## 子菜单一览
 
@@ -15,6 +15,7 @@
 | 消息设置 | `settings/messaging` | [消息设置](05-messaging.md) | 通知规则、短信、企业微信、钉钉、飞书入口 |
 | 详细设置 | `settings/all` | [详细设置](06-advanced-settings.md) | 全部 `system_settings` 键值表的查看与编辑 |
 | 统一身份认证 | `system-settings/cas` | [统一身份认证](07-cas.md) | CAS / LinkID 接入与用户属性映射 |
+| 统一身份认证（OIDC） | `system-settings/oidc` | [OIDC 统一身份认证](08-oidc.md) | OIDC / OAuth2 接入、Discovery、PKCE 与 id_token 校验 |
 
 ## 配置存储
 

@@ -83,7 +83,7 @@ class WorkorderTemplate extends Model
     }
 
     /**
-     * 获取校区选项
+     * 获取区域选项
      */
     public static function getCampusOptions(): array
     {
@@ -110,7 +110,7 @@ class WorkorderTemplate extends Model
     }
 
     /**
-     * 获取校区文本
+     * 获取区域文本
      */
     public function getCampusTextAttribute(): string
     {

@@ -11,12 +11,14 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        $this->call([
-            DepartmentSeeder::class,
-            AdminUserSeeder::class,
+       $this->call([
+           DepartmentSeeder::class,
+           AdminUserSeeder::class,
+            SystemSettingSeeder::class,
+            CampusSeeder::class,
+            LocationLevelSeeder::class,
             LocationSeeder::class,
             WorkorderCategorySimplifiedSeeder::class,
-            // WorkorderTypeSeeder::class, // 暂时跳过，使用简化的工单分类
-        ]);
+       ]);
     }
 }

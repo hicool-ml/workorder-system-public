@@ -24,12 +24,10 @@
         <env name="BCRYPT_ROUNDS" value="4"/>
         <env name="BROADCAST_CONNECTION" value="null"/>
         <env name="CACHE_STORE" value="array"/>
-        <env name="DB_CONNECTION" value="mysql"/>
-        <env name="DB_HOST" value="127.0.0.1"/>
-        <env name="DB_PORT" value="3306"/>
-        <env name="DB_DATABASE" value="workorder_db"/>
-        <env name="DB_USERNAME" value="cdu"/>
-        <env name="DB_PASSWORD" value="REDACTED_MYSQL_PASS"/>
+        <!-- 测试默认使用 SQLite（零依赖、CI 友好）。本机无 pdo_pgsql 时也能跑；
+             若要验证 PostgreSQL 专属行为，请在装有 pdo_pgsql 的环境中将此处改为 pgsql。 -->
+        <env name="DB_CONNECTION" value="sqlite"/>
+        <env name="DB_DATABASE" value="database/testing.sqlite"/>
     <env name="MAIL_MAILER" value="array"/>
         <env name="QUEUE_CONNECTION" value="sync"/>
         <env name="SESSION_DRIVER" value="array"/>

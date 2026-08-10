@@ -114,11 +114,11 @@
 {{-- Campus + processing time --}}
 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
     <div class="card p-5">
-        <h3 class="text-sm font-semibold text-ink mb-4">校区工单统计</h3>
+        <h3 class="text-sm font-semibold text-ink mb-4">区域工单统计</h3>
         <div class="overflow-x-auto max-h-[280px]">
             <table class="w-full text-sm">
                 <thead><tr class="text-left border-b border-border sticky top-0" style="background-color: var(--c-card);">
-                    <th class="py-2 font-medium" style="color: var(--c-ink-muted);">校区</th>
+                    <th class="py-2 font-medium" style="color: var(--c-ink-muted);">区域</th>
                     <th class="py-2 font-medium text-right" style="color: var(--c-ink-muted);">总数</th>
                     <th class="py-2 font-medium text-right" style="color: var(--c-ink-muted);">待处理</th>
                     <th class="py-2 font-medium text-right" style="color: var(--c-ink-muted);">完成</th>

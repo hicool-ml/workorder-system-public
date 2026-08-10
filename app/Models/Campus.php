@@ -50,7 +50,7 @@ class Campus extends Model
     }
 
     /**
-     * 获取所有活跃的校区选项
+     * 获取所有活跃的区域选项
      */
     public static function getActiveOptions(): array
     {
@@ -62,7 +62,7 @@ class Campus extends Model
     }
 
     /**
-     * 根据代码获取校区
+     * 根据代码获取区域
      */
     public static function findByCode(string $code): ?self
     {

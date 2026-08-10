@@ -4,8 +4,9 @@
 
 @section('content')
 <div class="flex justify-between items-center flex-wrap gap-2 pt-3 pb-2 mb-4 border-b border-border">
-    <h1 class="text-xl font-semibold text-ink">统一身份认证（CAS）</h1>
-    <a href="{{ route('system-settings.index') }}" class="btn btn-secondary btn-sm">
+    <h1 class="text-xl font-semibold text-ink">CAS 统一身份认证</h1>
+    <a href="{{ route('system-settings.oidc') }}" class="btn btn-secondary btn-sm">OIDC 认证</a>
+        <a href="{{ route('system-settings.index') }}" class="btn btn-secondary btn-sm">
         <svg class="w-4 h-4 inline" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
         返回系统设置
     </a>

@@ -9,7 +9,7 @@
 
 每份备份是一个时间戳命名的目录，位于 `storage/app/private/backups/{YYYYMMDD_HHMMSS}/`，包含：
 
-- `database.sql` — 数据库完整导出（优先用 `mysqldump`，不可用时回退纯 PHP 逐表导出）
+- `database.sql` — 数据库完整导出（自动按当前驱动选择工具：MySQL 用 `mysqldump`、PostgreSQL 用 `pg_dump`；工具会先在 PATH 中查找，再探测 PostgreSQL / MySQL 常见安装目录，不可用时才回退纯 PHP 逐表导出）
 - `attachments.zip` — `storage/app/public` 下的全部用户附件（故障图片、签名、PDF 等），打包时只保留相对路径，不泄露服务器目录结构
 
 备份目录由 `php artisan backup:system` 命令生成，Web 界面的「立即备份」和自动调度都调用它。
@@ -38,7 +38,7 @@
 恢复执行时系统会：
 
 1. **先自动备份当前状态**（调用 `backup:system`），作为安全网，万一恢复出错可立即回滚
-2. 恢复数据库：优先 `mysql` 命令行导入，不可用时回退纯 PDO 按 `;` 切分逐条执行（自动跳过外键检查语句）
+2. 恢复数据库：优先用 CLI 导入（MySQL 用 `mysql`、PostgreSQL 用 `psql`），不可用时回退纯 PDO 按 `;` 切分逐条执行（自动跳过外键检查语句）
 3. 恢复附件：解压 `attachments.zip` 到 `storage/app/public`，兼容新旧两种打包格式
 
 恢复完成后建议刷新页面，让前端加载恢复后的数据。
@@ -147,7 +147,7 @@ php artisan backup:system --keep=14
 
 ## 注意与排错
 
-- **mysqldump / mysql 不可用**：命令会自动回退到纯 PHP 导出/导入，速度较慢但功能完整。Web 界面备份同样如此
+- **mysqldump / mysql / pg_dump / psql 不可用**：命令会先在系统 PATH、再在常见安装目录中查找这些工具（含按版本自动挑选最新版），全部找不到时才回退到纯 PHP 导出/导入，速度较慢但功能完整。Web 界面备份同样如此
 - **恢复后附件丢失**：确认该备份的 `attachments.zip` 存在且完整；旧版备份可能因打包 bug 带有服务器绝对路径，新版已修复并兼容旧格式
 - **备份占满磁盘**：自动清理只针对 `backups/` 目录下时间戳命名的备份，`backups/uploaded/` 下的手动上传备份不会被自动清理，需定期手动删除
 - **Windows 下密码含特殊字符**：早期版本 `mysqldump -p` 的密码被双引号破坏，已修复，密码原样传递

@@ -9,11 +9,16 @@ return new class extends Migration
     /**
      * Run the migrations.
      */
-    public function up(): void
-    {
-        Schema::table('departments', function (Blueprint $table) {
-            // 删除无意义字段
-            $table->dropColumn('code'); // 部门编码
+   public function up(): void
+   {
+        // 注意：code / manager_name / manager_phone / location 以及 timestamps 仍被
+        // DepartmentController（unique 校验、搜索）、Department 模型与 seeder 广泛使用，
+        // 删除这些列会导致部门增删改查全部失效并破坏 Eloquent 时间戳。故该迁移改为空操作。
+        return;
+
+       Schema::table('departments', function (Blueprint $table) {
+           // 删除无意义字段
+           $table->dropColumn('code'); // 部门编码
             $table->dropColumn('manager_name'); // 负责人
             $table->dropColumn('manager_phone'); // 联系电话
             $table->dropColumn('location'); // 办公地点

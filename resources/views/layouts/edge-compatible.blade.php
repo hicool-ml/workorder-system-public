@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>@yield('title', '校园网工单系统') - 校园网工单系统</title>
+    <title>@yield('title', '工单管理系统') - 工单管理系统</title>
     
     <!-- 本地资源 -->
     <link href="{{ asset('assets/css/bootstrap.min.css') }}" rel="stylesheet">
@@ -153,7 +153,7 @@
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
         <div class="container-fluid">
             <a class="navbar-brand" href="{{ \App\Helpers\UrlHelper::relative_url('/workorders') }}">
-                <i class="fas fa-tools"></i> 校园网工单系统
+                <i class="fas fa-tools"></i> 工单管理系统
             </a>
             
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
@@ -245,7 +245,7 @@
     <footer class="footer mt-auto py-3 bg-light">
         <div class="container">
             <div class="text-center">
-                <span class="text-muted">© {{ date('Y') }} 校园网工单系统 - 版本 1.0.0</span>
+                <span class="text-muted">© {{ date('Y') }} 工单管理系统 - 版本 1.0.0</span>
             </div>
         </div>
     </footer>

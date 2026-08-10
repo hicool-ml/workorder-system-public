@@ -1,10 +1,10 @@
 @extends('layouts.app')
 
-@section('title', '编辑校区')
+@section('title', '编辑区域')
 
 @section('content')
 <div class="flex items-center justify-between mb-6">
-    <h1 class="text-xl font-semibold text-ink">编辑校区</h1>
+    <h1 class="text-xl font-semibold text-ink">编辑区域</h1>
     <a href="{{ route('locations.campuses') }}" class="btn btn-secondary">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 12H5 M12 19l-7-7 7-7"/></svg>
         <span>返回列表</span>
@@ -18,17 +18,17 @@
             @method('PUT')
             <div class="space-y-4">
                 <div>
-                    <label class="label" for="name">校区名称 <span class="text-red-500">*</span></label>
+                    <label class="label" for="name">区域名称 <span class="text-red-500">*</span></label>
                     <input type="text" class="input" id="name" name="name"
                            value="{{ old('name', $campus->name) }}" required maxlength="255"
-                           placeholder="如：新校区、老校区" autocomplete="off">
+                    placeholder="如：总部园区、分部" autocomplete="off">
                     @error('name') <p class="text-xs text-red-600 mt-1">{{ $message }}</p> @enderror
                 </div>
 
                 <div>
-                    <label class="label" for="description">校区描述</label>
+                    <label class="label" for="description">区域描述</label>
                     <textarea class="input" id="description" name="description" rows="3"
-                              placeholder="选填，校区的详细描述">{{ old('description', $campus->description) }}</textarea>
+                              placeholder="选填，区域的详细描述">{{ old('description', $campus->description) }}</textarea>
                     @error('description') <p class="text-xs text-red-600 mt-1">{{ $message }}</p> @enderror
                 </div>
 
@@ -55,7 +55,7 @@
                 <a href="{{ route('locations.campuses') }}" class="btn btn-secondary">取消</a>
                 <button type="submit" class="btn btn-primary">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z M17 21v-8H7v8 M7 3v5h8"/></svg>
-                    <span>更新校区</span>
+                    <span>更新区域</span>
                 </button>
             </div>
         </form>

@@ -46,7 +46,7 @@
             </div>
             <div>
                 <label class="label">短信签名</label>
-                <input type="text" class="input" name="sms_sign_name" value="{{ $smsSettings['sign_name'] }}" placeholder="如：校园网工单">
+                <input type="text" class="input" name="sms_sign_name" value="{{ $smsSettings['sign_name'] }}" placeholder="如：工单系统">
             </div>
         </div>
 

@@ -1,0 +1,30 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        if (!Schema::hasColumn('workorders', 'location_id')) {
+            Schema::table('workorders', function (Blueprint $table) {
+                $table->unsignedBigInteger('location_id')->nullable()->after('campus_id')->comment('地址树节点ID');
+                $table->foreign('location_id')->references('id')->on('locations')->nullOnDelete();
+                $table->index('location_id');
+            });
+        }
+    }
+
+    public function down(): void
+    {
+        if (Schema::hasColumn('workorders', 'location_id')) {
+            Schema::table('workorders', function (Blueprint $table) {
+                $table->dropForeign(['location_id']);
+                $table->dropIndex(['location_id']);
+                $table->dropColumn('location_id');
+            });
+        }
+    }
+};

@@ -31,6 +31,25 @@
             <span>登录</span>
         </button>
     </form>
+    @if(\App\Models\SystemSetting::get('cas_enabled', false) || \App\Models\SystemSetting::get('oidc_enabled', false))
+    <div class="mt-5 pt-5 border-t border-border">
+        <p class="text-center text-xs mb-3" style="color: var(--c-ink-subtle);">─── 其他登录方式 ───</p>
+        <div class="flex flex-col gap-2">
+            @if(\App\Models\SystemSetting::get('oidc_enabled', false))
+            <a href="{{ route('oidc.login') }}" class="btn btn-secondary w-full">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                <span>统一身份认证</span>
+            </a>
+            @endif
+            @if(\App\Models\SystemSetting::get('cas_enabled', false))
+            <a href="{{ route('cas.login') }}" class="btn btn-secondary w-full">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"/></svg>
+                <span>CAS 统一身份认证</span>
+            </a>
+            @endif
+        </div>
+    </div>
+    @endif
 
     @if(\App\Models\SystemSetting::isRegistrationEnabled())
     <div class="text-center mt-4 pt-4 border-t border-border">

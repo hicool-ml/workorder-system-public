@@ -29,6 +29,7 @@ class User extends Authenticatable
         'wecom_userid',
         'dingtalk_userid',
         'feishu_user_id',
+        'oidc_sub',
         'department_id',
         'role',
         'status',
@@ -190,6 +191,22 @@ class User extends Authenticatable
     }
 
     /**
+     * 检查是否为 OIDC 统一身份认证用户
+     */
+    public function isOidcUser(): bool
+    {
+        return $this->account_type === 'oidc';
+    }
+
+    /**
+     * 检查是否为任意统一身份认证用户（CAS 或 OIDC）
+     */
+    public function isSsoUser(): bool
+    {
+        return in_array($this->account_type, ['cas', 'oidc']);
+    }
+
+    /**
      * 检查用户是否具有指定角色
      */
     public function hasRole(string $role): bool
@@ -304,10 +321,14 @@ class User extends Authenticatable
 
     /**
      * 检查是否可以管理工单附件
+     * 传入工单时按工单上下文判断；未传入（如角色中间件调用）时按角色判断。
      */
-    public function canManageWorkorderAttachments(Workorder $workorder): bool
+    public function canManageWorkorderAttachments(?Workorder $workorder = null): bool
     {
-        return $this->canUploadAttachment($workorder);
+        if ($workorder) {
+            return $this->canUploadAttachment($workorder);
+        }
+        return in_array($this->role, ['admin', 'workorder_manager', 'engineer']);
     }
 
     /**

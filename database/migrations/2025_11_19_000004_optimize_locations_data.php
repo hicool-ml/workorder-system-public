@@ -10,11 +10,13 @@ return new class extends Migration
     /**
      * Run the migrations.
      */
-    public function up(): void
-    {
-        // 优化位置数据，将长格式名称简化为短格式
-        
-        // 老校区教学楼优化
+   public function up(): void
+   {
+        // 原校园网地点名称优化，通用化后无对应数据（updateLocationName 找不到匹配即空操作），
+        // 直接跳过避免无意义的批量 UPDATE。
+        return;
+
+        // --- 以下为历史逻辑，保留备查 ---
         $this->updateLocationName('第一教学楼', '1教');
         $this->updateLocationName('第二教学楼', '2教');
         $this->updateLocationName('第三教学楼', '3教');

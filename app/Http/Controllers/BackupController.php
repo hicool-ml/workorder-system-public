@@ -223,6 +223,8 @@ class BackupController extends Controller
         try {
             if ($driver === 'mysql') {
                 $ok = $this->restoreMysql($sqlPath, $dbName);
+            } elseif ($driver === 'pgsql') {
+                $ok = $this->restorePg($sqlPath, $dbName);
             } else {
                 $ok = $this->restoreViaPdo($sqlPath);
             }
@@ -380,6 +382,41 @@ class BackupController extends Controller
     }
 
     /**
+     * Restore PostgreSQL via the psql CLI, falling back to PDO.
+     */
+    private function restorePg(string $sqlPath, string $dbName): bool
+    {
+        $cfg = config('database.connections.pgsql');
+        $host = $cfg['host'] ?? '127.0.0.1';
+        $port = $cfg['port'] ?? 5432;
+        $user = $cfg['username'] ?? 'postgres';
+        $pass = $cfg['password'] ?? '';
+
+        $psql = pg_bin_path('psql');
+        if ($psql === '') {
+            return $this->restoreViaPdo($sqlPath);
+        }
+
+        $prevPass = getenv('PGPASSWORD');
+        putenv('PGPASSWORD=' . $pass);
+
+        $cmd = sprintf(
+            '%s --host=%s --port=%s --username=%s --no-password --dbname=%s -f %s 2>&1',
+            escapeshellarg(explode("\n", $psql)[0]),
+            escapeshellarg($host),
+            escapeshellarg((string) $port),
+            escapeshellarg($user),
+            escapeshellarg($dbName),
+            escapeshellarg($sqlPath)
+        );
+        exec($cmd, $output, $code);
+
+        putenv('PGPASSWORD=' . ($prevPass !== false ? $prevPass : ''));
+
+        return $code === 0;
+    }
+
+    /**
      * 纯 PDO 执行 SQL 文件：按 ";" 切分语句逐条执行。
      */
     private function restoreViaPdo(string $sqlPath): bool
@@ -422,10 +459,20 @@ class BackupController extends Controller
             $statements[] = $tail;
         }
 
-        DB::unprepared('SET FOREIGN_KEY_CHECKS=0');
+        $driver = DB::getDriverName();
+        $disableFk = $driver === 'pgsql'
+            ? "SET session_replication_role = 'replica'"
+            : ($driver === 'mysql' ? 'SET FOREIGN_KEY_CHECKS=0' : 'PRAGMA foreign_keys = OFF');
+        $enableFk = $driver === 'pgsql'
+            ? "SET session_replication_role = 'origin'"
+            : ($driver === 'mysql' ? 'SET FOREIGN_KEY_CHECKS=1' : 'PRAGMA foreign_keys = ON');
+
+        DB::unprepared($disableFk);
         foreach ($statements as $stmt) {
             $up = strtoupper(ltrim($stmt));
-            if (Str::startsWith($up, 'SET FOREIGN_KEY_CHECKS')) {
+            if (Str::startsWith($up, 'SET FOREIGN_KEY_CHECKS')
+                || Str::startsWith($up, 'SET SESSION_REPLICATION_ROLE')
+                || Str::startsWith($up, 'PRAGMA FOREIGN_KEYS')) {
                 continue;
             }
             try {
@@ -434,7 +481,7 @@ class BackupController extends Controller
                 \Log::warning('备份恢复语句失败：' . $e->getMessage() . ' | ' . substr($stmt, 0, 200));
             }
         }
-        DB::unprepared('SET FOREIGN_KEY_CHECKS=1');
+        DB::unprepared($enableFk);
         return true;
     }
 

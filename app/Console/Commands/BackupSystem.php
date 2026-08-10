@@ -8,51 +8,53 @@ use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
 
 /**
- * 系统备份命令
+ * System backup command.
  *
- * 备份内容包括：
- *  1. 数据库（优先 mysqldump，不可用时回退纯 PHP SQL 导出）
- *  2. storage/app/public 下的用户附件（图片、签名、PDF 等）
+ * Backs up:
+ *  1. Database (prefers the native dump tool for the active driver; falls back
+ *     to a pure-PHP export when the binary is unavailable).
+ *  2. User attachments under storage/app/public.
  *
- * 用法：
- *   php artisan backup:system              # 立即执行一次备份
- *   php artisan backup:system --keep=14    # 仅保留最近 14 份（默认 30）
+ * Usage:
+ *   php artisan backup:system              # run once now
+ *   php artisan backup:system --keep=14    # keep only the latest 14 backups
  *
- * 建议在调度中每日执行：
+ * Schedule suggestion:
  *   $schedule->command('backup:system')->dailyAt('02:00');
  */
 class BackupSystem extends Command
 {
-    protected $signature = 'backup:system {--keep=30 : 保留的备份份数}';
-    protected $description = '备份数据库与附件到 storage/backups';
+    protected $signature = 'backup:system {--keep=30 : number of backups to keep}';
+    protected $description = 'Backup database and attachments to storage/backups';
 
     public function handle(): int
     {
         $disk = Storage::disk('local');
         $stamp = now()->format('Ymd_His');
-    $backupDir = "backups/{$stamp}";
-    $disk->makeDirectory($backupDir);
-    // 显式 chmod：PHP mkdir 受进程 umask 影响（调度进程常为 0077），会把 0775 砍成 0700，
-    // 导致 www-data 跑的 Web 页面无法列目录（备份&恢复页报 Permission denied）。chmod 不受 umask 影响。
-    @chmod(storage_path('app/private/' . $backupDir), 0775);
+        $backupDir = "backups/{$stamp}";
+        $disk->makeDirectory($backupDir);
+        // Explicit chmod: PHP mkdir is affected by the process umask (a scheduler
+        // process commonly runs with umask 0077, which would turn 0775 into 0700
+        // and prevent the web process from reading the backup directory).
+        @chmod(storage_path('app/private/' . $backupDir), 0775);
 
-    $this->info("开始备份：{$backupDir}");
+        $this->info("Starting backup: {$backupDir}");
 
         $dbOk = $this->backupDatabase($disk, $backupDir);
         $this->backupAttachments($disk, $backupDir, $stamp);
         $this->pruneOldBackups($disk);
 
         if ($dbOk) {
-            $this->info("备份完成：{$backupDir}");
+            $this->info("Backup complete: {$backupDir}");
             return self::SUCCESS;
         }
 
-        $this->error('数据库备份失败，请检查日志');
+        $this->error('Database backup failed; check the logs.');
         return self::FAILURE;
     }
 
     /**
-     * 备份数据库：优先 mysqldump，失败则用纯 PHP 导出
+     * Backup the database using the best available tool for the active driver.
      */
     private function backupDatabase($disk, string $backupDir): bool
     {
@@ -64,12 +66,21 @@ class BackupSystem extends Command
             if ($dumped !== null) {
                 return $dumped;
             }
-            $this->warn('mysqldump 不可用，回退到纯 PHP 导出（速度较慢）');
+            $this->warn('mysqldump not available, falling back to pure-PHP export (slower).');
+        } elseif ($driver === 'pgsql') {
+            $dumped = $this->tryPgDump($disk, $backupDir);
+            if ($dumped !== null) {
+                return $dumped;
+            }
+            $this->warn('pg_dump not available, falling back to pure-PHP export (slower).');
         }
 
         return $this->phpSqlDump($disk, $backupDir);
     }
 
+    /**
+     * Try to back up MySQL via the mysqldump CLI.
+     */
     private function tryMysqlDump($disk, string $backupDir, string $dbName): ?bool
     {
         $mysqldump = trim((string) shell_exec('where mysqldump 2>NUL') ?? '');
@@ -101,7 +112,7 @@ class BackupSystem extends Command
         exec($cmd, $output, $code);
 
         if ($code === 0 && File::exists($tmpSql) && filesize($tmpSql) > 0) {
-            $this->info('数据库已通过 mysqldump 备份');
+            $this->info('Database backed up via mysqldump.');
             return true;
         }
 
@@ -112,46 +123,143 @@ class BackupSystem extends Command
     }
 
     /**
-     * 纯 PHP 逐表导出为 SQL（无需外部二进制）
+     * Try to back up PostgreSQL via the pg_dump CLI.
+     */
+    private function tryPgDump($disk, string $backupDir): ?bool
+    {
+        $pgDump = pg_bin_path('pg_dump');
+        if ($pgDump === '') {
+            return null;
+        }
+
+        $cfg = config('database.connections.pgsql');
+        $host = $cfg['host'] ?? '127.0.0.1';
+        $port = $cfg['port'] ?? 5432;
+        $user = $cfg['username'] ?? 'postgres';
+        $pass = $cfg['password'] ?? '';
+        $dbName = $cfg['database'] ?? 'laravel';
+
+        $tmpSql = $disk->path("{$backupDir}/database.sql");
+        File::ensureDirectoryExists(dirname($tmpSql));
+
+        // Pass the password through the environment so it never shows up on
+        // the command line or in the process list.
+        $prevPass = getenv('PGPASSWORD');
+        putenv('PGPASSWORD=' . $pass);
+
+        $cmd = sprintf(
+            '%s --host=%s --port=%s --username=%s --no-password --format=plain --no-owner --no-privileges --no-tablespaces %s > %s 2>&1',
+            escapeshellarg(explode("\n", $pgDump)[0]),
+            escapeshellarg($host),
+            escapeshellarg((string) $port),
+            escapeshellarg($user),
+            escapeshellarg($dbName),
+            escapeshellarg($tmpSql)
+        );
+
+        exec($cmd, $output, $code);
+
+        putenv('PGPASSWORD=' . ($prevPass !== false ? $prevPass : ''));
+
+        if ($code === 0 && File::exists($tmpSql) && filesize($tmpSql) > 0) {
+            $this->info('Database backed up via pg_dump.');
+            return true;
+        }
+
+        if (File::exists($tmpSql)) {
+            File::delete($tmpSql);
+        }
+        return null;
+    }
+
+    /**
+     * Pure-PHP table-by-table SQL export (used when the native dump binary is
+     * unavailable). The output targets the active driver so it can be restored
+     * on the same engine.
      */
     private function phpSqlDump($disk, string $backupDir): bool
     {
-        try {
-            $tables = DB::select('SHOW TABLES');
+        $driver = DB::getDriverName();
+
+        // Enumerate tables in a driver-aware way.
+        $tables = [];
+        if ($driver === 'mysql') {
+            $rows = DB::select('SHOW TABLES');
             $key = 'Tables_in_' . config('database.connections.mysql.database');
-        } catch (\Throwable $e) {
-            $tables = array_map(
-                fn($r) => (object) ['name' => $r->name],
-                DB::select("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'")
-            );
-            $key = 'name';
+            foreach ($rows as $r) {
+                $tables[] = is_object($r) ? ($r->$key ?? null) : $r;
+            }
+        } elseif ($driver === 'pgsql') {
+            $names = DB::table('information_schema.tables')
+                ->where('table_schema', 'public')
+                ->where('table_type', 'BASE TABLE')
+                ->orderBy('table_name')
+                ->pluck('table_name');
+            foreach ($names as $n) {
+                $tables[] = $n;
+            }
+        } else {
+            $rows = DB::select("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'");
+            foreach ($rows as $r) {
+                $tables[] = $r->name ?? null;
+            }
         }
 
-        $sql = "-- 工单系统数据库备份\n-- 生成时间: " . now() . "\n-- 纯 PHP 导出\n\nSET FOREIGN_KEY_CHECKS=0;\n\n";
+        // Identifier quoting matches each engine's expectations on restore.
+        $q = $driver === 'mysql' ? '`' : '"';
+        $wrapIdent = fn (string $n) => $driver === 'sqlite' ? $n : "{$q}{$n}{$q}";
+
+        $sql = "-- Workorder system database backup\n";
+        $sql .= "-- Generated at: " . now() . "\n";
+        $sql .= "-- Pure-PHP export\n\n";
+
+        // Disable FK checks per driver so the dump restores cleanly.
+        if ($driver === 'mysql') {
+            $sql .= "SET FOREIGN_KEY_CHECKS=0;\n\n";
+        } elseif ($driver === 'pgsql') {
+            $sql .= "SET session_replication_role = 'replica';\n\n";
+        } else {
+            $sql .= "PRAGMA foreign_keys = OFF;\n\n";
+        }
+
         $count = 0;
 
-        foreach ($tables as $t) {
-            $table = is_object($t) ? ($t->$key ?? $t->name ?? null) : $t;
+        foreach ($tables as $table) {
             if (!$table) {
                 continue;
             }
 
-            $sql .= "-- ----------------------------\n-- 表结构 {$table}\n-- ----------------------------\n";
-            $sql .= "DROP TABLE IF EXISTS `{$table}`;\n";
+            $sql .= "-- ----------------------------\n";
+            $sql .= "-- Table: {$table}\n";
+            $sql .= "-- ----------------------------\n";
 
-            $createRow = DB::select("SHOW CREATE TABLE `{$table}`");
-            if (!empty($createRow)) {
-                $createCol = array_key_exists('Create Table', (array) $createRow[0])
-                    ? 'Create Table'
-                    : array_keys((array) $createRow[0])[1] ?? null;
-                if ($createCol) {
-                    $sql .= $createRow[0]->$createCol . ";\n\n";
+            // Emit the schema where we can.
+            if ($driver === 'mysql') {
+                $createRow = DB::select("SHOW CREATE TABLE `{$table}`");
+                if (!empty($createRow)) {
+                    $createCol = array_key_exists('Create Table', (array) $createRow[0])
+                        ? 'Create Table'
+                        : (array_keys((array) $createRow[0])[1] ?? null);
+                    if ($createCol) {
+                        $sql .= $createRow[0]->$createCol . ";\n\n";
+                    }
+                }
+            } elseif ($driver === 'pgsql') {
+                // PostgreSQL has no SHOW CREATE TABLE; faithfully reconstructing
+                // sequences, constraints, and indexes is out of reach for the
+                // pure-PHP path. Install pg_dump for full-schema backups.
+                $sql .= "-- Schema omitted in pure-PHP fallback; use pg_dump for full schema.\n";
+            } else {
+                $row = DB::select("SELECT sql FROM sqlite_master WHERE type='table' AND name=?", [$table]);
+                if (!empty($row) && !empty($row[0]->sql)) {
+                    $sql .= $row[0]->sql . ";\n\n";
                 }
             }
 
+            // Data rows.
             $rows = DB::table($table)->get();
             if ($rows->isNotEmpty()) {
-                $sql .= "-- 数据 {$table}\n";
+                $sql .= "-- Data: {$table}\n";
                 $columns = array_keys((array) $rows->first());
                 foreach ($rows as $row) {
                     $vals = [];
@@ -159,36 +267,44 @@ class BackupSystem extends Command
                         $v = $row->$col ?? null;
                         $vals[] = $v === null ? 'NULL' : "'" . str_replace(["\\", "'"], ["\\\\", "''"], (string) $v) . "'";
                     }
-                    $sql .= "INSERT INTO `{$table}` (`" . implode('`,`', $columns) . "`) VALUES (" . implode(',', $vals) . ");\n";
+                    $colList = implode(', ', array_map($wrapIdent, $columns));
+                    $sql .= "INSERT INTO {$wrapIdent($table)} ({$colList}) VALUES (" . implode(',', $vals) . ");\n";
                 }
                 $sql .= "\n";
             }
             $count++;
         }
 
-        $sql .= "SET FOREIGN_KEY_CHECKS=1;\n";
+        // Re-enable FK checks.
+        if ($driver === 'mysql') {
+            $sql .= "SET FOREIGN_KEY_CHECKS=1;\n";
+        } elseif ($driver === 'pgsql') {
+            $sql .= "SET session_replication_role = 'origin';\n";
+        } else {
+            $sql .= "PRAGMA foreign_keys = ON;\n";
+        }
 
         $disk->put("{$backupDir}/database.sql", $sql);
-        $this->info("数据库已通过 PHP 导出备份（{$count} 张表）");
+        $this->info("Database backed up via pure-PHP export ({$count} tables).");
         return true;
     }
 
     /**
-     * 打包附件目录为 zip
+     * Zip the attachments directory.
      */
     private function backupAttachments($disk, string $backupDir, string $stamp): void
     {
         $publicPath = storage_path('app/public');
         if (!File::exists($publicPath)) {
-            $this->warn('附件目录不存在，跳过附件备份');
+            $this->warn('Attachments directory missing; skipping attachment backup.');
             return;
         }
 
         $zipPath = $disk->path("{$backupDir}/attachments.zip");
         File::ensureDirectoryExists(dirname($zipPath));
 
-        // realpath 归一化分隔符，避免 Windows 下 storage_path() 返回混合分隔符导致 str_replace 失败、
-        // 把服务器绝对路径写进 zip（既冗余又泄露目录结构）。
+        // realpath normalizes path separators so str_replace works reliably on
+        // Windows where storage_path() can return mixed separators.
         $realBase = realpath($publicPath);
 
         $zip = new \ZipArchive();
@@ -201,21 +317,21 @@ class BackupSystem extends Command
             foreach ($files as $file) {
                 if (!$file->isDir()) {
                     $real = $file->getRealPath();
-                    // 仅取相对 public 的路径作为 zip 内条目，分隔符统一为 /。
+                    // Use a path relative to public/ as the zip entry name.
                     $relative = ltrim(str_replace(DIRECTORY_SEPARATOR, '/', substr($real, strlen($realBase))), '/');
                     $zip->addFile($real, $relative);
                     $fileCount++;
                 }
             }
             $zip->close();
-            $this->info("附件已备份（{$fileCount} 个文件）");
+            $this->info("Attachments backed up ({$fileCount} files).");
         } else {
-            $this->warn('附件 zip 打包失败，跳过');
+            $this->warn('Attachment zip failed; skipping.');
         }
     }
 
     /**
-     * 清理超出保留份数的旧备份
+     * Remove old backups beyond the keep limit.
      */
     private function pruneOldBackups($disk): void
     {
@@ -230,7 +346,7 @@ class BackupSystem extends Command
 
         for ($i = 0; $i < $excess; $i++) {
             $disk->deleteDirectory($dirs[$i]);
-            $this->line("已清理旧备份：{$dirs[$i]}");
+            $this->line("Pruned old backup: {$dirs[$i]}");
         }
     }
 }

@@ -43,7 +43,7 @@
                     </div>
                     <div>
                         <p class="text-xs" style="color: var(--c-ink-muted);">系统名称</p>
-                        <p class="text-sm font-medium text-ink truncate">{{ $groupedSettings['system']->firstWhere('key', 'system_name')?->typed_value ?? '校园网工单系统' }}</p>
+                        <p class="text-sm font-medium text-ink truncate">{{ $groupedSettings['system']->firstWhere('key', 'system_name')?->typed_value ?? '工单管理系统' }}</p>
                     </div>
                 </div>
             </div>
