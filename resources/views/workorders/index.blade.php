@@ -27,7 +27,7 @@
             foreach (['keyword','status','priority','category_main','category_sub','date_from','date_to','campus_id','source','assignee_id'] as $f) {
                 if (request()->filled($f)) $activeFilterCount++;
             }
-            foreach (['show_closed','show_emergency','show_overdue'] as $f) {
+            foreach (['show_closed','show_emergency','show_overdue','address_anomaly'] as $f) {
                 if (request()->input($f)) $activeFilterCount++;
             }
         ?>
@@ -135,8 +135,8 @@
                         <label class="label" for="campus_id">区域</label>
                         <select class="input" id="campus_id" name="campus_id">
                             <option value="">全部区域</option>
-                            @foreach(\App\Models\Campus::orderBy('sort_order')->orderBy('name')->get() as $campus)
-                            <option value="{{ $campus->id }}" {{ request('campus_id') == $campus->id ? 'selected' : '' }}>{{ $campus->name }}</option>
+                            @foreach($campusOptions as $campusLocationId => $campusName)
+                            <option value="{{ $campusLocationId }}" {{ request('campus_id') == $campusLocationId ? 'selected' : '' }}>{{ $campusName }}</option>
                             @endforeach
                         </select>
                     </div>
@@ -177,6 +177,12 @@
                             <input type="checkbox" name="show_overdue" value="1" class="rounded border-border-strong" {{ request('show_overdue') ? 'checked' : '' }}>
                             仅超时
                         </label>
+                        @if(auth()->user()->isAdmin())
+                        <label class="flex items-center gap-2 text-sm text-amber-700 cursor-pointer" title="筛出 location_id 为空或被收容到「未分类」节点下的工单（用于排查历史迁移结果）">
+                            <input type="checkbox" name="address_anomaly" value="1" class="rounded border-amber-400" {{ request('address_anomaly') ? 'checked' : '' }}>
+                            地址异常
+                        </label>
+                        @endif
                     </div>
                 </div>
             </div>
@@ -481,7 +487,7 @@ var listCategoryData = @json($categories);
     var panel = document.getElementById('advancedFilters');
     var chevron = document.getElementById('adv-chevron');
     if (!btn || !panel) return;
-    var hasAdv = ['{{ request('campus_id') }}','{{ request('source') }}','{{ request('assignee_id') }}','{{ request('show_emergency') }}','{{ request('show_overdue') }}'].some(function(v){return v && v.length>0;});
+    var hasAdv = ['{{ request('campus_id') }}','{{ request('source') }}','{{ request('assignee_id') }}','{{ request('show_emergency') }}','{{ request('show_overdue') }}','{{ request('address_anomaly') }}'].some(function(v){return v && v.length>0;});
     if (hasAdv) { panel.classList.remove('hidden'); if (chevron) chevron.style.transform = 'rotate(180deg)'; }
     btn.addEventListener('click', function() {
         panel.classList.toggle('hidden');

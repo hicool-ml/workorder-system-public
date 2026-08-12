@@ -1,8 +1,12 @@
 @extends('layouts.app')
 @section('title', '系统设置')
 @section('content')
-<div class="mb-6">
+<div class="flex items-center justify-between mb-6 gap-3 flex-wrap">
     <h1 class="text-xl font-semibold text-ink">系统设置</h1>
+    <button type="button" onclick="initializeDefaults()" class="btn btn-secondary">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 1 1-3-6.7L21 8 M21 3v5h-5"/></svg>
+        <span>初始化默认设置</span>
+    </button>
 </div>
 
 <div class="space-y-6">
@@ -29,6 +33,41 @@
         </form>
     </x-settings._card>
 
+    <x-settings._card title="注册设置">
+        <x-slot name="actions">
+            <label class="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" id="registration_enabled" class="rounded w-4 h-4" @if($groupedSettings['registration']->firstWhere('key', 'registration_enabled')?->typed_value) checked @endif onchange="toggleRegistration(this.checked)">
+                <span class="text-sm" style="color: var(--c-ink-muted);">开放注册</span>
+            </label>
+        </x-slot>
+        <form method="POST" action="{{ route('system-settings.update') }}" class="p-5">
+            @csrf
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <label class="label" for="default_user_role">默认用户角色</label>
+                    <select class="input" id="default_user_role" name="settings[default_user_role]">
+                        <option value="user" @if($groupedSettings['user']->firstWhere('key', 'default_user_role')?->typed_value === 'user') selected @endif>普通用户</option>
+                        <option value="engineer" @if($groupedSettings['user']->firstWhere('key', 'default_user_role')?->typed_value === 'engineer') selected @endif>工程师</option>
+                        <option value="workorder_manager" @if($groupedSettings['user']->firstWhere('key', 'default_user_role')?->typed_value === 'workorder_manager') selected @endif>工单管理员</option>
+                    </select>
+                    <p class="text-xs mt-1" style="color: var(--c-ink-subtle);">新注册用户的默认角色</p>
+                </div>
+                <div>
+                    <label class="flex items-center gap-2 cursor-pointer mt-6">
+                        <input type="checkbox" id="require_email_verification" name="settings[require_email_verification]" value="1" class="rounded w-4 h-4" @if($groupedSettings['registration']->firstWhere('key', 'require_email_verification')?->typed_value) checked @endif>
+                        <span class="text-sm" style="color: var(--c-ink-muted);">需要邮箱验证</span>
+                    </label>
+                </div>
+            </div>
+            <div class="mt-4">
+                <button type="submit" class="btn btn-primary">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                    <span>保存设置</span>
+                </button>
+            </div>
+        </form>
+    </x-settings._card>
+
     <x-settings._card title="会话有效期">
         <form method="POST" action="{{ route('system-settings.update') }}" class="p-5">
             @csrf
@@ -36,6 +75,39 @@
                 <label class="label" for="session_lifetime">登录会话有效期（分钟）</label>
                 <input type="number" class="input" id="session_lifetime" name="settings[session_lifetime]" value="{{ \App\Models\SystemSetting::get('session_lifetime', 120) }}" min="5" max="43200">
                 <p class="text-xs mt-1" style="color: var(--c-ink-subtle);">超过该空闲时间未操作需重新登录，默认 120 分钟。微信内置浏览器可能清理 Cookie 导致掉线，如需长期保持登录可调大（如 43200 = 30 天）。</p>
+            </div>
+            <div class="mt-4">
+                <button type="submit" class="btn btn-primary">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                    <span>保存设置</span>
+                </button>
+            </div>
+        </form>
+    </x-settings._card>
+
+    <x-settings._card title="地址前缀">
+        <form method="POST" action="{{ route('system-settings.update') }}" class="p-5">
+            @csrf
+            @php
+                $prefixId = \App\Models\SystemSetting::getAddressPrefixId();
+                $prefixNode = $prefixId ? \App\Models\Location::find($prefixId) : null;
+                $prefixOptions = \App\Models\Location::getSelectOptions();
+            @endphp
+            <div class="max-w-xl">
+                <label class="label" for="settings_address_prefix_location_id">地址前缀截止节点</label>
+                <select class="input" id="settings_address_prefix_location_id" name="settings[address_prefix_location_id]">
+                    <option value="0">-- 不截断（显示完整地址树） --</option>
+                    @foreach($prefixOptions as $id => $label)
+                        <option value="{{ $id }}" {{ (string) $prefixId === (string) $id ? 'selected' : '' }}>{{ $label }}</option>
+                    @endforeach
+                </select>
+                <p class="text-xs mt-1" style="color: var(--c-ink-subtle);">
+                    工单填写、工单列表、地址管理界面默认只展示该节点<strong>之下</strong>的层级。
+                    例：选"XX省 / XX市 / XX区 / XX路 / XX号"后，日常只与"区域/楼栋/房间"打交道。
+                </p>
+                @if($prefixNode)
+                <p class="text-xs mt-2 text-green-700">当前前缀：{{ $prefixNode->full_address_delimited }}</p>
+                @endif
             </div>
             <div class="mt-4">
                 <button type="submit" class="btn btn-primary">
@@ -131,6 +203,31 @@
 @endsection
 @section('scripts')
 <script>
+function toggleRegistration(enabled) {
+    fetch('{{ route("system-settings.toggle-registration") }}', {
+        method: 'POST',
+        headers: { 'Accept': 'application/json', 'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content },
+        body: JSON.stringify({ enabled: enabled })
+    }).then(function(r) { return r.json(); })
+      .then(function(data) {
+          if (!data.success) {
+              alert('更新失败：' + (data.message || '未知错误'));
+              document.getElementById('registration_enabled').checked = !enabled;
+          }
+      }).catch(function(err) {
+          alert('网络错误：' + err.message);
+          document.getElementById('registration_enabled').checked = !enabled;
+      });
+}
+function initializeDefaults() {
+    if (!confirm('确定要初始化所有缺失的默认设置吗？已有设置不会被覆盖。')) return;
+    fetch('{{ route("system-settings.initialize-defaults") }}', { method: 'POST', headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content } })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.success) { alert(data.message || '已初始化'); location.reload(); }
+            else alert('初始化失败：' + (data.message || '未知错误'));
+        }).catch(function(err) { alert('初始化失败：' + (err.message || '网络错误')); });
+}
 function openModal(id) {
     var el = document.getElementById(id);
     el.classList.remove('hidden');

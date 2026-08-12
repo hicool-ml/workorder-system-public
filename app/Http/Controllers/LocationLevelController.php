@@ -14,12 +14,14 @@ class LocationLevelController extends Controller
     public function index()
     {
         $levels = LocationLevel::orderBy('level')->orderBy('sort_order')->get();
+
         return view('location-levels.index', compact('levels'));
     }
 
     public function create()
     {
         $nextLevel = (LocationLevel::max('level') ?? 0) + 1;
+
         return view('location-levels.create', compact('nextLevel'));
     }
 
@@ -32,9 +34,11 @@ class LocationLevelController extends Controller
             'description' => 'nullable|string|max:200',
             'sort_order' => 'nullable|integer|min:0',
             'is_active' => 'boolean',
+            'is_daily_use' => 'boolean',
         ]);
 
         $validated['is_active'] = $request->boolean('is_active', true);
+        $validated['is_daily_use'] = $request->boolean('is_daily_use');
 
         LocationLevel::create($validated);
 
@@ -51,14 +55,16 @@ class LocationLevelController extends Controller
     {
         $validated = $request->validate([
             'name' => 'required|string|max:50',
-            'code' => 'required|string|max:30|unique:location_levels,code,' . $locationLevel->id,
+            'code' => 'required|string|max:30|unique:location_levels,code,'.$locationLevel->id,
             'level' => 'required|integer|min:1',
             'description' => 'nullable|string|max:200',
             'sort_order' => 'nullable|integer|min:0',
             'is_active' => 'boolean',
+            'is_daily_use' => 'boolean',
         ]);
 
         $validated['is_active'] = $request->boolean('is_active', true);
+        $validated['is_daily_use'] = $request->boolean('is_daily_use');
 
         $locationLevel->update($validated);
 

@@ -124,6 +124,33 @@ class SystemSetting extends Model
     }
 
     /**
+     * 获取地址前缀根节点（工单/地址管理默认只展示该节点的子树）
+     */
+    public static function getAddressPrefixId(): ?int
+    {
+        $value = static::get('address_prefix_location_id', null);
+        if ($value === null || $value === '' || $value === 0) {
+            return null;
+        }
+
+        return (int) $value;
+    }
+
+    /**
+     * 设置地址前缀根节点
+     */
+    public static function setAddressPrefixId(?int $locationId): void
+    {
+        static::set(
+            'address_prefix_location_id',
+            $locationId ?? 0,
+            'integer',
+            '地址前缀截止节点 ID（该节点之上层级在工单/管理界面默认隐藏）',
+            false
+        );
+    }
+
+    /**
      * 设置默认用户角色
      */
     public static function setDefaultUserRole(string $role)

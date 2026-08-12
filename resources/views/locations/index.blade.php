@@ -1,20 +1,15 @@
 @extends('layouts.app')
-@section('title', '地址管理')
+@section('title', '地址树')
 @section('content')
-<div class="flex items-center justify-between mb-6">
-    <div>
-        <h1 class="text-xl font-semibold text-ink">地址管理</h1>
-        <p class="text-sm text-ink-muted mt-0.5">按自定义层级组织的地址树</p>
-    </div>
-    <div class="flex items-center gap-2">
-        <a href="{{ route('location-levels.index') }}" class="btn btn-secondary">层级定义</a>
-        <a href="{{ route('locations.campuses') }}" class="btn btn-secondary">区域管理</a>
-        <a href="{{ route('locations.create') }}" class="btn btn-primary">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 5v14M5 12h14"/></svg>
-            <span>新增地址</span>
-        </a>
-    </div>
-</div>
+@include('locations._topbar', [
+    'active' => 'tree',
+    'title' => '地址树',
+    'subtitle' => '管理「校区/园区 → 楼栋 → 房间」日常地址；基础地址在「基础地址」Tab 维护',
+    'actions' => ($baseInitialized ?? false ? '<a href="' . route('locations.import') . '" class="btn btn-secondary">导入地址</a>' : '')
+        . '<a href="' . route('locations.create') . '" class="btn btn-primary">'
+        . '<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 5v14M5 12h14"/></svg>'
+        . '<span>新增地址</span></a>',
+])
 
 @if(session('success'))
     <div class="mb-4 px-4 py-3 rounded-lg bg-green-50 text-green-700 text-sm">{{ session('success') }}</div>
@@ -22,6 +17,21 @@
 @if(session('error'))
     <div class="mb-4 px-4 py-3 rounded-lg bg-red-50 text-red-700 text-sm">{{ session('error') }}</div>
 @endif
+
+@unless($baseInitialized)
+    <div class="card p-6 mb-4 border-amber-200 bg-amber-50">
+        <div class="flex items-center justify-between gap-4 flex-wrap">
+            <div class="flex items-center gap-3">
+                <svg class="w-6 h-6 text-amber-600 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3 M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z"/></svg>
+                <div>
+                    <h2 class="font-medium text-amber-800">基础地址尚未初始化</h2>
+                    <p class="text-sm text-amber-700 mt-0.5">请先填写单位基础地址（示例：XX省 → XX市 → XX区 → XX路 → XX号），完成后才能填写或导入日常地址。</p>
+                </div>
+            </div>
+            <a href="{{ route('locations.base-address') }}" class="btn btn-primary whitespace-nowrap">去初始化基础地址</a>
+        </div>
+    </div>
+@endunless
 
 <div class="card mb-4">
     <form method="GET" action="{{ route('locations.index') }}" class="p-4">
@@ -67,6 +77,15 @@
 @else
     {{-- 树形展示 --}}
     <div class="card overflow-hidden">
+        <div class="px-4 py-3 border-b border-border flex items-center justify-between">
+            <span class="text-sm font-medium text-ink">楼栋地址树</span>
+            @if($baseInitialized)
+                <div class="flex items-center gap-2">
+                    <button type="button" class="btn btn-sm btn-secondary" data-expand-all>展开全部</button>
+                    <button type="button" class="btn btn-sm btn-secondary" data-collapse-all>收起全部</button>
+                </div>
+            @endif
+        </div>
         <table class="w-full text-sm">
             <thead class="bg-surface-muted text-ink-muted text-xs uppercase">
                 <tr>
@@ -76,10 +95,64 @@
                     <th class="text-right px-4 py-3 font-medium">操作</th>
                 </tr>
             </thead>
-            <tbody class="divide-y divide-border">
+            <tbody id="tree-body" class="divide-y divide-border">
                 @include('locations._tree-rows', ['nodes' => $tree, 'depth' => 0])
             </tbody>
         </table>
     </div>
 @endif
+@endsection
+
+@section('scripts')
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    var treeBody = document.getElementById('tree-body');
+    if (!treeBody) return;
+
+    var rows = Array.from(treeBody.querySelectorAll('tr.tree-row'));
+
+    function sync() {
+        var byId = {};
+        rows.forEach(function (r) { byId[r.dataset.id] = r; });
+        rows.forEach(function (row) {
+            var visible = true;
+            var pid = row.dataset.parentId;
+            while (pid) {
+                var p = byId[pid];
+                if (!p) break;
+                if (p.dataset.collapsed === '1') { visible = false; break; }
+                pid = p.dataset.parentId;
+            }
+            row.style.display = visible ? '' : 'none';
+            var icon = row.querySelector('.tree-toggle svg');
+            if (icon) icon.style.transform = row.dataset.collapsed === '1' ? 'rotate(-90deg)' : '';
+        });
+    }
+
+    rows.forEach(function (row) {
+        if (row.dataset.defaultCollapsed === '1') row.dataset.collapsed = '1';
+        var toggle = row.querySelector('.tree-toggle');
+        if (toggle) {
+            toggle.addEventListener('click', function () {
+                row.dataset.collapsed = row.dataset.collapsed === '1' ? '0' : '1';
+                sync();
+            });
+        }
+    });
+
+    var expandAll = document.querySelector('[data-expand-all]');
+    if (expandAll) expandAll.addEventListener('click', function () {
+        rows.forEach(function (r) { r.dataset.collapsed = '0'; });
+        sync();
+    });
+
+    var collapseAll = document.querySelector('[data-collapse-all]');
+    if (collapseAll) collapseAll.addEventListener('click', function () {
+        rows.forEach(function (r) { if (r.dataset.collapsible === '1') r.dataset.collapsed = '1'; });
+        sync();
+    });
+
+    sync();
+});
+</script>
 @endsection

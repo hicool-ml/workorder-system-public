@@ -13,7 +13,7 @@
             </div>
 </div>
 
-<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+<div class="grid grid-cols-1 gap-4">
     <div>
         <div class="card p-5">
             <div class="text-sm font-semibold text-ink mb-3">
@@ -120,7 +120,11 @@
                     <!-- 自报家门：地址信息 -->
                     <div class="card mb-4">
                         <div class="px-4 py-3 border-b border-border bg-surface-muted rounded-t-xl">
-                            <h6 class="mb-0"><svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z M12 13a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/></svg> 地址信息</h6>
+                            <h6 class="mb-0"><svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z M12 13a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/></svg> 地址信息
+                                @if(!empty($addressPrefix))
+                                    <span class="ml-2 text-xs font-normal" style="color: var(--c-ink-subtle);">前缀：{{ $addressPrefix }}</span>
+                                @endif
+                            </h6>
                         </div>
                         <div>
                             <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
@@ -128,8 +132,8 @@
                                     <label for="campus_id" class="label">区域 <span class="text-red-500">*</span></label>
                                     <select class="input" id="campus_id" name="campus_id" required>
                                         <option value="">请选择区域</option>
-                                        @foreach(\App\Models\Campus::where('status', 'active')->orderBy('sort_order')->orderBy('name')->get() as $campus)
-                                        <option value="{{ $campus->id }}" {{ old('campus_id') == $campus->id ? 'selected' : '' }}>{{ $campus->name }}</option>
+                                        @foreach($campusOptions as $campusLocationId => $campusName)
+                                        <option value="{{ $campusLocationId }}" {{ old('campus_id') == $campusLocationId ? 'selected' : '' }}>{{ $campusName }}</option>
                                         @endforeach
                                     </select>
                                     @error('campus_id')
@@ -379,92 +383,14 @@
             </div>
         </div>
     </div>
-    
-    <div>
-        <!-- 创建提示 -->
-        <div class="card mb-4">
-            <div class="text-sm font-semibold text-ink mb-3">
-                <h6 class="text-sm font-semibold text-ink">创建提示</h6>
-            </div>
-            <div>
-                <ul class="mb-0">
-                    <li>请尽可能详细地描述问题</li>
-                    <li>提供准确的联系方式和位置信息</li>
-                    <li>如有相关截图或文件，请上传附件</li>
-                    <li>紧急问题请标记为"紧急工单"</li>
-                    <li>系统将根据工单类型自动生成工单编号</li>
-                    <li>可以设置预约时间，技术人员将按预约时间处理</li>
-                </ul>
-            </div>
-        </div>
-        
-        <!-- 优先级说明 -->
-        <div class="card mb-4">
-            <div class="text-sm font-semibold text-ink mb-3">
-                <h6 class="text-sm font-semibold text-ink">优先级说明</h6>
-            </div>
-            <div>
-                <div class="mb-2">
-                    <span class="badge bg-red-100 text-red-700">高</span>
-                    <small>严重影响正常工作或学习</small>
-                </div>
-                <div class="mb-2">
-                    <span class="badge bg-amber-100 text-amber-700">中</span>
-                    <small>部分影响正常工作或学习</small>
-                </div>
-                <div class="mb-2">
-                    <span class="badge bg-green-100 text-green-700">低</span>
-                    <small>轻微影响，可延后处理</small>
-                </div>
-            </div>
-        </div>
-        
-        <!-- 常见问题 -->
-        <div class="card p-5">
-            <div class="text-sm font-semibold text-ink mb-3">
-                <h6 class="text-sm font-semibold text-ink">常见问题</h6>
-            </div>
-            <div>
-                <div class="accordion" id="faqAccordion">
-                    <div class="accordion-item">
-                        <h2 class="accordion-header">
-                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
-                                    data-bs-target="#faq1">
-                                网络无法连接怎么办？
-                            </button>
-                        </h2>
-                        <div id="faq1" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
-                            <div class="accordion-body">
-                                请先检查网线是否插好，重启电脑和路由器，如仍无法解决请提交工单。
-                            </div>
-                        </div>
-                    </div>
-                    <div class="accordion-item">
-                        <h2 class="accordion-header">
-                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
-                                    data-bs-target="#faq2">
-                                打印机无法打印怎么办？
-                            </button>
-                        </h2>
-                        <div id="faq2" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
-                            <div class="accordion-body">
-                                请检查打印机电源、纸张和墨盒，重启打印服务，如仍无法解决请提交工单。
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
 </div>
 @include('workorders._camera')
 @endsection
 
 @section('scripts')
 <script>
-// 从地址管理获取区域楼栋数据
-var campusBuildings = @json(\App\Models\Location::getCampusBuildings());
-var campuses = @json(\App\Models\Campus::where('status', 'active')->orderBy('sort_order')->orderBy('name')->get());
+// 从地址管理获取区域楼栋数据（Location 树 level=6 校区 + level=7 楼栋）
+var campusBuildings = @json($campusBuildings);
 
 // 工单分类数据
 var categoryData = @json($categories);
@@ -474,14 +400,11 @@ $(document).ready(function() {
     $('#campus_id').change(function() {
         var campusId = $(this).val();
         var buildingSelect = $('#building');
-        
+
         buildingSelect.empty().append('<option value="">请选择楼栋</option>');
-        
-        // 将区域ID转换为数字类型，确保能正确匹配campusBuildings的键
-        var campusIdNum = parseInt(campusId);
-        
-        if (campusId && campusBuildings[campusIdNum]) {
-            $.each(campusBuildings[campusIdNum].buildings, function(index, building) {
+
+        if (campusId && campusBuildings[campusId]) {
+            $.each(campusBuildings[campusId].buildings, function(index, building) {
                 buildingSelect.append('<option value="' + building.id + '">' + building.name + '</option>');
             });
         }

@@ -13,10 +13,10 @@ return new class extends Migration
     {
         Schema::create('locations', function (Blueprint $table) {
             $table->id();
-            $table->string('name'); // 地址名称，如"老校区1-7教"
-            $table->string('campus', 20); // 校区：old_campus, new_campus, asean_campus
-            $table->string('building_type', 30); // 建筑类型：teaching_building, dormitory, office_building, etc.
-            $table->string('building_code')->nullable(); // 楼栋代码，如1-7, 8-14, A-J
+            $table->string('name'); // 地址名称（通用，如"A 楼"、"101 室"）
+            $table->string('campus', 20); // 早期字段：旧部署可能保留区域代码，新部署建议通过 campuses 表关联
+            $table->string('building_type', 30); // 建筑类型分类（可选）
+            $table->string('building_code')->nullable(); // 楼栋编码（可选，便于报表引用）
             $table->text('description')->nullable(); // 描述
             $table->integer('sort_order')->default(0); // 排序
             $table->string('status', 20)->default('active'); // 状态

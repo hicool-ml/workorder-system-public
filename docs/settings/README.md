@@ -8,8 +8,7 @@
 
 | 子菜单 | 路由 | 文档 | 职责 |
 |--------|------|------|------|
-| 注册设置 | `settings/registration` | [注册设置](01-registration.md) | 开放注册开关、默认角色、邮箱验证 |
-| 系统设置 | `settings/system` | [系统设置](02-system.md) | 系统名称、版本号、发布日期、访问地址、会话有效期 |
+| 系统设置 | `settings/system` | [系统设置](02-system.md) | 系统名称、版本号、发布日期、访问地址、会话有效期、**注册设置（开放注册、默认角色、邮箱验证）**、地址前缀 |
 | 版本管理 | `settings/version` | [版本管理](03-version.md) | 当前版本展示、发布新版本、版本历史 |
 | 备份 & 恢复 | `settings/backup` | [备份 & 恢复](04-backup-restore.md) | 手动/自动备份、上传、下载、恢复 |
 | 消息设置 | `settings/messaging` | [消息设置](05-messaging.md) | 通知规则、短信、企业微信、钉钉、飞书入口 |

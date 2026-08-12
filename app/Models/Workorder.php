@@ -31,10 +31,6 @@ class Workorder extends Model
         'contact_name',
         'contact_phone',
         'contact_email',
-        'campus',
-        'campus_id',
-        'building',
-        'location',
         'location_detail',
         'location_id',
         'appointment_time_start',
@@ -45,12 +41,7 @@ class Workorder extends Model
         'priority',
         'status',
         'assigned_at',
-        'started_at',
-        'resolved_at',
-        'completed_at',
-        'closed_at',
         'expected_complete_at',
-        'processing_duration',
         'solution',
         'remarks',
         'materials_usage',
@@ -58,13 +49,25 @@ class Workorder extends Model
        'is_emergency',
        'phone_assisted',
        'other_reason',
-        'requires_signature',
+       'requires_signature',
+        'visit_status',
+    ];
+
+    /**
+     * 仅允许在生命周期方法（start/resolve/complete/close 等）内部写入的字段
+     * 防止通过 mass assignment 伪造完结/签名/满意度等敏感数据。
+     */
+    private const PROTECTED_FIELDS = [
+        'started_at',
+        'resolved_at',
+        'completed_at',
+        'closed_at',
+        'processing_duration',
         'is_user_signed',
         'user_signature',
         'user_satisfaction',
         'user_feedback',
         'user_signed_at',
-        'visit_status',
         'sms_acceptance_sent_at',
         'sms_survey_sent_at',
         'sms_satisfaction',
@@ -170,7 +173,8 @@ class Workorder extends Model
     }
 
     /**
-     * 地址树节点（自引用树结构，优先于旧的 campus_id / building）。
+     * 地址树节点（自引用树结构，工单地址的唯一标准引用）。
+     * 通过 location_id 关联到 locations 表。
      */
     public function treeLocation(): BelongsTo
     {
@@ -178,54 +182,99 @@ class Workorder extends Model
     }
 
     /**
-     * Building/Location (via building column, which stores the location id).
+     * 历史兼容别名：locationInfo 与 treeLocation 等价（均走 location_id）。
+     * 旧代码通过 $workorder->locationInfo 引用，保留别名避免视图大面积改动。
      */
     public function locationInfo(): BelongsTo
     {
-        return $this->belongsTo(Location::class, 'building');
+        return $this->belongsTo(Location::class, 'location_id');
     }
 
     /**
-     * Readable campus name: prefer campus_id relation, fall back to stored string.
+     * 工单所在校区节点（沿 location_id 父链向上查找 level=6/campus 的祖先）。
+     */
+    public function getCampusNodeAttribute(): ?Location
+    {
+        if (! $this->location_id) {
+            return null;
+        }
+
+        $campusLevel = LocationLevel::where('code', 'campus')->first();
+        if (! $campusLevel) {
+            return null;
+        }
+
+        // 如果当前节点本身就是校区层级，直接返回
+        $loc = $this->treeLocation;
+        if (! $loc) {
+            return null;
+        }
+        if ($loc->level_id === $campusLevel->id) {
+            return $loc;
+        }
+
+        // 沿父链向上查找
+        foreach ($loc->getAncestors() as $ancestor) {
+            if ($ancestor->level_id === $campusLevel->id) {
+                return $ancestor;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * 可读校区名：沿 location_id 父链找 level=6 节点，找不到则空字符串。
+     * 前缀根之上的层级（省/市/区）通过 address_full 体现，不再混入这里。
      */
     public function getCampusNameAttribute(): string
     {
-        // 新地址树结构优先：返回祖先链拼出的完整地址
-        if ($this->location_id && $this->treeLocation) {
-            return $this->treeLocation->full_address_delimited;
-        }
-
-        if ($this->campusInfo) {
-            return $this->campusInfo->name;
-        }
-
-        return (string) ($this->campus ?? '');
+        return $this->campus_node?->name ?? '';
     }
 
     /**
-     * Readable building name: resolve location id to its name, fall back to raw value.
+     * 可读楼栋名：直接返回 location_id 对应节点名。
+     * 若 location_id 指向的就是校区本身（极少见），返回空。
      */
     public function getBuildingNameAttribute(): string
     {
-        // 新地址树：building_name 已包含在 campus_name 的完整路径中
-        if ($this->location_id && $this->treeLocation) {
+        $loc = $this->treeLocation;
+        if (! $loc) {
             return '';
         }
+        $buildingLevel = LocationLevel::where('code', 'building')->first();
+        if ($buildingLevel && $loc->level_id === $buildingLevel->id) {
+            return $loc->name;
+        }
+        // 兜底：返回节点名（兼容未分类收容节点）
+        return $loc->name;
+    }
 
-        $building = $this->building;
-        // 仅当 building 是数字 ID 时才走关联查询；文本楼名（旧数据/简化报修）直接原样返回，
-        // 否则 PostgreSQL 会因 locations.id 上出现非整数文本而报 invalid input syntax。
-        if ($building && is_numeric($building)) {
-            if ($this->locationInfo) {
-                return $this->locationInfo->name;
-            }
-            $location = Location::find($building);
-            if ($location) {
-                return $location->name;
-            }
+    /**
+     * 完整地址：从地址前缀根的下一层级开始，沿祖先链拼接到 location_id。
+     * 例：location_id="1教"，前缀根="2025号"，则返回"总部园区 / 1教"。
+     */
+    public function getAddressFullAttribute(): string
+    {
+        $loc = $this->treeLocation;
+        if (! $loc) {
+            return trim(($this->location_detail ?? ''), ' /-');
         }
 
-        return (string) ($building ?? '');
+        $prefix = Location::getPrefixRoot();
+        $chain = $loc->getAncestors();
+
+        // 如果有前缀根，截断到前缀根之后
+        if ($prefix) {
+            $chain = $chain->filter(fn ($node) => $node->id !== $prefix->id);
+        }
+
+        $parts = $chain->pluck('name')->all();
+        if ($this->location_detail) {
+            $parts[] = $this->location_detail;
+        }
+
+        return implode(' / ', array_filter($parts, fn ($p) => $p !== '' && $p !== null));
     }
 
     /**
@@ -385,7 +434,7 @@ class Workorder extends Model
                 $data['resolved_at'] = $this->getOriginal('resolved_at');
             }
 
-            $this->fill($data)->save();
+            $this->forceFill($data)->save();
 
             // 回退到已分配/待分配时清理协作邀请（这些邀请产生于分配后的处理阶段）
             $clearedCollaborations = 0;
@@ -1103,14 +1152,15 @@ class Workorder extends Model
         if (!$this->canBeStarted()) {
             return false;
         }
-        
-        $this->update([
+
+        // started_at 已从 $fillable 移除（防 mass assignment），这里用 forceFill 在受信方法内写入
+        $this->forceFill([
             'status' => 'processing',
             'started_at' => now(),
-        ]);
-        
+        ])->save();
+
         $this->addLog('started', '开始处理', $userId);
-        
+
         return true;
     }
 
@@ -1122,15 +1172,15 @@ class Workorder extends Model
         if (!$this->canBeResolved()) {
             return false;
         }
-        
-        $this->update([
+
+        $this->forceFill([
             'status' => 'resolved',
             'solution' => $solution,
             'resolved_at' => now(),
-        ]);
-        
+        ])->save();
+
         $this->addLog('resolved', $solution, $userId);
-        
+
         return true;
     }
 
@@ -1142,14 +1192,14 @@ class Workorder extends Model
         if (!$this->canBeClosed()) {
             return false;
         }
-        
-        $this->update([
+
+        $this->forceFill([
             'status' => 'closed',
             'closed_at' => now(),
-        ]);
-        
+        ])->save();
+
         $this->addLog('closed', '工单已关闭', $userId);
-        
+
         return true;
     }
 
@@ -1161,14 +1211,14 @@ class Workorder extends Model
         if (!$this->canBeCompleted()) {
             return false;
         }
-        
-        $this->update([
+
+        $this->forceFill([
             'status' => 'completed',
             'completed_at' => now(),
-        ]);
-        
+        ])->save();
+
         $this->addLog('completed', '工单已完结', $userId);
-        
+
         return true;
     }
     /**
@@ -1287,8 +1337,8 @@ class Workorder extends Model
 
             $systemName = \App\Models\SystemSetting::get('system_name', '工单系统');
             $address = trim(implode(' ', array_filter([
-                $this->campus && trim($this->campus) ? trim($this->campus) : '',
-                $this->building && trim($this->building) ? trim($this->building) : '',
+                $this->campus_name,
+                $this->building_name,
                 $this->location_detail && trim($this->location_detail) ? trim($this->location_detail) : '',
             ]))) ?: '未知地点';
             $description = mb_substr($this->description ?: $this->title ?: '未知故障', 0, 30);

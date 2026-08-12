@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::table('users', function (Blueprint $table) {
             if (!Schema::hasColumn('users', 'account_type')) {
-                $table->enum('account_type', ['staff', 'student', 'external'])->default('staff')->after('remarks')->comment('账户类型：教职工、学生、外部人员');
+                $table->enum('account_type', ['staff', 'student', 'external'])->default('staff')->after('remarks')->comment('账户类型：员工、其他、外部人员（枚举值保持兼容，仅文案通用化）');
             }
         });
     }

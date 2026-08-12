@@ -45,6 +45,14 @@
                         <span class="text-sm">启用该层级</span>
                     </label>
                 </div>
+                <div>
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" name="is_daily_use" value="1" {{ old('is_daily_use') ? 'checked' : '' }} class="rounded border-border">
+                        <span class="text-sm">日常使用（工单/报表级联选择时展示）</span>
+                    </label>
+                    <p class="text-xs text-ink-muted mt-1">不勾选则视为基础地址层级（如省、市、区县、街道、门牌），初始化后固定存在、日常选择省略</p>
+                    @error('is_daily_use') <p class="text-xs text-red-600 mt-1">{{ $message }}</p> @enderror
+                </div>
             </div>
             <div class="mt-6 flex justify-end gap-3">
                 <a href="{{ route('location-levels.index') }}" class="btn btn-secondary">取消</a>

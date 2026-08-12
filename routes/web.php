@@ -74,7 +74,7 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
 // PWA manifest
 Route::get('/manifest.json', function () {
     $m = \App\Helpers\SystemHelper::getSystemName();
-    return response()->json(['name' => $m, 'short_name' => '工单系统', 'description' => '校园网工单管理系统', 'start_url' => '/', 'display' => 'standalone', 'orientation' => 'portrait', 'background_color' => '#1e3a5f', 'theme_color' => '#2563eb', 'icons' => [['src' => '/icons/icon-192.png', 'sizes' => '192x192', 'type' => 'image/png', 'purpose' => 'any maskable'], ['src' => '/icons/icon-512.png', 'sizes' => '512x512', 'type' => 'image/png', 'purpose' => 'any maskable']]])->header('Content-Type', 'application/manifest+json');
+    return response()->json(['name' => $m, 'short_name' => '工单系统', 'description' => '工单管理系统', 'start_url' => '/', 'display' => 'standalone', 'orientation' => 'portrait', 'background_color' => '#1e3a5f', 'theme_color' => '#2563eb', 'icons' => [['src' => '/icons/icon-192.png', 'sizes' => '192x192', 'type' => 'image/png', 'purpose' => 'any maskable'], ['src' => '/icons/icon-512.png', 'sizes' => '512x512', 'type' => 'image/png', 'purpose' => 'any maskable']]])->header('Content-Type', 'application/manifest+json');
 })->name('manifest.json');
 
 Route::middleware('auth')->group(function () {
@@ -174,6 +174,15 @@ Route::middleware(['auth'])->group(function () {
             'destroy' => 'location-levels.destroy',
         ]);
 
+        // 基础地址初始化（须在资源路由前，避免被 {location} 捕获）
+        Route::get('locations/base-address', [LocationController::class, 'baseAddressForm'])->name('locations.base-address');
+        Route::post('locations/base-address', [LocationController::class, 'initBaseAddress'])->name('locations.base-address.store');
+
+        // 日常地址批量导入（须在资源路由前）
+        Route::get('locations/import', [LocationController::class, 'importForm'])->name('locations.import');
+        Route::post('locations/import', [LocationController::class, 'importStore'])->name('locations.import.store');
+        Route::get('locations/import-template', [LocationController::class, 'importTemplate'])->name('locations.import-template');
+
         // AJAX：获取地址子节点（级联选择用）
         Route::get('locations/{parentId}/children', [LocationController::class, 'children'])->name('locations.children');
 
@@ -261,7 +270,7 @@ Route::middleware(['auth'])->group(function () {
 
         // 新版"设置"子菜单（拆分自单页 system-settings.index，仅管理员）
         Route::get('settings/{section}', [SystemSettingController::class, 'page'])
-            ->where('section', 'registration|system|version|backup|messaging|all')
+            ->where('section', 'system|version|backup|messaging|all')
             ->name('settings.page');
         Route::post('system-settings', [SystemSettingController::class, 'update'])->name('system-settings.update');
         Route::post('system-settings/toggle-registration', [SystemSettingController::class, 'toggleRegistration'])->name('system-settings.toggle-registration');
@@ -342,7 +351,7 @@ Route::middleware(['auth'])->group(function () {
     
     Route::put('/profile', function (Illuminate\Http\Request $request) {
         if (auth()->user()->isSsoUser()) {
-            return back()->with('error', '统一身份认证用户的个人信息由学校信息中心管理，无法在此修改');
+            return back()->with('error', '统一身份认证用户的个人信息由身份认证服务方管理，无法在此修改');
         }
         $request->validate([
             'name' => 'required|string|max:100',

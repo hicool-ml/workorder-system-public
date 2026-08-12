@@ -7,11 +7,17 @@ use App\Models\User;
 use App\Models\Department;
 use App\Models\WorkorderType;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 
 class AdminUserSeeder extends Seeder
 {
     /**
      * Run the database seeds.
+     *
+     * 出于安全考虑，默认账号的初始密码在每次运行 seeder 时随机生成，
+     * 并通过 command line 输出一次；不会写入代码仓库。
+     * 如需指定密码，可在 .env 设置：
+     *   SEED_ADMIN_PASSWORD / SEED_ENGINEER_PASSWORD / SEED_MANAGER_PASSWORD / SEED_USER_PASSWORD
      */
     public function run(): void
     {
@@ -32,69 +38,99 @@ class AdminUserSeeder extends Seeder
             WorkorderType::firstOrCreate(['code' => $type['code']], $type);
         }
 
+        $passwords = $this->resolvePasswords();
+
         // 管理员
-        User::firstOrCreate(['email' => 'admin@workorder.com'], [
+        $this->createUser([
             'username' => 'admin',
             'name' => '系统管理员',
             'email' => 'admin@workorder.com',
-            'password' => Hash::make('admin123'),
+            'password' => $passwords['admin'],
             'phone' => '13800000000',
             'employee_id' => 'ADMIN001',
             'department_id' => $itDepartment?->id,
             'role' => 'admin',
-            'status' => 'active',
             'location' => '综合办公楼',
             'remarks' => '系统默认管理员账户',
         ]);
 
         // 工程师
-        User::firstOrCreate(['email' => 'engineer@workorder.com'], [
+        $this->createUser([
             'username' => 'engineer',
             'name' => '测试工程师',
             'email' => 'engineer@workorder.com',
-            'password' => Hash::make('engineer123'),
+            'password' => $passwords['engineer'],
             'phone' => '13800000001',
             'employee_id' => 'ENG001',
             'department_id' => $networkDepartment?->id,
             'role' => 'engineer',
-            'status' => 'active',
             'location' => '综合办公楼',
             'remarks' => '系统测试工程师账户',
         ]);
 
         // 工单管理员
-        User::firstOrCreate(['email' => 'manager@workorder.com'], [
+        $this->createUser([
             'username' => 'manager',
             'name' => '测试工单管理员',
             'email' => 'manager@workorder.com',
-            'password' => Hash::make('manager123'),
+            'password' => $passwords['manager'],
             'phone' => '13800000003',
             'employee_id' => 'MGR001',
             'department_id' => $itDepartment?->id,
             'role' => 'workorder_manager',
-            'status' => 'active',
             'location' => '综合办公楼',
             'remarks' => '系统测试工单管理员账户',
         ]);
 
         // 普通用户
-        User::firstOrCreate(['email' => 'user@workorder.com'], [
+        $this->createUser([
             'username' => 'user',
             'name' => '测试用户',
             'email' => 'user@workorder.com',
-            'password' => Hash::make('user123'),
+            'password' => $passwords['user'],
             'phone' => '13800000002',
             'employee_id' => 'USER001',
             'department_id' => $itDepartment?->id,
             'role' => 'user',
-            'status' => 'active',
             'location' => '综合办公楼',
             'remarks' => '系统测试普通用户账户',
         ]);
 
-        $this->command->info('默认用户创建完成！');
-        $this->command->info('管理员账户：admin@workorder.com / admin123');
-        $this->command->info('工程师账户：engineer@workorder.com / engineer123');
-        $this->command->info('普通用户账户：user@workorder.com / user123');
+        $this->command->info('默认用户创建/已存在！');
+        $this->command->info('=== 初始账号（请妥善保存，仅此次显示） ===');
+        $this->command->info("管理员：admin@workorder.com / {$passwords['admin']}");
+        $this->command->info("工程师：engineer@workorder.com / {$passwords['engineer']}");
+        $this->command->info("工单管理员：manager@workorder.com / {$passwords['manager']}");
+        $this->command->info("普通用户：user@workorder.com / {$passwords['user']}");
+        $this->command->info('首次登录后系统将强制修改密码。');
+    }
+
+    /**
+     * 从 env 读取密码；未配置则随机生成 16 位字符串
+     */
+    private function resolvePasswords(): array
+    {
+        return [
+            'admin'    => env('SEED_ADMIN_PASSWORD') ?: Str::random(16),
+            'engineer' => env('SEED_ENGINEER_PASSWORD') ?: Str::random(16),
+            'manager'  => env('SEED_MANAGER_PASSWORD') ?: Str::random(16),
+            'user'     => env('SEED_USER_PASSWORD') ?: Str::random(16),
+        ];
+    }
+
+    /**
+     * 创建用户；若已存在则跳过（firstOrCreate），并打印一条提示
+     */
+    private function createUser(array $attrs): void
+    {
+        $exists = User::where('email', $attrs['email'])->exists();
+        if ($exists) {
+            $this->command->warn("用户 {$attrs['email']} 已存在，跳过创建（未覆盖密码）");
+            return;
+        }
+        User::create(array_merge($attrs, [
+            'status' => 'active',
+            'password' => Hash::make($attrs['password']),
+        ]));
     }
 }

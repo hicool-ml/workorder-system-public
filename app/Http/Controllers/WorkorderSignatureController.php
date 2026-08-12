@@ -111,7 +111,9 @@ class WorkorderSignatureController extends Controller
                 'is_user_signed'    => true,
             ];
 
-            $workorder->update($updateData);
+            // 签单字段已从 Workorder::$fillable 移除（防 mass assignment 伪造签名），
+            // 这里通过 forceFill 在受信控制器路径写入；上方已做权限 + 状态 + 验证检查
+            $workorder->forceFill($updateData)->save();
 
             // 记录日志
             $satText = WorkorderSignaturePDFService::formatSatisfactionText((int)$request->input('satisfaction'));

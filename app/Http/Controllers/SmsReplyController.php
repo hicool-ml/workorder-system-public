@@ -19,11 +19,76 @@ class SmsReplyController extends Controller
 {
     /**
      * 短信上行回调入口（服务商 → 系统）
+     * 安全校验：优先使用配置的签名/token；若未配置，则按 IP 白名单放行；
+     * 两者都未配置时拒绝请求，防止公网任何人伪造满意度回复。
      */
     public function receive(Request $request)
     {
+        if (!$this->verifyCaller($request)) {
+            Log::warning('短信回复回调鉴权失败', [
+                'ip' => $request->ip(),
+                'ua' => $request->userAgent(),
+            ]);
+            return response()->json(['success' => false, 'message' => 'unauthorized'], 401);
+        }
+
         [$phone, $content] = $this->resolveReplyFields($request);
         return $this->recordReply($phone, $content);
+    }
+
+    /**
+     * 校验回调来源合法性：
+     * 1) 若配置了 sms_reply_secret，则要求请求带 sign（md5(phone|content|secret)）或 token；
+     * 2) 否则若配置了 sms_reply_ip_whitelist（逗号分隔 CIDR/IP），按 IP 放行；
+     * 3) 两者都未配置则拒绝对外开放访问。
+     */
+    private function verifyCaller(Request $request): bool
+    {
+        $secret = (string) SystemSetting::get('sms_reply_secret', '');
+        if ($secret !== '') {
+            $token = $request->input('token', $request->header('X-Sms-Token'));
+            if (is_string($token) && hash_equals($secret, (string) $token)) {
+                return true;
+            }
+            [$phone, $content] = $this->resolveReplyFields($request);
+            $expectedSign = md5($phone . '|' . $content . '|' . $secret);
+            $sign = (string) ($request->input('sign', $request->header('X-Sms-Sign')) ?? '');
+            if (hash_equals($expectedSign, $sign)) {
+                return true;
+            }
+            return false;
+        }
+
+        $ipList = (string) SystemSetting::get('sms_reply_ip_whitelist', '');
+        if ($ipList !== '') {
+            $ips = array_filter(array_map('trim', explode(',', $ipList)));
+            foreach ($ips as $allowed) {
+                if ($this->ipMatch($request->ip(), $allowed)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        // 本地环境（开发/测试）默认放行；其它环境必须有鉴权
+        return app()->environment('local', 'testing');
+    }
+
+    private function ipMatch(string $ip, string $allowed): bool
+    {
+        if ($ip === $allowed) {
+            return true;
+        }
+        if (str_contains($allowed, '/')) {
+            [$subnet, $mask] = explode('/', $allowed);
+            $ipLong = ip2long($ip);
+            $subnetLong = ip2long($subnet);
+            if ($ipLong === false || $subnetLong === false) {
+                return false;
+            }
+            return ($ipLong & (-1 << (32 - (int) $mask))) === ($subnetLong & (-1 << (32 - (int) $mask)));
+        }
+        return false;
     }
 
     /**
@@ -134,7 +199,8 @@ class SmsReplyController extends Controller
             'satisfaction' => $satisfaction,
         ]);
 
-        return response()->json(['success' => true, 'workorder_id' => $workorder->id]);
+        // 仅回写结果，不暴露工单 ID，避免被枚举
+        return response()->json(['success' => true]);
     }
 
     /**

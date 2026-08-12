@@ -3,21 +3,21 @@
 @section('title', '区域管理')
 
 @section('content')
-<div class="flex items-center justify-between mb-6">
-    <div>
-        <h1 class="text-xl font-semibold text-ink">区域管理</h1>
-        <p class="text-sm text-ink-muted mt-0.5">管理区域/分区信息</p>
-    </div>
-    <a href="{{ route('locations.create-campus') }}" class="btn btn-primary">
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 5v14M5 12h14"/></svg>
-        <span>新增区域</span>
-    </a>
-</div>
+@include('locations._topbar', [
+    'active' => 'campuses',
+    'title' => '区域管理',
+    'subtitle' => '管理校区/园区元信息（联系人、电话）；工单表单的「区域」下拉自动从此同步到地址树',
+    'actions' => '<a href="' . route('locations.create-campus') . '" class="btn btn-primary">'
+        . '<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 5v14M5 12h14"/></svg>'
+        . '<span>新增区域</span></a>',
+])
 
-<div class="flex gap-1 mb-4">
-    <a href="{{ route('locations.campuses') }}" class="px-4 py-2 text-sm font-medium rounded-lg bg-brand-600 text-white">区域管理</a>
-    <a href="{{ route('locations.index') }}" class="px-4 py-2 text-sm font-medium rounded-lg text-ink-muted hover:bg-surface-muted">楼宇地址</a>
-</div>
+@if(session('success'))
+    <div class="mb-4 px-4 py-3 rounded-lg bg-green-50 text-green-700 text-sm">{{ session('success') }}</div>
+@endif
+@if(session('error'))
+    <div class="mb-4 px-4 py-3 rounded-lg bg-red-50 text-red-700 text-sm">{{ session('error') }}</div>
+@endif
 
 <div class="card mb-4">
     <form method="GET" action="{{ route('locations.campuses') }}">

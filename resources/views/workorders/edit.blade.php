@@ -146,14 +146,23 @@
 
                     
                     <!-- 位置信息 -->
-                    <h6 class="mb-4">位置信息</h6>
+                    <h6 class="mb-4">位置信息
+                        @if(!empty($addressPrefix))
+                            <span class="ml-2 text-xs font-normal" style="color: var(--c-ink-subtle);">前缀：{{ $addressPrefix }}</span>
+                        @endif
+                    </h6>
                     <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
                        <div>
                            <label for="campus_id" class="label">区域 <span class="text-red-500">*</span></label>
                            <select class="input" id="campus_id" name="campus_id" required>
                                 <option value="">请选择区域</option>
-                                @foreach(\App\Models\Campus::where('status', 'active')->orderBy('sort_order')->orderBy('name')->get() as $campus)
-                                <option value="{{ $campus->id }}" {{ old('campus_id', $workorder->campus_id) == $campus->id ? 'selected' : '' }}>{{ $campus->name }}</option>
+                                @php
+                                    // 当前工单的校区节点 id（沿 location_id 父链查 level=6）
+                                    $currentCampusId = $workorder->campus_node?->id;
+                                    $currentBuildingId = $workorder->location_id;
+                                @endphp
+                                @foreach($campusOptions as $campusLocationId => $campusName)
+                                <option value="{{ $campusLocationId }}" {{ old('campus_id', $currentCampusId) == $campusLocationId ? 'selected' : '' }}>{{ $campusName }}</option>
                                 @endforeach
                             </select>
                         </div>
@@ -446,8 +455,8 @@
 // 工单分类数据
 var categoryData = @json($categories);
 
-// 从地址管理获取区域楼栋数据
-var campusBuildings = @json(\App\Models\Location::getCampusBuildings());
+// 从地址管理获取区域楼栋数据（Location 树 level=6 校区 + level=7 楼栋）
+var campusBuildings = @json($campusBuildings);
 
 $(document).ready(function() {
     // 工单大类变更时更新故障分类
@@ -545,24 +554,23 @@ function initializeCurrentCategory() {
 function initializeCampusBuilding() {
     var campusId = $('#campus_id').val();
     var buildingSelect = $('#building');
-    
-    // 设置当前工单的区域
-    var currentCampusId = '{{ $workorder->campus_id ?? '' }}';
-    if (currentCampusId) {
-        $('#campus_id').val(currentCampusId);
-        campusId = currentCampusId;
+
+    // select 模板已经预选了当前校区（PHP 端用 $currentCampusId 渲染）
+    if (campusId) {
+        // 触发 change 把楼栋列表填充进去
+        $('#campus_id').trigger('change');
     }
-    
+
     buildingSelect.empty().append('<option value="">请选择楼栋</option>');
-    
+
     if (campusId && campusBuildings[campusId]) {
         $.each(campusBuildings[campusId].buildings, function(index, building) {
             buildingSelect.append('<option value="' + building.id + '">' + building.name + '</option>');
         });
     }
-    
-    // 设置当前工单的楼栋
-    var currentBuildingId = {{ is_numeric($workorder->building ?? '') ? (int) $workorder->building : 'null' }};
+
+    // 设置当前工单的楼栋（直接读 location_id）
+    var currentBuildingId = {{ $workorder->location_id ? (int) $workorder->location_id : 'null' }};
     if (currentBuildingId) {
         buildingSelect.val(currentBuildingId);
     }

@@ -89,7 +89,7 @@
         <li>2. 将回调地址设置为：<code class="text-blue-600">{{ route('cas.callback') }}</code></li>
         <li>3. 填写上方的 Base URL 和 Service ID</li>
         <li>4. 勾选启用并保存</li>
-        <li>5. 登录页将出现「统一身份认证」按钮，用户点击后跳转至学校统一认证页面</li>
+        <li>5. 登录页将出现「统一身份认证」按钮，用户点击后跳转至身份认证服务方页面</li>
     </ol>
 </div>
 @endsection

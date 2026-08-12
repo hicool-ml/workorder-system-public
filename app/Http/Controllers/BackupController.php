@@ -144,6 +144,19 @@ class BackupController extends Controller
             return $this->jsonFail('无法打开 zip 文件', 400);
         }
 
+        // Zip-Slip 防护：拒绝包含绝对路径或 .. 上跳的条目
+        for ($i = 0; $i < $probe->numFiles; $i++) {
+            $entry = $probe->getNameIndex($i);
+            if ($entry === false) {
+                continue;
+            }
+            $normalized = str_replace('\\', '/', $entry);
+            if (preg_match('#^[A-Za-z]:/#', $normalized) || strpos($normalized, '../') !== false || strpos($normalized, '..\\') !== false) {
+                $probe->close();
+                return $this->jsonFail('备份文件包含不安全的路径：' . $entry, 422);
+            }
+        }
+
         $hasSql = false;
         for ($i = 0; $i < $probe->numFiles; $i++) {
             $entry = $probe->getNameIndex($i);
@@ -366,18 +379,31 @@ class BackupController extends Controller
             return $this->restoreViaPdo($sqlPath);
         }
 
-        $passPart = $pass !== '' ? '-p' . $pass : '';
+        // 用 MYSQL_PWD 环境变量传递密码，避免出现在进程列表（ps/wmic）中
         $cmd = sprintf(
-            '%s --host=%s --port=%s -u %s %s --default-character-set=utf8mb4 %s < %s 2>&1',
+            '%s --host=%s --port=%s -u %s --default-character-set=utf8mb4 %s < %s 2>&1',
             escapeshellarg(explode("\n", $mysql)[0]),
             escapeshellarg($host),
             escapeshellarg((string) $port),
             escapeshellarg($user),
-            $passPart,
             escapeshellarg($dbName),
             escapeshellarg($sqlPath)
         );
-        exec($cmd, $output, $code);
+        $env = ['MYSQL_PWD' => $pass];
+        $proc = proc_open($cmd, [
+            1 => ['pipe', 'w'],
+            2 => ['pipe', 'w'],
+        ], $pipes, null, $env);
+        if (!is_resource($proc)) {
+            return $this->restoreViaPdo($sqlPath);
+        }
+        fclose($pipes[1]);
+        $err = stream_get_contents($pipes[2]);
+        fclose($pipes[2]);
+        $code = proc_close($proc);
+        if ($code !== 0 && $err !== '') {
+            \Log::warning('mysql 还原失败：' . substr((string) $err, 0, 500));
+        }
         return $code === 0;
     }
 
@@ -473,6 +499,12 @@ class BackupController extends Controller
             if (Str::startsWith($up, 'SET FOREIGN_KEY_CHECKS')
                 || Str::startsWith($up, 'SET SESSION_REPLICATION_ROLE')
                 || Str::startsWith($up, 'PRAGMA FOREIGN_KEYS')) {
+                continue;
+            }
+            // 危险语句黑名单：禁止跨库 / 系统级操作
+            // （备份正常只含 CREATE TABLE / INSERT / UPDATE / DELETE，不应触及下列语句）
+            if (preg_match('#\b(DROP\s+(DATABASE|SCHEMA)|CREATE\s+(DATABASE|SCHEMA)|GRANT|REVOKE|ALTER\s+USER|CREATE\s+USER|DROP\s+USER|SHUTDOWN|TRUNCATE)\b#i', $stmt)) {
+                \Log::warning('备份恢复拦截到危险语句，已跳过：' . substr($stmt, 0, 200));
                 continue;
             }
             try {

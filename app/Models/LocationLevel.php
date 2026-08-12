@@ -21,12 +21,14 @@ class LocationLevel extends Model
         'description',
         'sort_order',
         'is_active',
+        'is_daily_use',
     ];
 
     protected $casts = [
         'level' => 'integer',
         'sort_order' => 'integer',
         'is_active' => 'boolean',
+        'is_daily_use' => 'boolean',
     ];
 
     /**
@@ -46,6 +48,38 @@ class LocationLevel extends Model
             ->orderBy('level')
             ->orderBy('sort_order')
             ->get();
+    }
+
+    /**
+     * 基础地址层级（is_daily_use=false）：省→市→区县→街道→门牌
+     */
+    public static function baseLevels(): \Illuminate\Database\Eloquent\Collection
+    {
+        return self::where('is_active', true)
+            ->where('is_daily_use', false)
+            ->orderBy('level')
+            ->orderBy('sort_order')
+            ->get();
+    }
+
+    /**
+     * 日常使用层级（is_daily_use=true）：校区/园区→楼栋→房间
+     */
+    public static function dailyLevels(): \Illuminate\Database\Eloquent\Collection
+    {
+        return self::where('is_active', true)
+            ->where('is_daily_use', true)
+            ->orderBy('level')
+            ->orderBy('sort_order')
+            ->get();
+    }
+
+    /**
+     * 是否基础地址层级
+     */
+    public function isBase(): bool
+    {
+        return ! $this->is_daily_use;
     }
 
     /**

@@ -62,8 +62,8 @@
                 <label class="label" for="account_type">账户类型 <span class="text-red-500">*</span></label>
                 <select class="input" id="account_type" name="account_type" required>
                     <option value="">请选择</option>
-                    <option value="staff" {{ old('account_type') == 'staff' ? 'selected' : '' }}>教职工</option>
-                    <option value="student" {{ old('account_type') == 'student' ? 'selected' : '' }}>学生</option>
+                    <option value="staff" {{ old('account_type') == 'staff' ? 'selected' : '' }}>员工</option>
+                    <option value="student" {{ old('account_type') == 'student' ? 'selected' : '' }}>其他</option>
                     <option value="external" {{ old('account_type') == 'external' ? 'selected' : '' }}>外部用户</option>
                 </select>
             </div>

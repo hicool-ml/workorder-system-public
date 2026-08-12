@@ -86,17 +86,20 @@
 
         {{-- Nav --}}
         <nav class="flex-1 overflow-y-auto px-3 py-4 space-y-1 text-sm" id="nav-scroll">
+            @if(!auth()->user()->isUser())
             <p class="px-3 pt-2 pb-1 text-xs font-medium text-brand-300 uppercase tracking-wide">工单</p>
             <a href="{{ route('workorders.index') }}" class="nav-item {{ request()->routeIs('workorders.index') ? 'nav-active' : 'text-brand-100 hover:bg-brand-700' }}">
                 <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/></svg>
                 <span>工单列表</span>
             </a>
+            @endif
             @if(!auth()->user()->isUser())
             <a href="{{ route('workorders.create') }}" class="nav-item {{ request()->routeIs('workorders.create') ? 'nav-active' : 'text-brand-100 hover:bg-brand-700' }}">
                 <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 5v14M5 12h14"/></svg>
                 <span>创建工单</span>
             </a>
             @else
+            <p class="px-3 pt-2 pb-1 text-xs font-medium text-brand-300 uppercase tracking-wide">报修</p>
             <a href="{{ route('workorders.report.create') }}" class="nav-item {{ request()->routeIs('workorders.report.*') ? 'nav-active' : 'text-brand-100 hover:bg-brand-700' }}">
                 <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z"/></svg>
                 <span>我要报修</span>
@@ -117,31 +120,31 @@
             </a>
             @endif
 
+            @if(!auth()->user()->isUser())
             <a href="{{ route('notifications.index') }}" class="nav-item {{ request()->routeIs('notifications.*') ? 'nav-active' : 'text-brand-100 hover:bg-brand-700' }}">
                 <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.4-1.4A2 2 0 0 1 18 14.2V11a6 6 0 0 0-4-5.7V5a2 2 0 0 0-4 0v.3A6 6 0 0 0 6 11v3.2c0 .5-.2 1-.6 1.4L4 17h5m6 0v1a3 3 0 0 1-6 0v-1m6 0H9"/></svg>
                 <span>通知中心</span>
             </a>
+            @endif
 
             @if(auth()->user()->isAdmin() || auth()->user()->isWorkorderManager())
             <p class="px-3 pt-4 pb-1 text-xs font-medium text-brand-300 uppercase tracking-wide">系统管理</p>
-            @endif
 
-            <a href="{{ route('locations.campuses') }}" class="nav-item {{ request()->routeIs('locations.*') ? 'nav-active' : 'text-brand-100 hover:bg-brand-700' }}">
+            <a href="{{ route('locations.index') }}" class="nav-item {{ request()->routeIs('locations.*') ? 'nav-active' : 'text-brand-100 hover:bg-brand-700' }}">
                 <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z M12 13a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/></svg>
                 <span>地址管理</span>
             </a>
 
-            @if(auth()->user()->canManageWorkorderTypes())
             <a href="{{ route('workorder-categories.index') }}" class="nav-item {{ request()->routeIs('workorder-categories.*') ? 'nav-active' : 'text-brand-100 hover:bg-brand-700' }}">
                 <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 6h18 M3 12h12 M3 18h6"/></svg>
                 <span>工单分类</span>
             </a>
-            @endif
 
             <a href="{{ route('departments.index') }}" class="nav-item {{ request()->routeIs('departments.*') ? 'nav-active' : 'text-brand-100 hover:bg-brand-700' }}">
                 <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 21h18 M5 21V7l8-4v18 M19 21V11l-6-4"/></svg>
                 <span>部门管理</span>
             </a>
+            @endif
 
             @if(auth()->user()->isAdmin())
             <a href="{{ route('users.index') }}" class="nav-item {{ request()->routeIs('users.*') ? 'nav-active' : 'text-brand-100 hover:bg-brand-700' }}">
@@ -157,7 +160,6 @@
                     <svg class="w-3 h-3 opacity-70" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
                 </button>
                 <div id="settingsSubnav" class="{{ request()->routeIs('settings.page', 'system-settings.*') ? '' : 'hidden' }} pl-7 mt-1 space-y-1">
-                    <a href="{{ route('settings.page', 'registration') }}" class="nav-item text-sm {{ request()->is('settings/registration') ? 'nav-active' : 'text-brand-100 hover:bg-brand-700' }}"><span class="w-1 h-1 rounded-full bg-current"></span><span>注册设置</span></a>
                     <a href="{{ route('settings.page', 'system') }}" class="nav-item text-sm {{ request()->is('settings/system') ? 'nav-active' : 'text-brand-100 hover:bg-brand-700' }}"><span class="w-1 h-1 rounded-full bg-current"></span><span>系统设置</span></a>
                     <a href="{{ route('settings.page', 'backup') }}" class="nav-item text-sm {{ request()->is('settings/backup') ? 'nav-active' : 'text-brand-100 hover:bg-brand-700' }}"><span class="w-1 h-1 rounded-full bg-current"></span><span>备份&恢复</span></a>
                     <a href="{{ route('settings.page', 'messaging') }}" class="nav-item text-sm {{ request()->is('settings/messaging') ? 'nav-active' : 'text-brand-100 hover:bg-brand-700' }}"><span class="w-1 h-1 rounded-full bg-current"></span><span>消息设置</span></a>

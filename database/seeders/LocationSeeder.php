@@ -2,13 +2,17 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Seeder;
 use App\Models\Location;
+use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 
 /**
- * 通用工单系统默认地址树（城市级示例）。
- * 层级定义来自 LocationLevelSeeder，地址按树结构录入。
+ * 通用工单系统默认地址树（示例）。
+ *
+ * 仅作为部署后的初始示例，部署方应在「地址管理 → 基础地址」中
+ * 填写单位真实基础地址，并通过「批量导入」补充日常地址树。
+ *
+ * 示例数据采用通用占位（总部园区 / A 楼 / 101 室），不含任何特定单位信息。
  */
 class LocationSeeder extends Seeder
 {
@@ -18,51 +22,59 @@ class LocationSeeder extends Seeder
 
         $levelId = fn ($code) => DB::table('location_levels')->where('code', $code)->value('id');
 
-        $cityLv     = $levelId('city');
-        $districtLv = $levelId('district');
-        $streetLv   = $levelId('street');
-        $roadLv     = $levelId('road');
+        // 基础地址链（占位）：部署方应在「基础地址」页面改为单位实际地址
+        $baseChain = [
+            ['name' => '省份',     'code' => null, 'lv' => 'province'],
+            ['name' => '城市',     'code' => null, 'lv' => 'city'],
+            ['name' => '区县',     'code' => null, 'lv' => 'district'],
+            ['name' => '街道',     'code' => null, 'lv' => 'street'],
+            ['name' => '门牌号',   'code' => null, 'lv' => 'road'],
+        ];
+
+        $parentId = null;
+        $root = null;
+        foreach ($baseChain as $item) {
+            $node = Location::create([
+                'name' => $item['name'],
+                'code' => $item['code'],
+                'level_id' => $levelId($item['lv']),
+                'parent_id' => $parentId,
+                'sort_order' => 1,
+                'status' => 'active',
+            ]);
+            $parentId = $node->id;
+            $root = $node;
+        }
+
+        // 日常层示例
+        $campusLv = $levelId('campus');
         $buildingLv = $levelId('building');
+        $roomLv = $levelId('room');
 
-        // L1: 市
-        $city = Location::create([
-            'name' => '成都市', 'level_id' => $cityLv, 'parent_id' => null,
+        $campus = Location::create([
+            'name' => '总部园区', 'level_id' => $campusLv, 'parent_id' => $root->id,
             'sort_order' => 1, 'status' => 'active',
         ]);
 
-        // L2: 区
-        $district = Location::create([
-            'name' => '高新区', 'level_id' => $districtLv, 'parent_id' => $city->id,
+        $b1 = Location::create([
+            'name' => 'A 楼', 'level_id' => $buildingLv, 'parent_id' => $campus->id,
             'sort_order' => 1, 'status' => 'active',
         ]);
-
-        // L3: 街道
-        $street = Location::create([
-            'name' => '桂溪街道', 'level_id' => $streetLv, 'parent_id' => $district->id,
-            'sort_order' => 1, 'status' => 'active',
-        ]);
-
-        // L4: 路
-        $road1 = Location::create([
-            'name' => '天府大道', 'level_id' => $roadLv, 'parent_id' => $street->id,
-            'sort_order' => 1, 'status' => 'active',
-        ]);
-        $road2 = Location::create([
-            'name' => '世纪城路', 'level_id' => $roadLv, 'parent_id' => $street->id,
+        $b2 = Location::create([
+            'name' => 'B 楼', 'level_id' => $buildingLv, 'parent_id' => $campus->id,
             'sort_order' => 2, 'status' => 'active',
         ]);
 
-        // L5: 楼栋
         Location::create([
-            'name' => '1号办公楼', 'level_id' => $buildingLv, 'parent_id' => $road1->id,
+            'name' => '101 室', 'level_id' => $roomLv, 'parent_id' => $b1->id,
             'sort_order' => 1, 'status' => 'active',
         ]);
         Location::create([
-            'name' => '2号研发楼', 'level_id' => $buildingLv, 'parent_id' => $road1->id,
+            'name' => '102 室', 'level_id' => $roomLv, 'parent_id' => $b1->id,
             'sort_order' => 2, 'status' => 'active',
         ]);
         Location::create([
-            'name' => '世纪城会展中心', 'level_id' => $buildingLv, 'parent_id' => $road2->id,
+            'name' => '201 室', 'level_id' => $roomLv, 'parent_id' => $b2->id,
             'sort_order' => 1, 'status' => 'active',
         ]);
     }

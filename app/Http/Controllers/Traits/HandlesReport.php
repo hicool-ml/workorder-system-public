@@ -37,10 +37,12 @@ trait HandlesReport
             'sub' => $subCategories,
         ];
 
-        $campuses = Campus::orderBy('sort_order')->orderBy('name')->get();
-        $campusBuildings = Location::getCampusBuildings();
+        // 地址两段式：数据源改为 Location 树（前缀根下的 level=6 校区 + level=7 楼栋）
+        $campusOptions = \App\Models\Location::getCampusOptionsForWorkorder();
+        $campusBuildings = \App\Models\Location::getCampusBuildingTree();
+        $addressPrefix = \App\Models\Location::getPrefixLabel();
 
-        return view('workorders.report', compact('categories', 'campuses', 'campusBuildings'));
+        return view('workorders.report', compact('categories', 'campusOptions', 'campusBuildings', 'addressPrefix'));
     }
 
     /**
@@ -53,12 +55,12 @@ trait HandlesReport
             'description' => 'required|string|max:2000',
             'category_main' => 'required|exists:workorder_categories_simplified,id',
             'category_sub' => 'required|exists:workorder_categories_simplified,id',
-            'campus_id' => 'required|exists:campuses,id',
-            'building' => 'required|exists:locations,id',
+            'campus_id' => 'required|exists:locations,id',
+            'building' => 'required|exists:locations,id|different:campus_id',
             'location_detail' => 'nullable|string|max:500',
             'other_reason' => 'nullable|string|max:500',
             'attachments' => 'nullable|array',
-            'attachments.*' => 'file|max:10240',
+            'attachments.*' => 'file|max:10240|mimes:jpg,jpeg,png,gif,bmp,webp,pdf,doc,docx,xls,xlsx,ppt,pptx,txt,md,mp4,mov,avi,wmv,mkv,mp3,wav,flac,aac,ogg,zip,rar,7z',
         ]);
 
         DB::beginTransaction();
@@ -67,8 +69,7 @@ trait HandlesReport
 
             $mainCategory = WorkorderCategorySimplified::find($request->input('category_main'));
             $subCategory = WorkorderCategorySimplified::find($request->input('category_sub'));
-            $campus = Campus::find($request->input('campus_id'));
-            $buildingLocation = Location::find($request->input('building'));
+            $buildingLocation = \App\Models\Location::find($request->input('building'));
 
             $ticketPrefix = $mainCategory ? $mainCategory->getTicketPrefix() : 'WO';
 
@@ -83,11 +84,7 @@ trait HandlesReport
                 'contact_name'   => $user->name,
                 'contact_phone'  => $user->phone ?? '',
                 'contact_email'  => $user->email,
-                'campus'         => $campus ? $campus->name : '',
-                'campus_id'      => $request->input('campus_id'),
-                'building'       => (string) $request->input('building'),
                 'location_id'    => $buildingLocation ? $buildingLocation->id : null,
-                'location'       => ($campus ? $campus->name : '') . ' - ' . ($buildingLocation ? $buildingLocation->name : $request->input('building')),
                 'location_detail'=> $request->input('location_detail'),
                 'source'         => '本台',
                 'priority'       => 'medium',

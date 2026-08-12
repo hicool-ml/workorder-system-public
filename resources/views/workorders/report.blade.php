@@ -73,14 +73,17 @@
             <h3 class="text-sm font-semibold text-ink mb-3 flex items-center gap-1.5">
                 <svg class="w-4 h-4 text-brand-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
                 故障地点
+                @if(!empty($addressPrefix))
+                    <span class="ml-2 text-xs font-normal" style="color: var(--c-ink-subtle);">前缀：{{ $addressPrefix }}</span>
+                @endif
             </h3>
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
                     <label class="label">区域 <span class="text-red-500">*</span></label>
                     <select name="campus_id" id="campus_id" class="input" required onchange="updateBuildings(this.value)">
                         <option value="">请选择</option>
-                        @foreach($campuses as $campus)
-                            <option value="{{ $campus->id }}">{{ $campus->name }}</option>
+                        @foreach($campusOptions as $campusLocationId => $campusName)
+                            <option value="{{ $campusLocationId }}">{{ $campusName }}</option>
                         @endforeach
                     </select>
                 </div>
@@ -149,7 +152,6 @@
 <script>
 var subCategories = @json($categories['sub']);
 var campusBuildings = @json($campusBuildings);
-
 function loadSubCategories(mainId) {
     var sel = document.getElementById('category_sub');
     sel.innerHTML = '<option value="">请选择</option>';

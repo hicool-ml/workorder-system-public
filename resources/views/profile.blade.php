@@ -21,7 +21,7 @@
                     <svg class="w-5 h-5 text-amber-500 shrink-0 mt-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z"/></svg>
                     <div class="text-sm">
                         <p class="font-medium text-amber-800 dark:text-amber-300">统一身份认证账号</p>
-                        <p class="text-amber-700 dark:text-amber-400 mt-0.5">您的个人信息由学校统一身份认证系统管理，如需修改请联系学校信息中心。</p>
+                        <p class="text-amber-700 dark:text-amber-400 mt-0.5">您的个人信息由身份认证服务方管理，如需修改请联系身份认证服务方。</p>
                     </div>
                 </div>
             </div>
@@ -88,7 +88,7 @@
                     <svg class="w-5 h-5 text-amber-500 shrink-0 mt-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z"/></svg>
                     <div class="text-sm">
                         <p class="font-medium text-amber-800 dark:text-amber-300">密码由统一身份认证管理</p>
-                        <p class="text-amber-700 dark:text-amber-400 mt-0.5">CAS 用户的密码通过学校统一身份认证系统修改，无法在此处更改。</p>
+                        <p class="text-amber-700 dark:text-amber-400 mt-0.5">CAS 用户的密码由身份认证服务方管理，无法在此处更改。</p>
                     </div>
                 </div>
             </div>

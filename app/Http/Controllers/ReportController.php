@@ -258,23 +258,68 @@ class ReportController extends Controller
 
     private function getCampusStats($rs = null, $re = null)
     {
-        return \App\Models\Campus::leftJoin('workorders', 'campuses.id', '=', 'workorders.campus_id')
-            ->whereNull('workorders.deleted_at')
-            ->when($rs && $re, function ($q) use ($rs, $re) { $q->whereBetween('workorders.created_at', [$rs, $re]); })
-            ->selectRaw("campuses.id, campuses.name, COUNT(workorders.id) as total, SUM(CASE WHEN workorders.status IN ('pending','assigned','processing') THEN 1 ELSE 0 END) as pending, SUM(CASE WHEN workorders.status IN ('resolved','closed') THEN 1 ELSE 0 END) as completed")
-            ->groupBy('campuses.id', 'campuses.name')->orderBy('campuses.sort_order')->orderBy('campuses.name')
-            ->get()->keyBy('id')->map(function($item) { return ['name' => $item->name, 'total' => (int)$item->total, 'pending' => (int)$item->pending, 'completed' => (int)$item->completed]; })->toArray();
+        // 工单已不再冗余 campus_id 列；通过 location_id 沿父链映射到 level=6（区域/园区）节点
+        $campusLevelId = DB::table('location_levels')->where('code', 'campus')->value('id');
+        if (! $campusLevelId) {
+            return [];
+        }
+
+        // 拿到所有 level=6 节点，构造其 id => name 映射 + 子孙 id 列表
+        $campusNodes = DB::table('locations')
+            ->where('level_id', $campusLevelId)
+            ->where('status', 'active')
+            ->orderBy('sort_order')->orderBy('name')
+            ->get(['id', 'name']);
+        if ($campusNodes->isEmpty()) {
+            return [];
+        }
+
+        // 每个 campus 节点的子孙 id（含自身），用于把 workorder.location_id 映射回 campus
+        $campusScope = []; // [campusId => [descendant ids...]]
+        $locationToCampus = []; // [locationId => campusId]
+        foreach ($campusNodes as $cn) {
+            $descendants = array_merge([$cn->id], Location::getDescendantIds($cn->id));
+            $campusScope[$cn->id] = $descendants;
+            foreach ($descendants as $lid) {
+                $locationToCampus[$lid] = $cn->id;
+            }
+        }
+
+        // 拉时间范围内的工单 location_id
+        $q = Workorder::whereNotNull('location_id');
+        if ($rs && $re) $q->whereBetween('created_at', [$rs, $re]);
+        $woLocations = $q->pluck('location_id')->all();
+
+        // 按 campus 聚合
+        $counts = [];
+        foreach ($campusNodes as $cn) {
+            $counts[$cn->id] = ['name' => $cn->name, 'total' => 0, 'pending' => 0, 'completed' => 0];
+        }
+
+        // 拉工单状态用于分桶
+        $statusQ = Workorder::whereNotNull('location_id');
+        if ($rs && $re) $statusQ->whereBetween('created_at', [$rs, $re]);
+        $rows = $statusQ->get(['location_id', 'status']);
+
+        foreach ($rows as $row) {
+            $campusId = $locationToCampus[$row->location_id] ?? null;
+            if (! $campusId || ! isset($counts[$campusId])) continue;
+            $counts[$campusId]['total']++;
+            if (in_array($row->status, ['pending', 'assigned', 'processing'], true)) {
+                $counts[$campusId]['pending']++;
+            } elseif (in_array($row->status, ['resolved', 'closed'], true)) {
+                $counts[$campusId]['completed']++;
+            }
+        }
+
+        return $counts;
     }
 
-    private function getCampusName($campus) { $m = \App\Models\Campus::find($campus); return $m ? $m->name : $campus; }
-
-    private function getBuildingName($buildingId): string
+    private function getBuildingName($locationId): string
     {
-        if (!$buildingId) return '';
-        // building 可能是数字 id，也可能是历史遗留文本；文本直接返回原文，避免触发 PG 类型错误
-        if (!is_numeric($buildingId)) return (string) $buildingId;
-        $l = Location::find($buildingId);
-        return $l ? $l->name : (string) $buildingId;
+        if (! $locationId) return '';
+        $l = Location::find($locationId);
+        return $l ? $l->name : (string) $locationId;
     }
 
     private function getProcessingTimeStats($rs = null, $re = null)
@@ -334,7 +379,7 @@ class ReportController extends Controller
             'format' => 'required|in:xlsx,csv',
             'status' => 'nullable|string',
             'category_id' => 'nullable|integer',
-            'campus_id' => 'nullable|integer',
+            'campus_id' => 'nullable|integer|exists:locations,id',
         ]);
 
         $startDate = $request->input('start_date', now()->subDays(30)->format('Y-m-d'));
@@ -354,8 +399,8 @@ class ReportController extends Controller
         
         $format = $request->input('format');
 
-        // 构建查询
-        $query = Workorder::with(['creator', 'assignee', 'category.parent', 'department', 'collaborations.collaborator', 'visits', 'campusInfo'])
+        // 构建查询（用 locationInfo 替代已 drop 的 campusInfo / building 关联）
+        $query = Workorder::with(['creator', 'assignee', 'category.parent', 'department', 'collaborations.collaborator', 'visits', 'locationInfo'])
             ->whereBetween('created_at', [$startDate, $endDate . ' 23:59:59']);
 
         // 应用筛选条件
@@ -367,16 +412,18 @@ class ReportController extends Controller
             $query->where('category_id', $request->input('category_id'));
         }
 
+        // 区域筛选：campus_id 入参为 level=6 的 Location 节点 id，
+        // 该区域下所有楼栋都是它的子节点，转译为 location_id IN（区域 + 子孙）
         if ($request->filled('campus_id')) {
-            $query->where('campus_id', $request->input('campus_id'));
+            $campusLocationId = (int) $request->input('campus_id');
+            $scope = array_merge([$campusLocationId], \App\Models\Location::getDescendantIds($campusLocationId));
+            $query->whereIn('location_id', $scope);
         }
 
         $workorders = $query->get();
 
-        // 预取楼栋/区域名称，避免逐行 N+1 查询
-        $locationIds = $workorders->pluck('location_id')
-            ->merge($workorders->pluck('building')->filter(fn ($v) => is_numeric($v))->map(fn ($v) => (int) $v))
-            ->filter()->unique();
+        // 预取 location 节点名（避免逐行 N+1）
+        $locationIds = $workorders->pluck('location_id')->filter()->unique();
         $locationNameMap = \App\Models\Location::whereIn('id', $locationIds)->get()->pluck('name', 'id');
 
         if ($format === 'xlsx') {
@@ -457,12 +504,12 @@ class ReportController extends Controller
                 // 用顿号连接所有处理人
                 $processorsText = implode('、', array_unique($processors));
                 
-                // 区域与地点（优先走预取的映射）
-                $campusName = $workorder->campusInfo?->name ?? $workorder->campus ?? (string) $workorder->campus_id;
-                $locationId = $workorder->location_id ?? (is_numeric($workorder->building) ? (int) $workorder->building : null);
-                $buildingName = $locationId && isset($locationNameMap[$locationId])
+                // 区域与地点：通过 location_id 沿父链 accessor 解析
+                $campusName = $workorder->campus_name;
+                $locationId = $workorder->location_id;
+                $buildingName = ($locationId && isset($locationNameMap[$locationId]))
                     ? $locationNameMap[$locationId]
-                    : (string) $workorder->building;
+                    : $workorder->building_name;
                 
                 // 确保所有字段都是UTF-8编码
                 $rowData = [

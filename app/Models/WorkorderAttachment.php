@@ -228,10 +228,39 @@ class WorkorderAttachment extends Model
     }
 
     /**
+     * 危险扩展名黑名单：禁止上传可执行脚本、服务端解析文件、可触发 XSS 的文件
+     * 即便 mimes 校验被绕过（如修改 Content-Type），这里也会兜底拒绝
+     */
+    public static function getBlockedExtensions(): array
+    {
+        return [
+            'php', 'php3', 'php4', 'php5', 'php7', 'php8', 'phtml', 'phar', 'pht',
+            'phps', 'inc', 'cgi', 'pl', 'py', 'sh', 'asp', 'aspx', 'jsp', 'jsf',
+            'html', 'htm', 'xhtml', 'svg', 'svgz',           // XSS 风险
+            'htaccess', 'htpasswd',                           // Apache 配置
+            'exe', 'bat', 'cmd', 'com', 'msi', 'so', 'dll',  // 二进制可执行
+        ];
+    }
+
+    /**
+     * 校验文件扩展名是否安全；不安全抛异常（会被调用方 catch \Exception 回滚）
+     */
+    public static function guardBlockedExtension($file): void
+    {
+        $ext = strtolower($file->getClientOriginalExtension());
+        if (in_array($ext, self::getBlockedExtensions(), true)) {
+            throw new \InvalidArgumentException("禁止上传 .{$ext} 类型的文件");
+        }
+    }
+
+    /**
      * 上传文件
      */
     public static function uploadFile($file, int $workorderId, string $description = null, bool $isPublic = true): self
     {
+        // 兜底防御：即使上层 validation 缺失 mimes 规则，这里也强制拒绝危险扩展名
+        self::guardBlockedExtension($file);
+
         $filename = time() . '_' . $file->getClientOriginalName();
         $originalSize = $file->getSize();
         $fileType = 'other';

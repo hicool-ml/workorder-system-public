@@ -71,7 +71,8 @@ class WorkorderLifecycleTest extends TestCase
     {
         $engineer = $this->createEngineer();
         $workorder = $this->createWorkorder('processing');
-        $workorder->update(['assignee_id' => $engineer->id, 'started_at' => now()]);
+        // started_at 已从 $fillable 移除以防止 mass assignment，测试场景用 forceFill 直接写入
+        $workorder->forceFill(['assignee_id' => $engineer->id, 'started_at' => now()])->save();
 
         $this->assertTrue($workorder->canBeResolved());
         $result = $workorder->resolve('修复完成，更换了配件', $engineer->id);
@@ -97,7 +98,8 @@ class WorkorderLifecycleTest extends TestCase
     public function test_closed_workorder_cannot_be_operated(): void
     {
         $workorder = $this->createWorkorder('closed');
-        $workorder->update(['closed_at' => now()]);
+        // closed_at 已从 $fillable 移除以防止 mass assignment，测试场景用 forceFill
+        $workorder->forceFill(['closed_at' => now()])->save();
 
         $this->assertFalse($workorder->canBeAssigned());
         $this->assertFalse($workorder->canBeStarted());

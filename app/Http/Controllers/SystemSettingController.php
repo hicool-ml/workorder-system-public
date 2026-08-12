@@ -29,7 +29,6 @@ class SystemSettingController extends Controller
     public function page(string $section)
     {
         $map = [
-            'registration' => 'settings.registration',
             'system'       => 'settings.system',
             'version'      => 'settings.version',
             'backup'       => 'settings.backup',

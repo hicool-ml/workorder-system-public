@@ -31,11 +31,12 @@ class WorkorderController extends Controller
     public function index(Request $request)
     {
         $user = Auth::user();
-        
+
         // 根据用户角色获取不同的查询范围
-       $query = $user->getWorkorderQueryScope()
-          ->with(['category', 'creator', 'assignee', 'department', 'campusInfo'])
-          ->orderBy('created_at', 'desc');
+        // 直接 with('locationInfo') 即可，location_id 是标准 bigint 外键，不再需要 attachBuildingLocations hack
+        $query = $user->getWorkorderQueryScope()
+            ->with(['category', 'creator', 'assignee', 'department', 'locationInfo'])
+            ->orderBy('created_at', 'desc');
 
         
         // ---- 状态过滤（集中处理，后续筛选全部为 AND） ----
@@ -56,23 +57,24 @@ class WorkorderController extends Controller
         if ($request->filled('keyword')) {
             $keyword = trim($request->input('keyword'));
 
-            $query->where(function($q) use ($keyword) {
+            // 预先查出关键词匹配到的 location 节点 id，用于工单 location_id 反查
+            $matchedLocationIds = \App\Models\Location::where('name', 'like', "%{$keyword}%")
+                ->orWhere('building_code', 'like', "%{$keyword}%")
+                ->pluck('id')
+                ->all();
+
+            $query->where(function($q) use ($keyword, $matchedLocationIds) {
                 $q->where('ticket_no', 'like', "%{$keyword}%")
                   ->orWhere('description', 'like', "%{$keyword}%")
                   ->orWhere('contact_name', 'like', "%{$keyword}%")
                   ->orWhere('contact_phone', 'like', "%{$keyword}%")
-                  ->orWhere('location', 'like', "%{$keyword}%")
-                  ->orWhere('building', 'like', "%{$keyword}%")
                   ->orWhere('location_detail', 'like', "%{$keyword}%")
-                  ->orWhere('campus', 'like', "%{$keyword}%")
                   ->orWhere('solution', 'like', "%{$keyword}%")
                   ->orWhere('custom_source', 'like', "%{$keyword}%")
                   ->orWhere('department_name', 'like', "%{$keyword}%")
-                  // 楼栋编码翻译：关键词匹配到 locations 名称时，用其 ID 匹配工单 building
-                  // 注意 building 列可能存文本楼名，whereIn 数字 ID 与字符串比较是安全的
-                  ->orWhereIn('building', \App\Models\Location::where('name', 'like', "%{$keyword}%")
-                      ->orWhere('building_code', 'like', "%{$keyword}%")
-                      ->pluck('id'))
+                  ->when(! empty($matchedLocationIds), function ($qq) use ($matchedLocationIds) {
+                      $qq->orWhereIn('location_id', $matchedLocationIds);
+                  })
                   // 关联：创建人姓名
                   ->orWhereHas('creator', function($uq) use ($keyword) {
                       $uq->where('name', 'like', "%{$keyword}%");
@@ -130,9 +132,12 @@ class WorkorderController extends Controller
             $query->where('assignee_id', $request->input('assignee_id'));
         }
 
-        // 区域筛选
+        // 区域筛选：campus_id 入参实际是 level=6 的 location 节点 id，
+        // 该校区下的所有楼栋都是它的子节点；这里转译为 location_id IN (该校区及其所有子孙 id)
         if ($request->filled('campus_id')) {
-            $query->where('campus_id', $request->input('campus_id'));
+            $campusLocationId = (int) $request->input('campus_id');
+            $scope = array_merge([$campusLocationId], \App\Models\Location::getDescendantIds($campusLocationId));
+            $query->whereIn('location_id', $scope);
         }
 
         // 来源筛选
@@ -172,57 +177,49 @@ class WorkorderController extends Controller
                   ->whereNotIn('status', ['resolved']);
         }
 
+        // 地址异常筛选：location_id 为空 或 指向"未分类/未分类校区"子树下的节点
+        // 用于运维诊断历史工单的地址迁移结果
+        if ($request->filled('address_anomaly') && $request->input('address_anomaly') === '1') {
+            $unclassifiedIds = \App\Models\Location::query()
+                ->whereIn('name', ['未分类', '未分类校区'])
+                ->pluck('id')
+                ->all();
+            // 取所有"未分类"节点的子孙 id（含其本身）
+            $descendants = [];
+            foreach ($unclassifiedIds as $uid) {
+                $descendants = array_merge($descendants, [$uid], \App\Models\Location::getDescendantIds($uid));
+            }
+            $query->where(function ($q) use ($descendants) {
+                $q->whereNull('location_id');
+                if (! empty($descendants)) {
+                    $q->orWhereIn('location_id', $descendants);
+                }
+            });
+        }
+
         // 权限控制已经在查询范围中处理，这里不需要额外的权限过滤
 
         $workorders = $query->paginate(15);
-        $this->attachBuildingLocations($workorders);
-        
+
         // 获取分类数据
         $mainCategories = WorkorderCategorySimplified::getTopLevelCategories();
         $subCategories = [];
-        
+
         foreach ($mainCategories as $category) {
             $subCategories[$category->id] = WorkorderCategorySimplified::getSubCategories($category->id);
         }
-        
+
         $categories = [
             'main' => $mainCategories,
             'sub' => $subCategories,
         ];
-        
+
+        // 工单列表"区域筛选"下拉：用 Location 树 level=6 节点替代 campuses 表
+        $campusOptions = \App\Models\Location::getCampusOptionsForWorkorder();
+
         $engineers = User::getAssignableEngineers();
 
-        return view('workorders.index', compact('workorders', 'categories', 'engineers'));
-    }
-
-    /**
-     * 为工单列表手动解析 building（location id）对应的 Location 并挂载到 locationInfo 关系。
-     *
-     * building 列历史混存数字 id 与文本楼名，不能直接 `with(['locationInfo'])`，
-     * 否则 PostgreSQL 会因 locations.id 上出现非整数文本而报 invalid input syntax。
-     * 这里只把数字 id 批量查出后 setRelation，文本楼名交给 accessor 原样返回。
-     */
-    private function attachBuildingLocations($paginator): void
-    {
-        $ids = collect($paginator->items())
-            ->pluck('building')
-            ->filter(fn ($v) => $v !== null && $v !== '' && is_numeric($v))
-            ->map(fn ($v) => (int) $v)
-            ->unique()
-            ->values();
-
-        if ($ids->isEmpty()) {
-            return;
-        }
-
-        $locations = Location::whereIn('id', $ids)->get()->keyBy('id');
-
-        foreach ($paginator->items() as $workorder) {
-            $building = $workorder->building;
-            if ($building !== null && $building !== '' && is_numeric($building) && $locations->has((int) $building)) {
-                $workorder->setRelation('locationInfo', $locations->get((int) $building));
-            }
-        }
+        return view('workorders.index', compact('workorders', 'categories', 'engineers', 'campusOptions'));
     }
 
     /**
@@ -238,16 +235,21 @@ class WorkorderController extends Controller
         // 获取简化的工单分类
         $mainCategories = WorkorderCategorySimplified::getTopLevelCategories();
         $subCategories = [];
-        
+
         foreach ($mainCategories as $category) {
             $subCategories[$category->id] = WorkorderCategorySimplified::getSubCategories($category->id);
         }
-        
+
         $categories = [
             'main' => $mainCategories,
             'sub' => $subCategories,
         ];
-        
+
+        // 地址两段式：数据源改为 Location 树（前缀根下的 level=6 校区 + level=7 楼栋）
+        $campusOptions = \App\Models\Location::getCampusOptionsForWorkorder();
+        $campusBuildings = \App\Models\Location::getCampusBuildingTree();
+        $addressPrefix = \App\Models\Location::getPrefixLabel();
+
         // 检查是否从模板创建
         $template = null;
         if ($request->filled('template')) {
@@ -258,8 +260,8 @@ class WorkorderController extends Controller
                 $request->session()->flashInput($templateData);
             }
         }
-        
-        return view('workorders.create', compact('categories', 'template'));
+
+        return view('workorders.create', compact('categories', 'template', 'campusOptions', 'campusBuildings', 'addressPrefix'));
     }
 
     /**
@@ -283,8 +285,8 @@ class WorkorderController extends Controller
             'contact_name' => 'required|string|max:100',
             'contact_phone' => 'required|string|max:20',
             'contact_email' => 'nullable|email|max:100',
-            'campus_id' => 'required|exists:campuses,id',
-            'building' => 'required|string',
+            'campus_id' => 'required|exists:locations,id',
+            'building' => 'required|exists:locations,id|different:campus_id',
             'location_detail' => 'nullable|string|max:500',
             'appointment_time_start' => 'nullable|date',
             'appointment_time_end' => 'nullable|date|after_or_equal:appointment_time_start',
@@ -302,12 +304,23 @@ class WorkorderController extends Controller
             'other_reason' => 'nullable|string|max:500',
             'requires_signature' => 'boolean',
             'attachments' => 'nullable|array',
-            'attachments.*' => 'file|max:10240', // 最大10MB
+            'attachments.*' => 'file|max:10240|mimes:jpg,jpeg,png,gif,bmp,webp,pdf,doc,docx,xls,xlsx,ppt,pptx,txt,md,mp4,mov,avi,wmv,mkv,mp3,wav,flac,aac,ogg,zip,rar,7z', // 最大10MB，白名单扩展名
         ]);
 
         DB::beginTransaction();
         try {
-            $data = $request->all();
+            // 白名单取值，防止 mass assignment 写入签单/满意度/完结时间等敏感字段
+            $data = $request->only([
+                'description', 'category_main', 'category_sub', 'contact_name', 'contact_phone',
+                'contact_email', 'location_detail',
+                'appointment_time_start', 'appointment_time_end', 'appointment_time',
+                'time_limit_hours', 'priority', 'source', 'other_source', 'department_name',
+                'need_visit', 'is_emergency', 'phone_assisted', 'phone_solution',
+                'other_reason', 'requires_signature', 'assignee_id',
+            ]);
+
+            // 表单字段 building（楼栋 location id）→ 工单 location_id
+            $data['location_id'] = (int) $request->input('building');
             
             // 获取工单分类信息
             $mainCategory = WorkorderCategorySimplified::find($data['category_main']);
@@ -393,16 +406,11 @@ class WorkorderController extends Controller
             $data['category_id'] = $data['category_sub'];
             // 设置type_id为null，因为我们现在使用简化的分类系统
             $data['type_id'] = null;
-            
-            // 设置位置信息
-            $campus = Campus::find($data['campus_id']);
-            $data['location'] = ($campus ? $campus->name : '') . ' - ' . $data['building'];
-            $data['campus'] = $campus ? $campus->name : '';
-            // 同时保存区域ID
-            $data['campus_id'] = $data['campus_id'];
-            // 地址树节点：create 表单提交的 building 即 Location id
-            $data['location_id'] = is_numeric($data['building']) ? (int) $data['building'] : null;
-            
+
+            // 注：表单字段 building（楼栋 location id）已在 $data 准备阶段映射到 location_id，
+            // campus（text）/campus_id/building/location 列已 drop，不再写入。
+            // campus_name/building_name 通过 location_id 沿父链 accessor 解析。
+
             // 设置电话协助完成标记
             $data['phone_assisted'] = $request->boolean('phone_assisted');
             
@@ -413,6 +421,11 @@ class WorkorderController extends Controller
             }
 
             $workorder = Workorder::create($data);
+
+            // 电话协助完成：resolved_at 已从 $fillable 移除（防 mass assignment），用 forceFill 单独写入
+            if ($request->boolean('phone_assisted')) {
+                $workorder->forceFill(['resolved_at' => now()])->save();
+            }
             
             // 发送通知
             if ($request->boolean('phone_assisted')) {
@@ -481,24 +494,29 @@ class WorkorderController extends Controller
     {
         // 权限检查
         $this->authorizeEdit($workorder);
-        
+
         $departments = Department::where('status', 'active')->get();
         $engineers = User::getAssignableEngineers();
-        
+
         // 获取简化的工单分类
         $mainCategories = WorkorderCategorySimplified::getTopLevelCategories();
         $subCategories = [];
-        
+
         foreach ($mainCategories as $category) {
             $subCategories[$category->id] = WorkorderCategorySimplified::getSubCategories($category->id);
         }
-        
+
         $categories = [
             'main' => $mainCategories,
             'sub' => $subCategories,
         ];
-        
-        return view('workorders.edit', compact('workorder', 'departments', 'engineers', 'categories'));
+
+        // 地址两段式：数据源改为 Location 树
+        $campusOptions = \App\Models\Location::getCampusOptionsForWorkorder();
+        $campusBuildings = \App\Models\Location::getCampusBuildingTree();
+        $addressPrefix = \App\Models\Location::getPrefixLabel();
+
+        return view('workorders.edit', compact('workorder', 'departments', 'engineers', 'categories', 'campusOptions', 'campusBuildings', 'addressPrefix'));
     }
 
     /**
@@ -520,8 +538,8 @@ class WorkorderController extends Controller
             'contact_name' => 'required|string|max:100',
             'contact_phone' => 'required|string|max:20',
             'contact_email' => 'nullable|email|max:100',
-            'campus_id' => 'required|exists:campuses,id',
-            'building' => 'required|string',
+            'campus_id' => 'required|exists:locations,id',
+            'building' => 'required|exists:locations,id|different:campus_id',
             'location_detail' => 'nullable|string|max:500',
             'appointment_time_start' => 'nullable|date',
             'appointment_time_end' => 'nullable|date|after_or_equal:appointment_time_start',
@@ -556,20 +574,28 @@ class WorkorderController extends Controller
         try {
             $oldStatus = $workorder->status;
             $originalCreatedAt = $workorder->created_at;
-            $data = $request->all();
-            
+            // 白名单取值，防止 mass assignment 写入签单/满意度/完结时间等敏感字段
+            $allowedFields = [
+                'description', 'category_main', 'category_sub', 'contact_name', 'contact_phone',
+                'contact_email', 'location_detail',
+                'appointment_time_start', 'appointment_time_end', 'appointment_time',
+                'time_limit_hours', 'priority', 'source', 'other_source', 'department_id',
+                'need_visit', 'is_emergency', 'remarks', 'materials_usage', 'solution',
+                'assignee_id',
+            ];
+            // 仅管理员可修改 created_at（见上方 rules 判定）
+            if (Auth::user()->isAdmin()) {
+                $allowedFields[] = 'created_at';
+            }
+            $data = $request->only($allowedFields);
+
+            // 表单字段 building（楼栋 location id）→ 工单 location_id
+            $data['location_id'] = (int) $request->input('building');
+
             // 设置分类ID为子分类ID
             $data['category_id'] = $data['category_sub'];
             // 设置type_id为null，因为我们现在使用简化的分类系统
             $data['type_id'] = null;
-            
-            // 设置位置信息
-            if (isset($data['campus_id']) && isset($data['building'])) {
-                $campus = Campus::find($data['campus_id']);
-                $data['location'] = ($campus ? $campus->name : '') . ' - ' . $data['building'];
-                $data['campus'] = $campus ? $campus->name : '';
-                $data['location_id'] = is_numeric($data['building']) ? (int) $data['building'] : null;
-            }
             
             // 设置预计完成时间
             $timeLimitHours = $data['time_limit_hours'] ?? null;
@@ -617,8 +643,24 @@ class WorkorderController extends Controller
                 $data['status'] = 'assigned';
                 $data['assigned_at'] = $data['assigned_at'] ?? now();
             }
-            
+
+            // created_at 由 Laravel 管理、不在 $fillable 中；管理员单独写入
+            $submittedCreatedAt = $data['created_at'] ?? null;
+            unset($data['created_at']);
+
             $workorder->update($data);
+
+            // 管理员显式修改创建时间（绕过 $fillable）
+            if (Auth::user()->isAdmin() && $submittedCreatedAt) {
+                try {
+                    $newCreatedAt = \Carbon\Carbon::parse($submittedCreatedAt);
+                    if (!$originalCreatedAt || !$newCreatedAt->equalTo($originalCreatedAt)) {
+                        $workorder->forceFill(['created_at' => $newCreatedAt])->save();
+                    }
+                } catch (\Exception $e) {
+                    // 解析失败忽略
+                }
+            }
             
             // 如果分配了处理人，发送通知
             if ($workorder->wasChanged('assignee_id') && $workorder->assignee_id) {
@@ -627,10 +669,10 @@ class WorkorderController extends Controller
             
             // 记录更新日志
             $logContent = '工单信息已更新';
-            if (Auth::user()->isAdmin() && !empty($data['created_at'])) {
+            if (Auth::user()->isAdmin() && $submittedCreatedAt) {
                 try {
-                    $submittedCreatedAt = \Carbon\Carbon::parse($data['created_at']);
-                    if (!$originalCreatedAt || !$submittedCreatedAt->equalTo($originalCreatedAt)) {
+                    $parsedSubmitted = \Carbon\Carbon::parse($submittedCreatedAt);
+                    if (!$originalCreatedAt || !$parsedSubmitted->equalTo($originalCreatedAt)) {
                         $logContent .= '（创建时间已修改）';
                     }
                 } catch (\Exception $e) {
@@ -917,8 +959,10 @@ class WorkorderController extends Controller
             'content' => 'required|string|max:1000',
         ]);
 
-        $workorder->addLog('comment', $request->input('content'));
-        
+        // 用户提交的备注显式加前缀，避免与系统日志（如"工单已关闭"）混淆
+        $content = '【用户备注】' . $request->input('content');
+        $workorder->addLog('comment', $content, Auth::id());
+
         // 发送通知
         $workorder->sendCommentNotification($request->input('content'), Auth::user());
         
@@ -1006,11 +1050,11 @@ class WorkorderController extends Controller
        }
        
         try {
-            $request->validate([
-                'attachments' => 'required|array',
-                'attachments.*' => 'file|max:10240', // 最大10MB
-                'description' => 'nullable|string|max:500',
-            ]);
+             $request->validate([
+                 'attachments' => 'required|array',
+                 'attachments.*' => 'file|max:10240|mimes:jpg,jpeg,png,gif,bmp,webp,pdf,doc,docx,xls,xlsx,ppt,pptx,txt,md,mp4,mov,avi,wmv,mkv,mp3,wav,flac,aac,ogg,zip,rar,7z', // 白名单扩展名
+                 'description' => 'nullable|string|max:500',
+             ]);
         } catch (\Illuminate\Validation\ValidationException $ve) {
             if ($isAjax) {
                 return response()->json(['success' => false, 'message' => implode(' ', $ve->validator->errors()->all())], 422);
