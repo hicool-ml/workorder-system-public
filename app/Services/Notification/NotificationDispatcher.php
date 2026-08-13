@@ -332,7 +332,10 @@ class NotificationDispatcher
             return;
         }
 
-        $template = config("services.sms.templates.{$event}", 'SMS_' . strtoupper($event));
+        // 模板代码优先从系统设置 sms_template_codes（JSON）读取，fallback 到 config，再 fallback 到占位
+        $tplCodesRaw = SystemSetting::get('sms_template_codes', '{}');
+        $tplCodes = is_string($tplCodesRaw) ? json_decode($tplCodesRaw, true) : (array) $tplCodesRaw;
+        $template = $tplCodes[$event] ?? config("services.sms.templates.{$event}", 'SMS_' . strtoupper($event));
         $params = [
             'workorder_number' => $workorder->ticket_no,
             'content'          => $this->buildSmsContent($workorder, $event),
@@ -620,8 +623,15 @@ class NotificationDispatcher
         $content = $this->buildBroadcastContent($workorder, $event);
 
         if ($event === 'created') {
-            // 群机器人 @all；自建应用模式下 sendText 内部会要求指定接收人
-            $result = $feishu->sendText($content, [], [], true);
+            // 群机器人 @all；自建应用模式需指定接收人，用收集到的飞书 user_id 发送
+            $userIds = [];
+            foreach ($recipients as $user) {
+                if (!empty($user->feishu_user_id)) {
+                    $userIds[] = $user->feishu_user_id;
+                }
+            }
+            // isAtAll=true 仅对 webhook 模式生效；app 模式必须传 user_id
+            $result = $feishu->sendText($content, $userIds, [], true);
         } else {
             $userIds = [];
             foreach ($recipients as $user) {

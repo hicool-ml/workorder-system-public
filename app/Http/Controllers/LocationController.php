@@ -31,38 +31,58 @@ class LocationController extends Controller
             return view('locations.index', compact('results', 'levels', 'baseInitialized', 'baseAddress'));
         }
 
-        // 默认：仅日常地址树（基础地址作为一行展示，不再逐级展开）
-        $tree = $baseInitialized ? Location::getDailyTree() : collect();
+        // 默认：按项目分组展示地址树
+        $projectTrees = $baseInitialized ? Location::getProjectTrees() : collect();
 
-        return view('locations.index', compact('tree', 'levels', 'baseInitialized', 'baseAddress'));
+        return view('locations.index', compact('projectTrees', 'levels', 'baseInitialized', 'baseAddress'));
     }
 
     /**
-     * 基础地址初始化页面
+     * 项目列表页面（基础地址 Tab）
      */
     public function baseAddressForm()
     {
+        $projects = Location::getProjectRoots();
         $baseLevels = LocationLevel::baseLevels();
-        $existing = [];
+        $projectData = [];
 
-        $root = Location::getDailyRoot();
-        if ($root) {
+        foreach ($projects as $root) {
+            $chain = [];
             foreach ($root->getAncestors() as $node) {
-                $existing[$node->level_id] = $node;
+                $chain[$node->level_id] = $node;
             }
+            $childCount = $root->children()->count();
+            $projectData[] = [
+                'root' => $root,
+                'chain' => $chain,
+                'full_address' => $root->full_address_delimited,
+                'child_count' => $childCount,
+            ];
         }
 
-        return view('locations.base-address', compact('baseLevels', 'existing'));
+        return view('locations.base-address', compact('projectData', 'baseLevels'));
     }
 
     /**
-     * 保存基础地址（省→市→区县→街道→门牌 一次性初始化）
+     * 新增项目页面（行政区划级联选择）
      */
-    public function initBaseAddress(Request $request)
+    public function createProject()
     {
         $baseLevels = LocationLevel::baseLevels();
         if ($baseLevels->isEmpty()) {
-            return back()->with('error', '尚未配置基础地址层级，请先在「层级定义」中配置');
+            return back()->with('error', '尚未配置基础地址层级');
+        }
+        return view('locations.project-create', compact('baseLevels'));
+    }
+
+    /**
+     * 保存新项目
+     */
+    public function storeProject(Request $request)
+    {
+        $baseLevels = LocationLevel::baseLevels();
+        if ($baseLevels->isEmpty()) {
+            return back()->with('error', '尚未配置基础地址层级');
         }
 
         $rules = [];
@@ -72,46 +92,101 @@ class LocationController extends Controller
         }
         $validated = $request->validate($rules);
 
-        // 已初始化的场景：就地更新现有链，避免重复建节点
-        $chain = [];
-        if ($root = Location::getDailyRoot()) {
-            foreach ($root->getAncestors() as $node) {
-                $chain[$node->level_id] = $node;
-            }
-        }
-
         $parentId = null;
-        $changed = false;
         foreach ($baseLevels as $lv) {
             $name = trim($validated["name_{$lv->code}"]);
             $code = trim($validated["code_{$lv->code}"] ?? '');
 
-            $node = $chain[$lv->id] ?? Location::where('level_id', $lv->id)->where('name', $name)->first();
-            if ($node) {
-                $node->name = $name;
-                $node->code = $code ?: null;
-                $node->parent_id = $parentId;
-                $node->status = 'active';
-                $node->save();
-            } else {
+            // 同一 parent 下同 level 同名复用
+            $node = Location::where('level_id', $lv->id)
+                ->where('name', $name)
+                ->where('parent_id', $parentId)
+                ->first();
+
+            if (! $node) {
                 $node = Location::create([
                     'name' => $name,
                     'code' => $code ?: null,
                     'level_id' => $lv->id,
                     'parent_id' => $parentId,
-                    'sort_order' => 1,
+                    'sort_order' => Location::where('level_id', $lv->id)->max('sort_order') + 1,
                     'status' => 'active',
                 ]);
+            } else {
+                if ($code) {
+                    $node->code = $code;
+                    $node->save();
+                }
             }
             $parentId = $node->id;
-            $changed = true;
         }
 
-        if (! $changed) {
-            return back()->with('info', '基础地址未发生变化');
+        return redirect()->route('locations.base-address')
+            ->with('success', '项目地址已创建');
+    }
+
+    /**
+     * 编辑项目门牌/路段
+     */
+    public function editProject($id)
+    {
+        $root = Location::findOrFail($id);
+        $baseLevels = LocationLevel::baseLevels();
+        $chain = [];
+        foreach ($root->getAncestors() as $node) {
+            $chain[$node->level_id] = $node;
+        }
+        return view('locations.project-edit', compact('root', 'chain', 'baseLevels'));
+    }
+
+    /**
+     * 更新项目门牌/路段
+     */
+    public function updateProject(Request $request, $id)
+    {
+        $root = Location::findOrFail($id);
+        $roadLevel = LocationLevel::where('code', 'road')->first();
+        if ($root->level_id !== $roadLevel?->id) {
+            return back()->with('error', '目标节点不是项目根');
         }
 
-        return redirect()->route('locations.index')->with('success', '基础地址初始化完成');
+        $validated = $request->validate([
+            'name_road' => 'required|string|max:255',
+            'code_road' => 'nullable|string|max:50',
+        ]);
+
+        $root->name = trim($validated['name_road']);
+        $root->code = trim($validated['code_road'] ?? '') ?: null;
+        $root->save();
+
+        return redirect()->route('locations.base-address')
+            ->with('success', '项目地址已更新');
+    }
+
+    /**
+     * 删除项目（仅当无子节点时）
+     */
+    public function destroyProject($id)
+    {
+        $root = Location::findOrFail($id);
+        if ($root->children()->exists()) {
+            return back()->with('error', '该项目下还有地址节点，请先清空子节点');
+        }
+
+        // 删除整条基础地址链（仅当链上节点没有其它子节点时逐级清理）
+        $current = $root;
+        while ($current) {
+            $parent = $current->parent;
+            // 如果当前节点有其它子节点（属于其它项目），不能删
+            if ($current->children()->where('id', '!=', $root->id)->exists() && $current->id !== $root->id) {
+                break;
+            }
+            $current->delete();
+            $current = $parent;
+        }
+
+        return redirect()->route('locations.base-address')
+            ->with('success', '项目已删除');
     }
 
     /**

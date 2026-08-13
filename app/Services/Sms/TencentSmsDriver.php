@@ -32,7 +32,8 @@ class TencentSmsDriver implements SmsDriver
         // 腾讯云短信 API v3 请求
         // 单位开通后取消注释即可使用。
         try {
-            $phoneNumber = '86' . $phone;
+            // 腾讯云短信 API v3 要求 E.164 格式：+8613800138000
+            $phoneNumber = '+86' . $phone;
             $params = array_values($params);
 
             $payload = [

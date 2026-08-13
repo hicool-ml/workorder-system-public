@@ -3,7 +3,7 @@
     <tr class="tree-row hover:bg-surface-muted/50" data-id="{{ $node->id }}"
         data-parent-id="{{ $node->parent_id }}"
         data-collapsible="{{ $hasChildren ? 1 : 0 }}"
-        data-default-collapsed="{{ $depth >= 2 ? 1 : 0 }}">
+        data-default-collapsed="{{ $depth >= 1 ? 1 : 0 }}">
         <td class="px-4 py-3">
             <div class="flex items-center" style="padding-left: {{ $depth * 1.5 }}rem">
                 @if($hasChildren)

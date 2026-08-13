@@ -43,15 +43,16 @@ class LocationInitAndImportTest extends TestCase
         $response = $this->actingAs($this->adminUser())->get(route('locations.base-address'));
 
         $response->assertOk();
-        $response->assertSee('基础地址初始化');
-        $response->assertSee('XX省'); // 表单 placeholder 中应包含通用占位
+        $response->assertSee('基础地址');
+        // 项目列表页面特征
+        $response->assertSee('新增项目');
     }
 
     public function test_init_base_address_creates_chain(): void
     {
         $this->seed(\Database\Seeders\LocationLevelSeeder::class);
 
-        $response = $this->actingAs($this->adminUser())->post(route('locations.base-address.store'), [
+        $response = $this->actingAs($this->adminUser())->post(route('locations.projects.store'), [
             'name_province' => '测试省',
             'name_city' => '测试市',
             'name_district' => '测试区',
@@ -62,20 +63,18 @@ class LocationInitAndImportTest extends TestCase
             'code_district' => '000101',
         ]);
 
-        $response->assertRedirect(route('locations.index'));
+        $response->assertRedirect(route('locations.base-address'));
         $this->assertTrue(Location::isBaseAddressInitialized());
 
-        $root = Location::getDailyRoot();
-        $this->assertNotNull($root);
-        $this->assertSame('测试省 / 测试市 / 测试区 / 测试大道 / 1号', $root->full_address_delimited);
-
-        $this->assertDatabaseHas('locations', ['name' => '测试省', 'code' => '000000']);
+        // 新建项目后应能在项目列表里看到
+        $response = $this->actingAs($this->adminUser())->get(route('locations.base-address'));
+        $response->assertSee('测试省 / 测试市 / 测试区 / 测试大道 / 1号');
     }
 
     public function test_import_template_downloads_csv_with_daily_levels(): void
     {
         $this->seed(\Database\Seeders\LocationLevelSeeder::class);
-        $this->actingAs($this->adminUser())->post(route('locations.base-address.store'), [
+        $this->actingAs($this->adminUser())->post(route('locations.projects.store'), [
             'name_province' => '测试省', 'name_city' => '测试市', 'name_district' => '测试区',
             'name_street' => '测试大道', 'name_road' => '1号',
         ]);
@@ -85,15 +84,15 @@ class LocationInitAndImportTest extends TestCase
         $response->assertOk();
         $response->assertHeader('content-type', 'text/csv; charset=UTF-8');
         $content = $response->streamedContent();
-        $this->assertStringContainsString('区域', $content);  // level name: 区域/园区
+        $this->assertStringContainsString('区域', $content);
         $this->assertStringContainsString('楼栋', $content);
-        $this->assertStringContainsString('房间', $content);  // level name: 房间/工位
+        $this->assertStringContainsString('房间', $content);
     }
 
     public function test_import_csv_creates_daily_nodes(): void
     {
         $this->seed(\Database\Seeders\LocationLevelSeeder::class);
-        $this->actingAs($this->adminUser())->post(route('locations.base-address.store'), [
+        $this->actingAs($this->adminUser())->post(route('locations.projects.store'), [
             'name_province' => '测试省', 'name_city' => '测试市', 'name_district' => '测试区',
             'name_street' => '测试大道', 'name_road' => '1号',
         ]);

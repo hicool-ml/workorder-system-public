@@ -96,7 +96,33 @@
                 </tr>
             </thead>
             <tbody id="tree-body" class="divide-y divide-border">
-                @include('locations._tree-rows', ['nodes' => $tree, 'depth' => 0])
+                @forelse($projectTrees as $projectRoot)
+                    <tr class="tree-row bg-brand-50 dark:bg-brand-900/20" data-id="{{ $projectRoot->id }}"
+                        data-parent-id="{{ $projectRoot->parent_id }}"
+                        data-collapsible="1"
+                        data-default-collapsed="1">
+                        <td class="px-4 py-3">
+                            <div class="flex items-center">
+                                <button type="button" class="tree-toggle w-4 h-4 mr-1.5 flex-shrink-0 text-brand-600" data-id="{{ $projectRoot->id }}" aria-label="折叠/展开">
+                                    <svg class="w-3.5 h-3.5 transition-transform duration-150" fill="currentColor" viewBox="0 0 20 20"><path d="M5 7l5 5 5-5H5z"/></svg>
+                                </button>
+                                <svg class="w-4 h-4 mr-1.5 text-brand-600 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z M12 13a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/></svg>
+                                <span class="font-semibold text-brand-700 dark:text-brand-300 text-sm">{{ $projectRoot->full_address_delimited }}</span>
+                                @if($projectRoot->children->isNotEmpty())
+                                    <span class="ml-2 inline-flex items-center px-1.5 py-0.5 rounded-full text-xs bg-brand-100 text-brand-700 dark:bg-brand-800 dark:text-brand-200">{{ $projectRoot->children->count() }} 个区域</span>
+                                @endif
+                            </div>
+                        </td>
+                        <td colspan="3" class="px-4 py-3 text-right">
+                            <a href="{{ route('locations.projects.edit', $projectRoot->id) }}" class="text-brand-600 hover:underline text-sm">编辑门牌</a>
+                        </td>
+                    </tr>
+                    @if($projectRoot->relationLoaded('children') && $projectRoot->children->isNotEmpty())
+                        @include('locations._tree-rows', ['nodes' => $projectRoot->children, 'depth' => 1])
+                    @endif
+                @empty
+                    <tr><td colspan="4" class="px-4 py-8 text-center text-ink-muted">暂无项目地址，请先在<a href="{{ route('locations.base-address') }}" class="text-brand-600 underline">基础地址</a>中创建项目</td></tr>
+                @endforelse
             </tbody>
         </table>
     </div>

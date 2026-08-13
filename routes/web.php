@@ -176,7 +176,11 @@ Route::middleware(['auth'])->group(function () {
 
         // 基础地址初始化（须在资源路由前，避免被 {location} 捕获）
         Route::get('locations/base-address', [LocationController::class, 'baseAddressForm'])->name('locations.base-address');
-        Route::post('locations/base-address', [LocationController::class, 'initBaseAddress'])->name('locations.base-address.store');
+        Route::get('locations/projects/create', [LocationController::class, 'createProject'])->name('locations.projects.create');
+        Route::post('locations/projects', [LocationController::class, 'storeProject'])->name('locations.projects.store');
+        Route::get('locations/projects/{id}/edit', [LocationController::class, 'editProject'])->name('locations.projects.edit');
+        Route::put('locations/projects/{id}', [LocationController::class, 'updateProject'])->name('locations.projects.update');
+        Route::delete('locations/projects/{id}', [LocationController::class, 'destroyProject'])->name('locations.projects.destroy');
 
         // 日常地址批量导入（须在资源路由前）
         Route::get('locations/import', [LocationController::class, 'importForm'])->name('locations.import');

@@ -91,14 +91,16 @@
                 <label class="label" for="campus_id">区域</label>
                 <select class="input" id="campus_id" name="campus_id">
                     <option value="">请选择</option>
-                    @foreach(\App\Models\WorkorderTemplate::getCampusOptions() as $value => $label)
-                    <option value="{{ $value }}" {{ old('campus_id', $workorderTemplate->campus_id) == $value ? 'selected' : '' }}>{{ $label }}</option>
+                    @foreach($campusOptions as $campusLocationId => $campusName)
+                    <option value="{{ $campusLocationId }}" {{ old('campus_id') == $campusLocationId ? 'selected' : '' }}>{{ $campusName }}</option>
                     @endforeach
                 </select>
             </div>
             <div>
                 <label class="label" for="building">楼栋</label>
-                <input type="text" class="input" id="building" name="building" value="{{ old('building', $workorderTemplate->building) }}">
+                <select class="input" id="building" name="building">
+                    <option value="">请先选择区域</option>
+                </select>
             </div>
             <div>
                 <label class="label" for="time_limit_hours">处理时限（小时）</label>
@@ -163,6 +165,43 @@
 var subCategories = @json($categoryOptions['sub']);
 var currentSubId = '{{ $workorderTemplate->category_id }}';
 var currentMainId = '{{ $workorderTemplate->category?->parent_id }}';
+var campusBuildings = @json($campusBuildings);
+var currentLocationId = '{{ $workorderTemplate->location_id }}';
+
+// 区域→楼栋联动
+$('#campus_id').change(function() {
+    var campusId = $(this).val();
+    var buildingSelect = $('#building');
+    buildingSelect.empty().append('<option value="">请选择楼栋</option>');
+    if (campusId && campusBuildings[campusId]) {
+        $.each(campusBuildings[campusId].buildings, function(index, building) {
+            var selected = (building.id == currentLocationId) ? ' selected' : '';
+            buildingSelect.append('<option value="' + building.id + '"' + selected + '>' + building.name + '</option>');
+        });
+    }
+});
+// 页面加载时初始化当前模板的区域和楼栋
+$(document).ready(function() {
+    // 通过 location_id 沿父链找到 campus_id
+    @if($workorderTemplate->location_id)
+    $.getJSON('{{ route("locations.children", "__root__") }}'.replace('__root__', ''), function() {}).fail(function() {});
+    // 简化：直接用 PHP 在后端查出 campus 节点 id
+    @php
+        $campusNode = null;
+        $loc = \App\Models\Location::find($workorderTemplate->location_id);
+        if ($loc) {
+            $campusLevelId = \App\Models\LocationLevel::where('code', 'campus')->value('id');
+            foreach ($loc->getAncestors() as $ancestor) {
+                if ($ancestor->level_id == $campusLevelId) { $campusNode = $ancestor; break; }
+            }
+        }
+    @endphp
+    var currentCampusId = '{{ $campusNode?->id ?? '' }}';
+    if (currentCampusId) {
+        $('#campus_id').val(currentCampusId).trigger('change');
+    }
+    @endif
+});
 
 document.getElementById('category_main').addEventListener('change', function() {
     var mainId = this.value;

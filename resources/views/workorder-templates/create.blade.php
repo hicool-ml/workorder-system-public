@@ -90,14 +90,16 @@
                 <label class="label" for="campus_id">区域</label>
                 <select class="input" id="campus_id" name="campus_id">
                     <option value="">请选择</option>
-                    @foreach(\App\Models\WorkorderTemplate::getCampusOptions() as $value => $label)
-                    <option value="{{ $value }}" {{ old('campus_id') == $value ? 'selected' : '' }}>{{ $label }}</option>
+                    @foreach($campusOptions as $campusLocationId => $campusName)
+                    <option value="{{ $campusLocationId }}" {{ old('campus_id') == $campusLocationId ? 'selected' : '' }}>{{ $campusName }}</option>
                     @endforeach
                 </select>
             </div>
             <div>
                 <label class="label" for="building">楼栋</label>
-                <input type="text" class="input" id="building" name="building" value="{{ old('building') }}">
+                <select class="input" id="building" name="building">
+                    <option value="">请先选择区域</option>
+                </select>
             </div>
             <div>
                 <label class="label" for="time_limit_hours">处理时限（小时）</label>
@@ -160,6 +162,19 @@
 @section('scripts')
 <script>
 var subCategories = @json($categoryOptions['sub']);
+var campusBuildings = @json($campusBuildings);
+
+// 区域→楼栋联动
+$('#campus_id').change(function() {
+    var campusId = $(this).val();
+    var buildingSelect = $('#building');
+    buildingSelect.empty().append('<option value="">请选择楼栋</option>');
+    if (campusId && campusBuildings[campusId]) {
+        $.each(campusBuildings[campusId].buildings, function(index, building) {
+            buildingSelect.append('<option value="' + building.id + '">' + building.name + '</option>');
+        });
+    }
+});
 document.getElementById('category_main').addEventListener('change', function() {
     var mainId = this.value;
     var subSel = document.getElementById('category_sub');

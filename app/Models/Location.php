@@ -115,11 +115,11 @@ class Location extends Model
         return $this->getAncestors()->pluck('name')->implode(' / ');
     }
 
-    // ===== 地址初始化状态 =====
+    // ===== 项目（多基础地址链）=====
 
     /**
      * 是否完成基础地址初始化。
-     * 判定：最深层基础地址层级存在启用节点，且其祖先链覆盖全部基础层级。
+     * 判定：最深层基础地址层级存在≥1个启用节点。
      */
     public static function isBaseAddressInitialized(): bool
     {
@@ -127,49 +127,71 @@ class Location extends Model
         if ($baseLevels->isEmpty()) {
             return false;
         }
-
         $deepest = $baseLevels->last();
-        $root = static::where('level_id', $deepest->id)->where('status', 'active')->first();
-        if (! $root) {
-            return false;
-        }
-
-        $covered = $root->getAncestors()->pluck('level_id');
-
-        return $baseLevels->pluck('id')->diff($covered)->isEmpty();
+        return static::where('level_id', $deepest->id)->where('status', 'active')->exists();
     }
 
     /**
-     * 日常地址的根节点：最深层基础地址节点（其子节点即校区/园区等日常层）。
+     * 所有项目根节点（road 层级的 active 节点），每个代表一个物业/项目。
+     */
+    public static function getProjectRoots(): Collection
+    {
+        $deepest = LocationLevel::baseLevels()->last();
+        if (! $deepest) {
+            return collect();
+        }
+        return static::where('level_id', $deepest->id)
+            ->where('status', 'active')
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->get();
+    }
+
+    /**
+     * 项目根数量
+     */
+    public static function getProjectCount(): int
+    {
+        $deepest = LocationLevel::baseLevels()->last();
+        if (! $deepest) {
+            return 0;
+        }
+        return static::where('level_id', $deepest->id)->where('status', 'active')->count();
+    }
+
+    /**
+     * 获取项目标签列表 [id => '四川省 / 成都市 / ... / 成洛大道2025号']
+     */
+    public static function getProjectOptions(): array
+    {
+        return static::getProjectRoots()
+            ->mapWithKeys(fn ($node) => [$node->id => $node->full_address_delimited])
+            ->all();
+    }
+
+    /**
+     * 日常地址的第一个项目根节点（兼容旧调用）。
      */
     public static function getDailyRoot(): ?Location
     {
-        if (! static::isBaseAddressInitialized()) {
-            return null;
-        }
-
-        $deepest = LocationLevel::baseLevels()->last();
-
-        return static::where('level_id', $deepest->id)->where('status', 'active')->first();
+        return static::getProjectRoots()->first();
     }
 
     /**
      * 地址前缀根节点（来自系统设置 address_prefix_location_id）。
-     * 前缀根之上的层级（如省/市/区）在工单/地址管理界面默认不展示。
-     * 未设置时回退到 getDailyRoot()（保持向下兼容）。
+     * 未设置时返回 null（不截断，展示所有项目）。
      */
     public static function getPrefixRoot(): ?Location
     {
         $id = SystemSetting::getAddressPrefixId();
         if (! $id) {
-            return static::getDailyRoot();
+            return null;
         }
-
         return static::find($id);
     }
 
     /**
-     * 前缀根的完整地址（带分隔符）。在工单/地址管理页面顶部作为只读上下文展示。
+     * 前缀根的完整地址。在工单/地址管理页面顶部作为只读上下文展示。
      */
     public static function getPrefixLabel(): ?string
     {
@@ -177,59 +199,96 @@ class Location extends Model
         if (! $root) {
             return null;
         }
-
         return $root->full_address_delimited;
     }
 
     /**
-     * 构建日常地址树（仅含「校区/园区 → 楼栋 → 房间」等日常层级，不含基础地址链）
-     * 返回：前缀根节点的子节点集合（嵌套 children）
+     * 构建日常地址树。
+     * - 有前缀根：只返回该前缀根的子树
+     * - 无前缀根：合并所有项目的子树（多项目场景）
      */
     public static function getDailyTree(): Collection
     {
-        $root = static::getPrefixRoot();
-        if (! $root) {
-            return collect();
+        $prefix = static::getPrefixRoot();
+        if ($prefix) {
+            $depth = LocationLevel::dailyLevels()->count();
+            $with = 'children';
+            for ($i = 1; $i < $depth; $i++) {
+                $with .= '.children';
+            }
+            $prefix->load($with);
+            return $prefix->children;
         }
 
+        // 无前缀根：聚合所有项目根的子节点
+        return static::getProjectTrees()->flatMap->children;
+    }
+
+    /**
+     * 获取所有项目的完整子树（每个项目根含嵌套 children）。
+     * 用于地址树页面按项目分组展示。
+     */
+    public static function getProjectTrees(): Collection
+    {
+        $roots = static::getProjectRoots();
+        if ($roots->isEmpty()) {
+            return collect();
+        }
         $depth = LocationLevel::dailyLevels()->count();
         $with = 'children';
         for ($i = 1; $i < $depth; $i++) {
             $with .= '.children';
         }
-        $root->load($with);
-
-        return $root->children;
+        $roots->load($with);
+        return $roots;
     }
 
     /**
-     * 前缀根下指定 level code 的直接子节点（用于工单表单的"校区下拉"）
+     * 前缀根或所有项目根下指定 level code 的节点（用于工单表单的"区域下拉"）。
+     * - 有前缀根：只查该前缀根下的节点
+     * - 无前缀根（多项目模式）：查所有项目根下的节点
      */
     public static function getPrefixChildrenByLevelCode(string $levelCode): Collection
     {
-        $root = static::getPrefixRoot();
-        if (! $root) {
-            return collect();
-        }
-
         $level = LocationLevel::where('code', $levelCode)->first();
         if (! $level) {
             return collect();
         }
 
-        // 前缀根本身就是该层级：返回它本身（包一层 collect 便于统一处理）
-        if ($root->level_id === $level->id) {
-            return collect([$root]);
+        $root = static::getPrefixRoot();
+        if ($root) {
+            // 有前缀根：只查该前缀根的子树
+            if ($root->level_id === $level->id) {
+                return collect([$root]);
+            }
+            return static::where('level_id', $level->id)
+                ->where('status', 'active')
+                ->where(function ($q) use ($root) {
+                    $q->where('parent_id', $root->id)
+                      ->orWhereIn('parent_id', static::getDescendantIds($root->id));
+                })
+                ->orderBy('sort_order')
+                ->orderBy('name')
+                ->get();
         }
 
-        // 否则取前缀根下所有该层级的子孙节点（递归到任意深度）
+        // 无前缀根（多项目模式）：查所有项目根直接子节点中该层级的节点
+        $projectRoots = static::getProjectRoots();
+        if ($projectRoots->isEmpty()) {
+            return collect();
+        }
+        $projectRootIds = $projectRoots->pluck('id')->all();
+        // campus/building/room 直接或间接挂在项目根下；
+        // 先收集项目根的所有子孙 id，再筛选特定层级
+        $allDescendantIds = [];
+        foreach ($projectRootIds as $rid) {
+            $allDescendantIds = array_merge($allDescendantIds, static::getDescendantIds($rid));
+        }
+        // 该层级的节点：parent_id 在 [项目根 + 子孙] 中 AND level_id 匹配
+        $allParentIds = array_merge($projectRootIds, $allDescendantIds);
         return static::where('level_id', $level->id)
             ->where('status', 'active')
-            ->where(function ($q) use ($root) {
-                // 必须是前缀根的子孙：通过 parent_id 链判断
-                $q->where('parent_id', $root->id)
-                  ->orWhereIn('parent_id', static::getDescendantIds($root->id));
-            })
+            ->whereIn('parent_id', $allParentIds)
             ->orderBy('sort_order')
             ->orderBy('name')
             ->get();

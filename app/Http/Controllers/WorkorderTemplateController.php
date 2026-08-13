@@ -44,17 +44,17 @@ class WorkorderTemplateController extends Controller
     {
         $categories = WorkorderCategorySimplified::getTopLevelCategories();
         $subCategories = [];
-        
         foreach ($categories as $category) {
             $subCategories[$category->id] = WorkorderCategorySimplified::getSubCategories($category->id);
         }
-        
         $categoryOptions = [
             'main' => $categories,
             'sub' => $subCategories,
         ];
+        $campusOptions = \App\Models\Location::getCampusOptionsForWorkorder();
+        $campusBuildings = \App\Models\Location::getCampusBuildingTree();
 
-        return view('workorder-templates.create', compact('categoryOptions'));
+        return view('workorder-templates.create', compact('categoryOptions', 'campusOptions', 'campusBuildings'));
     }
 
     /**
@@ -70,8 +70,8 @@ class WorkorderTemplateController extends Controller
             'contact_name' => 'nullable|string|max:100',
             'contact_phone' => 'nullable|string|max:20',
             'contact_email' => 'nullable|email|max:100',
-            'campus_id' => 'nullable|exists:campuses,id',
-            'building' => 'nullable|string|max:200',
+            'campus_id' => 'nullable|exists:locations,id',
+            'building' => 'nullable|exists:locations,id',
             'location_detail' => 'nullable|string|max:500',
             'time_limit_hours' => 'nullable|integer|min:1|max:168',
             'priority' => 'nullable|in:high,medium,low',
@@ -83,10 +83,17 @@ class WorkorderTemplateController extends Controller
             'other_reason' => 'nullable|string|max:500',
         ]);
 
-        $data = $request->all();
-        $data['category_id'] = $data['category_sub'];
+        $data = $request->only([
+            'name', 'description', 'contact_name', 'contact_phone', 'contact_email',
+            'location_detail', 'time_limit_hours', 'priority', 'source',
+            'department_name', 'need_visit', 'is_emergency', 'phone_assisted',
+            'other_reason',
+        ]);
+        $data['category_id'] = $request->input('category_sub');
         $data['creator_id'] = Auth::id();
         $data['is_active'] = true;
+        // 表单 building（楼栋 location id）→ location_id
+        $data['location_id'] = (int) $request->input('building') ?: null;
 
         WorkorderTemplate::create($data);
 
@@ -101,17 +108,17 @@ class WorkorderTemplateController extends Controller
     {
         $categories = WorkorderCategorySimplified::getTopLevelCategories();
         $subCategories = [];
-        
         foreach ($categories as $category) {
             $subCategories[$category->id] = WorkorderCategorySimplified::getSubCategories($category->id);
         }
-        
         $categoryOptions = [
             'main' => $categories,
             'sub' => $subCategories,
         ];
+        $campusOptions = \App\Models\Location::getCampusOptionsForWorkorder();
+        $campusBuildings = \App\Models\Location::getCampusBuildingTree();
 
-        return view('workorder-templates.edit', compact('workorderTemplate', 'categoryOptions'));
+        return view('workorder-templates.edit', compact('workorderTemplate', 'categoryOptions', 'campusOptions', 'campusBuildings'));
     }
 
     /**
@@ -127,8 +134,8 @@ class WorkorderTemplateController extends Controller
             'contact_name' => 'nullable|string|max:100',
             'contact_phone' => 'nullable|string|max:20',
             'contact_email' => 'nullable|email|max:100',
-            'campus_id' => 'nullable|exists:campuses,id',
-            'building' => 'nullable|string|max:200',
+            'campus_id' => 'nullable|exists:locations,id',
+            'building' => 'nullable|exists:locations,id',
             'location_detail' => 'nullable|string|max:500',
             'time_limit_hours' => 'nullable|integer|min:1|max:168',
             'priority' => 'nullable|in:high,medium,low',
@@ -140,8 +147,14 @@ class WorkorderTemplateController extends Controller
             'other_reason' => 'nullable|string|max:500',
         ]);
 
-        $data = $request->all();
-        $data['category_id'] = $data['category_sub'];
+        $data = $request->only([
+            'name', 'description', 'contact_name', 'contact_phone', 'contact_email',
+            'location_detail', 'time_limit_hours', 'priority', 'source',
+            'department_name', 'need_visit', 'is_emergency', 'phone_assisted',
+            'other_reason',
+        ]);
+        $data['category_id'] = $request->input('category_sub');
+        $data['location_id'] = (int) $request->input('building') ?: null;
 
         $workorderTemplate->update($data);
 

@@ -507,6 +507,11 @@ class SystemSettingController extends Controller
             'sms_api_url'    => 'nullable|string|max:500',
             'sms_method'     => 'nullable|in:GET,POST',
             'sms_api_key'    => 'nullable|string|max:200',
+            'sms_enabled'    => 'nullable|boolean',
+            'sms_creator_acceptance_code' => 'nullable|string|max:100',
+            'sms_creator_survey_code'     => 'nullable|string|max:100',
+            'sms_reply_secret'            => 'nullable|string|max:200',
+            'sms_reply_ip_whitelist'      => 'nullable|string|max:500',
         ]);
 
         $fields = [
@@ -534,6 +539,17 @@ class SystemSettingController extends Controller
         foreach ($fields as $key => $value) {
             SystemSetting::set($key, $value, 'string', $fieldDescriptions[$key] ?? null);
         }
+
+        // 短信总开关
+        SystemSetting::set('sms_enabled', $request->boolean('sms_enabled') ? '1' : '0', 'boolean', '短信通知总开关', false);
+
+        // 短信回调鉴权（生产环境必须配置，否则回复回调返回 401）
+        SystemSetting::set('sms_reply_secret', $request->input('sms_reply_secret', ''), 'string', '短信回复回调密钥（token 或 sign secret）', false);
+        SystemSetting::set('sms_reply_ip_whitelist', $request->input('sms_reply_ip_whitelist', ''), 'string', '短信回复回调 IP 白名单（逗号分隔）', false);
+
+        // 报修人短信模板代码（阿里云/腾讯云的模板 CODE）
+        SystemSetting::set('sms_creator_acceptance_code', $request->input('sms_creator_acceptance_code', ''), 'string', '报修人受理短信模板代码', false);
+        SystemSetting::set('sms_creator_survey_code', $request->input('sms_creator_survey_code', ''), 'string', '报修人满意度调查短信模板代码', false);
 
         // 报修人短信开关
         SystemSetting::set('creator_sms_enabled', $request->boolean('creator_sms_enabled') ? '1' : '0', 'boolean', '报修人受理短信开关', false);
