@@ -1076,13 +1076,12 @@ class Notification extends Model
     {
         $parts = [];
 
-        if ($workorder->campus && trim($workorder->campus)) {
-            $parts[] = trim($workorder->campus);
+        if ($workorder->campus_name) {
+            $parts[] = $workorder->campus_name;
         }
 
-        if ($workorder->building && trim($workorder->building)) {
-            $loc = \App\Models\Location::find(trim($workorder->building));
-            $parts[] = $loc ? $loc->name : trim($workorder->building);
+        if ($workorder->building_name) {
+            $parts[] = $workorder->building_name;
         }
 
         if ($workorder->location_detail && trim($workorder->location_detail)) {

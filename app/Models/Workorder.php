@@ -10,7 +10,6 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\DB;
 
 use App\Models\Location;
-use App\Models\Campus;
 
 class Workorder extends Model
 {
@@ -165,14 +164,6 @@ class Workorder extends Model
     }
 
     /**
-     * Campus (via campus_id foreign key). Preferred source for display.
-     */
-    public function campusInfo(): BelongsTo
-    {
-        return $this->belongsTo(Campus::class, 'campus_id');
-    }
-
-    /**
      * 地址树节点（自引用树结构，工单地址的唯一标准引用）。
      * 通过 location_id 关联到 locations 表。
      */
@@ -199,8 +190,8 @@ class Workorder extends Model
             return null;
         }
 
-        $campusLevel = LocationLevel::where('code', 'campus')->first();
-        if (! $campusLevel) {
+        $campusLevelId = self::getLevelIdByCodeCached('campus');
+        if (! $campusLevelId) {
             return null;
         }
 
@@ -209,18 +200,30 @@ class Workorder extends Model
         if (! $loc) {
             return null;
         }
-        if ($loc->level_id === $campusLevel->id) {
+        if ($loc->level_id === $campusLevelId) {
             return $loc;
         }
 
         // 沿父链向上查找
         foreach ($loc->getAncestors() as $ancestor) {
-            if ($ancestor->level_id === $campusLevel->id) {
+            if ($ancestor->level_id === $campusLevelId) {
                 return $ancestor;
             }
         }
 
         return null;
+    }
+
+    /**
+     * 按层级 code 取 level_id（请求级静态缓存，避免列表页每行都查库）
+     */
+    private static ?array $levelIdCache = null;
+    private static function getLevelIdByCodeCached(string $code): ?int
+    {
+        if (self::$levelIdCache === null) {
+            self::$levelIdCache = LocationLevel::pluck('id', 'code')->all();
+        }
+        return self::$levelIdCache[$code] ?? null;
     }
 
     /**
@@ -234,20 +237,10 @@ class Workorder extends Model
 
     /**
      * 可读楼栋名：直接返回 location_id 对应节点名。
-     * 若 location_id 指向的就是校区本身（极少见），返回空。
      */
     public function getBuildingNameAttribute(): string
     {
-        $loc = $this->treeLocation;
-        if (! $loc) {
-            return '';
-        }
-        $buildingLevel = LocationLevel::where('code', 'building')->first();
-        if ($buildingLevel && $loc->level_id === $buildingLevel->id) {
-            return $loc->name;
-        }
-        // 兜底：返回节点名（兼容未分类收容节点）
-        return $loc->name;
+        return $this->treeLocation?->name ?? '';
     }
 
     /**
@@ -1065,7 +1058,7 @@ class Workorder extends Model
     /**
      * 添加处理记录
      */
-    public function addLog(string $action, string $content = null, int $userId = null): WorkorderLog
+    public function addLog(string $action, ?string $content = null, ?int $userId = null): WorkorderLog
     {
         // 如果没有提供用户ID，尝试从认证用户获取，否则使用创建人ID
         $userId = $userId ?? (auth()->check() ? auth()->id() : $this->creator_id);
@@ -1080,7 +1073,7 @@ class Workorder extends Model
     /**
      * 分配工单
      */
-    public function assign(int $assigneeId, $note = null, int $userId = null): bool
+    public function assign(int $assigneeId, $note = null, ?int $userId = null): bool
     {
         if (!$this->canBeAssigned()) {
             return false;
@@ -1147,7 +1140,7 @@ class Workorder extends Model
     /**
      * 开始处理
      */
-    public function start(int $userId = null): bool
+    public function start(?int $userId = null): bool
     {
         if (!$this->canBeStarted()) {
             return false;
@@ -1167,7 +1160,7 @@ class Workorder extends Model
     /**
      * 解决工单
      */
-    public function resolve(string $solution, int $userId = null): bool
+    public function resolve(string $solution, ?int $userId = null): bool
     {
         if (!$this->canBeResolved()) {
             return false;
@@ -1187,7 +1180,7 @@ class Workorder extends Model
     /**
      * 关闭工单
      */
-    public function close(int $userId = null): bool
+    public function close(?int $userId = null): bool
     {
         if (!$this->canBeClosed()) {
             return false;
@@ -1206,7 +1199,7 @@ class Workorder extends Model
     /**
      * 完结工单
      */
-    public function complete(int $userId = null): bool
+    public function complete(?int $userId = null): bool
     {
         if (!$this->canBeCompleted()) {
             return false;
@@ -1272,7 +1265,7 @@ class Workorder extends Model
     /**
      * 邀请协作工程师
      */
-    public function inviteCollaborator(int $collaboratorId, string $reason = null, int $inviterId = null): bool
+    public function inviteCollaborator(int $collaboratorId, ?string $reason = null, ?int $inviterId = null): bool
     {
         // 检查权限
         $inviter = $inviterId ? User::find($inviterId) : auth()->user();

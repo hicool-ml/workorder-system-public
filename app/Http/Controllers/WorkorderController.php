@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Models\Workorder;
 use App\Models\WorkorderType;
-use App\Models\WorkorderCategory;
 use App\Models\WorkorderCategorySimplified;
 use App\Models\WorkorderAttachment;
 use App\Models\WorkorderVisit;
@@ -14,7 +13,6 @@ use App\Models\WorkorderTemplate;
 use App\Models\User;
 use App\Models\Department;
 use App\Models\Location;
-use App\Models\Campus;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -252,16 +250,19 @@ class WorkorderController extends Controller
 
         // 检查是否从模板创建
         $template = null;
+        $templateCustomFields = [];
         if ($request->filled('template')) {
             $template = WorkorderTemplate::find($request->input('template'));
             if ($template) {
-                // 预填充模板数据
+                // 预填充模板数据（必要 + 建议字段）
                 $templateData = $template->toWorkorderData();
                 $request->session()->flashInput($templateData);
+                // 自定义字段传给视图，用于显示额外信息
+                $templateCustomFields = $template->getCustomFields();
             }
         }
 
-        return view('workorders.create', compact('categories', 'template', 'campusOptions', 'campusBuildings', 'addressPrefix'));
+        return view('workorders.create', compact('categories', 'template', 'campusOptions', 'campusBuildings', 'addressPrefix', 'templateCustomFields'));
     }
 
     /**
@@ -581,9 +582,12 @@ class WorkorderController extends Controller
                 'appointment_time_start', 'appointment_time_end', 'appointment_time',
                 'time_limit_hours', 'priority', 'source', 'other_source', 'department_id',
                 'need_visit', 'is_emergency', 'remarks', 'materials_usage', 'solution',
-                'assignee_id',
             ];
-            // 仅管理员可修改 created_at（见上方 rules 判定）
+            // 仅管理员和工单管理员可通过编辑表单改派 assignee_id
+            if (Auth::user()->canAssignWorkorders()) {
+                $allowedFields[] = 'assignee_id';
+            }
+            // 仅管理员可修改 created_at
             if (Auth::user()->isAdmin()) {
                 $allowedFields[] = 'created_at';
             }
@@ -1405,21 +1409,22 @@ class WorkorderController extends Controller
         $workorderIds = $this->parseWorkorderIds($request);
         $assigneeId = $request->input('assignee_id');
         $note = $request->input('note');
-        
+
         try {
             $successCount = 0;
             $failedCount = 0;
             $failedWorkorders = [];
-            
+            $workorders = $this->prefetchWorkorders($workorderIds);
+
             foreach ($workorderIds as $workorderId) {
-                $workorder = Workorder::find($workorderId);
-                
+                $workorder = $workorders->get($workorderId);
+
                 if (!$workorder || !$workorder->canBeAssigned()) {
                     $failedCount++;
-                    $failedWorkorders[] = $workorder->ticket_no ?? 'Unknown';
+                    $failedWorkorders[] = $workorder?->ticket_no ?? 'Unknown';
                     continue;
                 }
-                
+
                 if ($workorder->assign($assigneeId, $note)) {
                     $successCount++;
                 } else {
@@ -1427,12 +1432,12 @@ class WorkorderController extends Controller
                     $failedWorkorders[] = $workorder->ticket_no;
                 }
             }
-            
+
             $message = "成功分配 {$successCount} 个工单";
             if ($failedCount > 0) {
                 $message .= "，失败 {$failedCount} 个工单：" . implode(', ', $failedWorkorders);
             }
-            
+
             return response()->json(['success' => true, 'message' => $message]);
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'message' => '批量分配失败：' . $e->getMessage()]);
@@ -1454,23 +1459,21 @@ class WorkorderController extends Controller
         ]);
         
         $workorderIds = $this->parseWorkorderIds($request);
-        
+
         try {
             $successCount = 0;
             $failedCount = 0;
             $failedWorkorders = [];
-            
+            $workorders = $this->prefetchWorkorders($workorderIds);
+
             foreach ($workorderIds as $workorderId) {
-                $workorder = Workorder::find($workorderId);
-                
-                // 权限检查：只能处理分配给自己的工单，或者管理员/工单管理员可以处理所有工单
-                // 工单不存在时直接跳过，避免空值解引用
+                $workorder = $workorders->get($workorderId);
+
                 if (!$workorder) {
                     $failedCount++;
                     $failedWorkorders[] = 'Unknown';
                     continue;
                 }
-                // 权限检查：只能处理分配给自己的工单，或者管理员/工单管理员可以处理所有工单
                 if (!$workorder->canBeOperatedBy(auth()->user(), 'resolve')) {
                     $failedCount++;
                     $failedWorkorders[] = $workorder->ticket_no ?? 'Unknown';
@@ -1488,7 +1491,7 @@ class WorkorderController extends Controller
                     $failedWorkorders[] = $workorder->ticket_no;
                 }
             }
-            
+
             $message = "成功开始处理 {$successCount} 个工单";
             if ($failedCount > 0) {
                 $message .= "，失败 {$failedCount} 个工单：" . implode(', ', $failedWorkorders);
@@ -1522,27 +1525,27 @@ class WorkorderController extends Controller
             $successCount = 0;
             $failedCount = 0;
             $failedWorkorders = [];
-            
+            $workorders = $this->prefetchWorkorders($workorderIds);
+
             if ($solutionType === 'common') {
                 // 通用解决方案模式验证
                 $request->validate([
                     'solution' => 'required|string|max:2000',
                 ]);
-                
+
                 $solution = $request->input('solution');
                 $noMaterials = $request->boolean('no_materials');
                 $materialsUsage = $noMaterials ? '无备件耗材使用' : $request->input('materials_usage');
-                
+
                 foreach ($workorderIds as $workorderId) {
-                    $workorder = Workorder::find($workorderId);
+                    $workorder = $workorders->get($workorderId);
 
                     if (!$workorder || !$workorder->canBeResolved()) {
                         $failedCount++;
-                        $failedWorkorders[] = $workorder->ticket_no ?? 'Unknown';
+                        $failedWorkorders[] = $workorder?->ticket_no ?? 'Unknown';
                         continue;
                     }
 
-                    // 权限检查：只能处理分配给自己的工单，或者管理员/工单管理员可以处理所有工单
                     if (!$workorder->canBeOperatedBy(auth()->user(), 'resolve')) {
                         $failedCount++;
                         $failedWorkorders[] = $workorder->ticket_no ?? 'Unknown';
@@ -1550,13 +1553,9 @@ class WorkorderController extends Controller
                     }
 
                     if ($workorder->resolve($solution)) {
-                        // 更新备件耗材使用情况
                         $workorder->materials_usage = $materialsUsage;
                         $workorder->save();
-                        
-                        // 记录日志
                         $workorder->addLog('materials_updated', '更新了备件耗材使用情况');
-                        
                         $successCount++;
                     } else {
                         $failedCount++;
@@ -1568,17 +1567,16 @@ class WorkorderController extends Controller
                 $solutions = $request->input('solutions', []);
                 $noMaterialsArray = $request->input('no_materials_array', []);
                 $materialsUsageArray = $request->input('materials_usage_array', []);
-                
+
                 foreach ($workorderIds as $workorderId) {
-                    $workorder = Workorder::find($workorderId);
+                    $workorder = $workorders->get($workorderId);
 
                     if (!$workorder || !$workorder->canBeResolved()) {
                         $failedCount++;
-                        $failedWorkorders[] = $workorder->ticket_no ?? 'Unknown';
+                        $failedWorkorders[] = $workorder?->ticket_no ?? 'Unknown';
                         continue;
                     }
 
-                    // 权限检查：只能处理分配给自己的工单，或者管理员/工单管理员可以处理所有工单
                     if (!$workorder->canBeOperatedBy(auth()->user(), 'resolve')) {
                         $failedCount++;
                         $failedWorkorders[] = $workorder->ticket_no ?? 'Unknown';
@@ -1588,15 +1586,11 @@ class WorkorderController extends Controller
                     $solution = $solutions[$workorderId] ?? '';
                     $noMaterials = $noMaterialsArray[$workorderId] ?? false;
                     $materialsUsage = $noMaterials ? '无备件耗材使用' : ($materialsUsageArray[$workorderId] ?? '');
-                    
+
                     if ($workorder->resolve($solution)) {
-                        // 更新备件耗材使用情况
                         $workorder->materials_usage = $materialsUsage;
                         $workorder->save();
-                        
-                        // 记录日志
                         $workorder->addLog('materials_updated', '更新了备件耗材使用情况');
-                        
                         $successCount++;
                     } else {
                         $failedCount++;
@@ -1636,16 +1630,17 @@ class WorkorderController extends Controller
             $successCount = 0;
             $failedCount = 0;
             $failedWorkorders = [];
-            
+            $workorders = $this->prefetchWorkorders($workorderIds);
+
             foreach ($workorderIds as $workorderId) {
-                $workorder = Workorder::find($workorderId);
-                
+                $workorder = $workorders->get($workorderId);
+
                 if (!$workorder || !$workorder->canBeClosed()) {
                     $failedCount++;
-                    $failedWorkorders[] = $workorder->ticket_no ?? 'Unknown';
+                    $failedWorkorders[] = $workorder?->ticket_no ?? 'Unknown';
                     continue;
                 }
-                
+
                 if ($workorder->close()) {
                     $successCount++;
                 } else {
@@ -1653,7 +1648,7 @@ class WorkorderController extends Controller
                     $failedWorkorders[] = $workorder->ticket_no;
                 }
             }
-            
+
             $message = "成功关闭 {$successCount} 个工单";
             if ($failedCount > 0) {
                 $message .= "，失败 {$failedCount} 个工单：" . implode(', ', $failedWorkorders);
@@ -1687,18 +1682,16 @@ class WorkorderController extends Controller
             $successCount = 0;
             $failedCount = 0;
             $failedWorkorders = [];
-            
+            $workorders = $this->prefetchWorkorders($workorderIds);
+
             foreach ($workorderIds as $workorderId) {
-                $workorder = Workorder::find($workorderId);
-                
-                // 权限检查：只能处理分配给自己的工单，或者管理员/工单管理员可以处理所有工单
-                // 工单不存在时直接跳过，避免空值解引用
+                $workorder = $workorders->get($workorderId);
+
                 if (!$workorder) {
                     $failedCount++;
                     $failedWorkorders[] = 'Unknown';
                     continue;
                 }
-                // 权限检查：只能处理分配给自己的工单，或者管理员/工单管理员可以处理所有工单
                 if (!$workorder->canBeOperatedBy(auth()->user(), 'resolve')) {
                     $failedCount++;
                     $failedWorkorders[] = $workorder->ticket_no ?? 'Unknown';
@@ -1740,7 +1733,18 @@ class WorkorderController extends Controller
     {
         $ids = explode(',', $request->input('workorder_ids', ''));
         $ids = array_filter($ids, fn($id) => is_numeric($id) && $id > 0);
-        return array_map('intval', $ids);
+        return array_unique(array_map('intval', $ids));
+    }
+
+    /**
+     * 批量预取工单（keyed by id），避免循环内逐条 find() 造成 N+1
+     */
+    private function prefetchWorkorders(array $ids): \Illuminate\Support\Collection
+    {
+        if (empty($ids)) {
+            return collect();
+        }
+        return Workorder::whereIn('id', $ids)->get()->keyBy('id');
     }
 
     /**
@@ -1796,5 +1800,20 @@ class WorkorderController extends Controller
             'materials_usage' => $workorder->materials_usage,
             'has_materials' => !empty($workorder->materials_usage) && $workorder->materials_usage !== '无备件耗材使用'
         ]);
+    }
+
+    /**
+     * 删除工单（软删除，仅管理员和工单管理员）
+     */
+    public function destroy(Request $request, Workorder $workorder)
+    {
+        if (!Auth::user()->canDeleteWorkorders()) {
+            abort(403, '您没有权限删除工单');
+        }
+
+        $workorder->delete();
+
+        return redirect(\App\Helpers\UrlHelper::relative_url('/workorders'))
+            ->with('success', '工单已删除');
     }
 }

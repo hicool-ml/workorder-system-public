@@ -7,14 +7,16 @@
     <h1 class="text-xl font-semibold text-ink">统计报表</h1>
     <div class="flex flex-wrap items-center gap-2 text-sm">
         <div class="flex items-center gap-1 p-1 rounded-lg" style="background-color: var(--c-muted);">
-            <button type="button" id="catModeNatural" class="px-3 py-1 rounded-md text-sm font-medium transition-colors" style="color: var(--c-ink-muted);">自然月</button>
-            <button type="button" id="catModeCustom" class="px-3 py-1 rounded-md text-sm font-medium transition-colors" style="color: var(--c-ink-muted);">自定义周期</button>
+            <button type="button" data-mode="week" class="cat-mode-btn px-3 py-1 rounded-md text-sm font-medium transition-colors">按周</button>
+            <button type="button" data-mode="month" class="cat-mode-btn px-3 py-1 rounded-md text-sm font-medium transition-colors">按月</button>
+            <button type="button" data-mode="quarter" class="cat-mode-btn px-3 py-1 rounded-md text-sm font-medium transition-colors">按季</button>
+            <button type="button" data-mode="half" class="cat-mode-btn px-3 py-1 rounded-md text-sm font-medium transition-colors">半年</button>
+            <button type="button" data-mode="year" class="cat-mode-btn px-3 py-1 rounded-md text-sm font-medium transition-colors">按年</button>
         </div>
-        <span style="color:var(--c-ink-muted);">起始日期</span>
-        <input type="date" id="catStart" value="{{ $categoryTrend['startStr'] }}" class="input" style="padding:0.3rem 0.5rem;font-size:0.8rem;width:auto;">
-        <span style="color:var(--c-ink-muted);">周期数</span>
-        <input type="number" id="catPeriods" min="1" max="24" value="{{ $categoryTrend['periodCount'] }}" class="input" style="width:72px;padding:0.3rem 0.5rem;font-size:0.8rem;">
-
+        <span style="color:var(--c-ink-muted);">开始</span>
+        <input type="date" id="startDate" value="{{ $categoryTrend['startStr'] ?? '' }}" class="input" style="padding:0.3rem 0.5rem;font-size:0.8rem;width:auto;">
+        <span style="color:var(--c-ink-muted);">结束</span>
+        <input type="date" id="endDate" value="{{ $categoryTrend['endStr'] ?? '' }}" class="input" style="padding:0.3rem 0.5rem;font-size:0.8rem;width:auto;">
         <button type="button" id="catApplyBtn" class="btn btn-primary btn-sm">应用</button>
     </div>
 </div>
@@ -507,36 +509,30 @@ document.addEventListener('DOMContentLoaded', function() {
         plugins: [catLabelPlugin]
     });
 
-    // 周期控件交互
-    var catMode = @json($categoryTrend['mode']);
-    var catModeNatural = document.getElementById('catModeNatural');
-    var catModeCustom = document.getElementById('catModeCustom');
+    // 时间筛选
+    var currentMode = @json($categoryTrend['mode'] ?? 'month');
+    var activeStyle = 'background-color: var(--c-brand); color:#fff;';
+    var inactiveStyle = 'color: var(--c-ink-muted);';
 
-    var catApplyBtn = document.getElementById('catApplyBtn');
-    function refreshCatModeUI() {
-        var isCustom = (catMode === 'custom');
-        var activeStyle = 'background-color: var(--c-brand); color:#fff;';
-        var inactiveStyle = 'color: var(--c-ink-muted);';
-        catModeNatural.setAttribute('style', isCustom ? inactiveStyle : activeStyle);
-        catModeCustom.setAttribute('style', isCustom ? activeStyle : inactiveStyle);
-
+    function refreshModeUI() {
+        document.querySelectorAll('.cat-mode-btn').forEach(function (btn) {
+            btn.setAttribute('style', btn.dataset.mode === currentMode ? activeStyle : inactiveStyle);
+        });
     }
-    catModeNatural.addEventListener('click', function () { catMode = 'natural'; refreshCatModeUI(); });
-    catModeCustom.addEventListener('click', function () { catMode = 'custom'; refreshCatModeUI(); });
-    refreshCatModeUI();
-    function catApply() {
-        var params = [];
-        var catStartVal = document.getElementById('catStart').value;
-        params.push('cat_mode=' + catMode);
-        if (catStartVal) params.push('cat_start=' + catStartVal);
-        params.push('cat_periods=' + document.getElementById('catPeriods').value);
+    document.querySelectorAll('.cat-mode-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () { currentMode = btn.dataset.mode; refreshModeUI(); });
+    });
+    refreshModeUI();
 
+    function catApply() {
+        var params = ['cat_mode=' + currentMode];
+        var sv = document.getElementById('startDate').value;
+        var ev = document.getElementById('endDate').value;
+        if (sv) params.push('start_date=' + sv);
+        if (ev) params.push('end_date=' + ev);
         window.location.href = '{{ route('reports.index') }}?' + params.join('&');
     }
-    catApplyBtn.addEventListener('click', catApply);
-    // Auto-apply on input change: no need to click button manually
-    document.getElementById('catStart').addEventListener('change', catApply);
-    document.getElementById('catPeriods').addEventListener('change', catApply);
+    document.getElementById('catApplyBtn').addEventListener('click', catApply);
 
     // Category chart
     var catCtx = document.getElementById('categoryChart');

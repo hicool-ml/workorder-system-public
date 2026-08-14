@@ -12,127 +12,161 @@ class WorkorderTemplate extends Model
 
     protected $fillable = [
         'name',
-        'description',
-        'category_id',
-        'contact_name',
-        'contact_phone',
-        'contact_email',
-        'location_id',
-        'location_detail',
-        'time_limit_hours',
-        'priority',
-        'source',
-        'department_name',
-        'need_visit',
-        'is_emergency',
-        'phone_assisted',
-        'other_reason',
+        'fields',
+        'category_main_id',
         'is_active',
         'creator_id',
     ];
 
     protected $casts = [
-        'need_visit' => 'boolean',
-        'is_emergency' => 'boolean',
-        'phone_assisted' => 'boolean',
+        'fields' => 'array',
         'is_active' => 'boolean',
     ];
 
-    /**
-     * 获取分类
-     */
-    public function category(): BelongsTo
-    {
-        return $this->belongsTo(WorkorderCategorySimplified::class, 'category_id');
-    }
+    // ===== 系统预设字段定义 =====
 
     /**
-     * 获取创建人
+     * 必要字段：每个工单必须有，模板中不可禁用
      */
+    public const ESSENTIAL_FIELDS = [
+        [
+            'name' => 'description',
+            'label' => '问题描述',
+            'type' => 'textarea',
+            'category' => 'essential',
+            'required' => true,
+        ],
+        [
+            'name' => 'category_main',
+            'label' => '工单大类',
+            'type' => 'select',
+            'category' => 'essential',
+            'required' => true,
+        ],
+        [
+            'name' => 'category_sub',
+            'label' => '故障分类',
+            'type' => 'select',
+            'category' => 'essential',
+            'required' => true,
+        ],
+    ];
+
+    /**
+     * 建议字段：系统预设，用户可勾选启用/禁用
+     */
+    public const SUGGESTED_FIELDS = [
+        [
+            'name' => 'priority',
+            'label' => '优先级',
+            'type' => 'select',
+            'category' => 'suggested',
+            'required' => false,
+            'options' => [
+                ['value' => 'high', 'label' => '高'],
+                ['value' => 'medium', 'label' => '中'],
+                ['value' => 'low', 'label' => '低'],
+            ],
+        ],
+        [
+            'name' => 'time_limit_hours',
+            'label' => '处理时限（小时）',
+            'type' => 'number',
+            'category' => 'suggested',
+            'required' => false,
+        ],
+        [
+            'name' => 'contact_name',
+            'label' => '联系人',
+            'type' => 'text',
+            'category' => 'suggested',
+            'required' => false,
+        ],
+        [
+            'name' => 'contact_phone',
+            'label' => '联系电话',
+            'type' => 'text',
+            'category' => 'suggested',
+            'required' => false,
+        ],
+        [
+            'name' => 'contact_email',
+            'label' => '邮箱',
+            'type' => 'text',
+            'category' => 'suggested',
+            'required' => false,
+        ],
+        [
+            'name' => 'source',
+            'label' => '来源',
+            'type' => 'select',
+            'category' => 'suggested',
+            'required' => false,
+            'options' => [
+                ['value' => 'phone', 'label' => '电话'],
+                ['value' => 'web', 'label' => '网页'],
+                ['value' => 'scene', 'label' => '现场'],
+                ['value' => 'email', 'label' => '邮件'],
+            ],
+        ],
+        [
+            'name' => 'department_name',
+            'label' => '部门',
+            'type' => 'text',
+            'category' => 'suggested',
+            'required' => false,
+        ],
+        [
+            'name' => 'location_detail',
+            'label' => '详细地址',
+            'type' => 'text',
+            'category' => 'suggested',
+            'required' => false,
+        ],
+        [
+            'name' => 'is_emergency',
+            'label' => '紧急工单',
+            'type' => 'checkbox',
+            'category' => 'suggested',
+            'required' => false,
+        ],
+        [
+            'name' => 'need_visit',
+            'label' => '需要回访',
+            'type' => 'checkbox',
+            'category' => 'suggested',
+            'required' => false,
+        ],
+        [
+            'name' => 'requires_signature',
+            'label' => '需签单',
+            'type' => 'checkbox',
+            'category' => 'suggested',
+            'required' => false,
+        ],
+    ];
+
+    /**
+     * 获取所有预设字段（必要 + 建议）
+     */
+    public static function getPresetFields(): array
+    {
+        return array_merge(self::ESSENTIAL_FIELDS, self::SUGGESTED_FIELDS);
+    }
+
+    // ===== 关系 =====
+
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'creator_id');
     }
 
-    /**
-     * 获取优先级选项
-     */
-    public static function getPriorityOptions(): array
+    public function mainCategory(): BelongsTo
     {
-        return [
-            'high' => '高',
-            'medium' => '中',
-            'low' => '低',
-        ];
+        return $this->belongsTo(WorkorderCategorySimplified::class, 'category_main_id');
     }
 
-    /**
-     * 获取来源选项
-     */
-    public static function getSourceOptions(): array
-    {
-        return [
-            'phone' => '电话',
-            'web' => '网页',
-            'email' => '邮件',
-            'scene' => '现场',
-            'other' => '其他',
-        ];
-    }
-
-    /**
-     * 获取区域选项
-     */
-    public static function getCampusOptions(): array
-    {
-        return \App\Models\Campus::orderBy('sort_order')
-            ->orderBy('name')
-            ->pluck('name', 'id')
-            ->toArray();
-    }
-
-    /**
-     * 获取优先级文本
-     */
-    public function getPriorityTextAttribute(): string
-    {
-        return self::getPriorityOptions()[$this->priority] ?? $this->priority;
-    }
-
-    /**
-     * 获取来源文本
-     */
-    public function getSourceTextAttribute(): string
-    {
-        return self::getSourceOptions()[$this->source] ?? $this->source;
-    }
-
-    /**
-     * 获取区域文本
-     */
-    public function getCampusTextAttribute(): string
-    {
-        $campus = \App\Models\Campus::find($this->campus_id);
-        return $campus ? $campus->name : '';
-    }
-
-    /**
-     * 获取位置信息
-     */
-    public function getLocationAttribute(): string
-    {
-        $location = '';
-        if ($this->campus_id) {
-            $location .= $this->campus_text;
-        }
-        if ($this->building) {
-            $location .= ($location ? ' - ' : '') . $this->building;
-        }
-        if ($this->location_detail) {
-            $location .= ($location ? ' - ' : '') . $this->location_detail;
-        }
-        return $location;
-    }
+    // ===== 业务方法 =====
 
     /**
      * 获取启用的模板
@@ -140,54 +174,42 @@ class WorkorderTemplate extends Model
     public static function getActiveTemplates()
     {
         return self::where('is_active', true)
-            ->with(['category', 'creator'])
+            ->with('creator')
             ->orderBy('name')
             ->get();
     }
 
     /**
-     * 根据模板创建工单数据
+     * 从模板 fields JSON 提取工单表单预填数据
+     * 返回 [field_name => value, ...] 仅含 essential + 已勾选的 suggested
      */
     public function toWorkorderData(): array
     {
-        return [
-            'description' => $this->description,
-            'category_main' => $this->category?->parent_id,
-            'category_sub' => $this->category_id,
-            'contact_name' => $this->contact_name,
-            'contact_phone' => $this->contact_phone,
-            'contact_email' => $this->contact_email,
-            'location_detail' => $this->location_detail,
-            'time_limit_hours' => $this->time_limit_hours,
-            'priority' => $this->priority,
-            'source' => $this->source,
-            'department_name' => $this->department_name,
-            'need_visit' => $this->need_visit,
-            'is_emergency' => $this->is_emergency,
-            'phone_assisted' => $this->phone_assisted,
-            'other_reason' => $this->other_reason,
-        ];
+        $data = [];
+        $fields = $this->fields ?? [];
+
+        foreach ($fields as $field) {
+            // 只处理必要 + 建议字段的自定义部分（跳过 category=custom）
+            if (($field['category'] ?? '') === 'custom') continue;
+            if (array_key_exists('value', $field) && $field['value'] !== null && $field['value'] !== '') {
+                $data[$field['name']] = $field['value'];
+            }
+        }
+
+        return $data;
     }
 
     /**
-     * 搜索模板
+     * 从模板 fields JSON 提取自定义字段（创建工单后存入 remarks 或额外字段）
      */
-    public static function searchTemplates($keyword = null, $categoryId = null)
+    public function getCustomFields(): array
     {
-        $query = self::where('is_active', true)
-            ->with(['category', 'creator']);
-
-        if ($keyword) {
-            $query->where(function ($q) use ($keyword) {
-                $q->where('name', 'like', "%{$keyword}%")
-                  ->orWhere('description', 'like', "%{$keyword}%");
-            });
+        $custom = [];
+        foreach ($this->fields ?? [] as $field) {
+            if (($field['category'] ?? '') === 'custom') {
+                $custom[$field['label']] = $field['value'] ?? '';
+            }
         }
-
-        if ($categoryId) {
-            $query->where('category_id', $categoryId);
-        }
-
-        return $query->orderBy('name')->get();
+        return $custom;
     }
 }

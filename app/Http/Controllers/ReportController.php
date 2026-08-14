@@ -66,67 +66,89 @@ class ReportController extends Controller
      */
 
     /**
-     * 计算报告周期（起始日期 + 周期数 → 时间范围）
-     * 自定义模式下，周期起始日从起始日期的天数自动推导，无需额外输入
+     * 计算报表时间范围。
+     *
+     * 从请求参数读 start_date / end_date（默认最近 6 个月），
+     * 按选定粒度（周/月/年）分段。
      */
     private function computeReportPeriods(Request $request)
     {
-        $mode = $request->input('cat_mode', 'custom');
-        $periodCount = max(1, min((int) $request->input('cat_periods', 6), 24));
-        $startInput = $request->input('cat_start');
+        $mode = $request->input('cat_mode', 'month');
+        $startInput = $request->input('start_date');
+        $endInput = $request->input('end_date');
 
-        // 周期起始日从起始日期的天数推导（如4月13日 → 每月13日起）
-        if ($startInput) {
-            $cycleDay = \Carbon\Carbon::parse($startInput)->day;
-        } else {
-            $cycleDay = now()->day;
-        }
-        $cycleDay = max(1, min($cycleDay, 28));
+        $rangeStart = $startInput
+            ? \Carbon\Carbon::parse($startInput)->startOfDay()
+            : now()->copy()->subMonths(5)->startOfMonth();
+        $rangeEnd = $endInput
+            ? \Carbon\Carbon::parse($endInput)->endOfDay()
+            : now()->copy()->endOfDay();
 
-        if ($startInput) {
-            $probeStart = \Carbon\Carbon::parse($startInput)->startOfDay();
-            if ($mode === 'natural') $probeStart = $probeStart->copy()->startOfMonth();
-            for ($pc = $periodCount; $pc >= 1; $pc--) {
-                $lastEnd = $probeStart->copy()->addMonths($pc - 1);
-                $lastEnd = ($mode === 'custom') ? $lastEnd->copy()->addMonth()->subDay()->endOfDay() : $lastEnd->copy()->endOfMonth()->endOfDay();
-                if ($lastEnd <= now()->endOfDay()) { $periodCount = $pc; break; }
-            }
+        if ($rangeEnd < $rangeStart) {
+            $rangeEnd = $rangeStart->copy()->endOfMonth();
         }
 
-        if ($startInput) {
-            $firstStart = \Carbon\Carbon::parse($startInput)->startOfDay();
-            if ($mode === 'natural') $firstStart = $firstStart->copy()->startOfMonth();
-        } else {
-            $today = now();
-            if ($mode === 'custom') {
-                if ($today->day >= $cycleDay) {
-                    $latestCompleted = $today->copy()->startOfMonth()->subMonth()->addDays($cycleDay - 1)->startOfDay();
-                } else {
-                    $latestCompleted = $today->copy()->startOfMonth()->subMonths(2)->addDays($cycleDay - 1)->startOfDay();
-                }
-                $firstStart = $latestCompleted->subMonths($periodCount - 1);
-            } else {
-                $firstStart = $today->copy()->startOfMonth()->subMonths($periodCount - 1);
-            }
-        }
-
+        // 按粒度分段
         $periods = [];
-        for ($i = 0; $i < $periodCount; $i++) {
-            $start = $firstStart->copy()->addMonths($i);
-            if ($mode === 'custom') {
-                $end = $start->copy()->addMonth()->subDay()->endOfDay();
-                $periods[] = ['label' => $start->format('m/d') . '-' . $end->format('m/d'), 'start' => $start, 'end' => $end];
-            } else {
-                $periods[] = ['label' => $start->format('m/d') . '-' . $start->copy()->endOfMonth()->format('m/d'), 'start' => $start->copy()->startOfDay(), 'end' => $start->copy()->endOfMonth()->endOfDay()];
+        $cursor = $rangeStart->copy();
+
+        $addInterval = function (&$c) use ($mode) {
+            switch ($mode) {
+                case 'week':     $c->addWeek(); break;
+                case 'month':    $c->addMonth(); break;
+                case 'quarter':  $c->addMonths(3); break;
+                case 'half':     $c->addMonths(6); break;
+                case 'year':     $c->addYear(); break;
             }
+        };
+
+        while ($cursor <= $rangeEnd) {
+            $segStart = $cursor->copy();
+            switch ($mode) {
+                case 'week':
+                    $segEnd = $cursor->copy()->endOfWeek()->endOfDay();
+                    break;
+                case 'year':
+                    $segEnd = $cursor->copy()->endOfYear()->endOfDay();
+                    break;
+                case 'quarter':
+                    $segEnd = $cursor->copy()->addMonths(3)->subDay()->endOfDay();
+                    break;
+                case 'half':
+                    $segEnd = $cursor->copy()->addMonths(6)->subDay()->endOfDay();
+                    break;
+                case 'month':
+                default:
+                    if ($rangeStart->day > 1 && $rangeStart->day <= 28) {
+                        // 非自然月：从开始日期的号数开始算周期（如13号→每月13日至下月12日）
+                        $segEnd = $cursor->copy()->addMonth()->subDay()->endOfDay();
+                    } else {
+                        // 自然月（1号开始或29-31号降级为自然月）
+                        $segEnd = $cursor->copy()->endOfMonth()->endOfDay();
+                    }
+                    break;
+            }
+            if ($segStart < $rangeStart) $segStart = $rangeStart->copy();
+            if ($segEnd > $rangeEnd) $segEnd = $rangeEnd->copy();
+
+            $periods[] = [
+                'label' => $segStart->format('m/d') . '-' . $segEnd->format('m/d'),
+                'start' => $segStart,
+                'end' => $segEnd,
+            ];
+
+            $addInterval($cursor);
+            if (count($periods) > 120) break;
         }
 
         return [
             'periods' => $periods,
-            'rangeStart' => $periods[0]['start'],
-            'rangeEnd' => $periods[count($periods) - 1]['end'],
-            'mode' => $mode, 'periodCount' => $periodCount, 'cycleDay' => $cycleDay,
-            'startStr' => $firstStart->format('Y-m-d'),
+            'rangeStart' => $rangeStart,
+            'rangeEnd' => $rangeEnd,
+            'mode' => $mode,
+            'startStr' => $rangeStart->format('Y-m-d'),
+            'endStr' => $rangeEnd->format('Y-m-d'),
+            'periodCount' => count($periods),
         ];
     }
     /**
@@ -236,7 +258,7 @@ class ReportController extends Controller
         return [
             'periodLabels' => $periodLabels, 'categories' => $categories,
             'mode' => $periodInfo['mode'], 'periodCount' => $periodInfo['periodCount'],
-            'cycleDay' => $periodInfo['cycleDay'], 'startStr' => $periodInfo['startStr'],
+            'startStr' => $periodInfo['startStr'], 'endStr' => $periodInfo['endStr'] ?? '',
         ];
     }
 

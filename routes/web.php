@@ -127,7 +127,7 @@ Route::middleware(['auth'])->group(function () {
     Route::get('workorders/{workorder}/materials-usage', [WorkorderController::class, 'getMaterialsUsage'])->name('workorders.materials-usage');
     
     // 工单模板管理（管理员和工单管理员）
-    Route::resource('workorder-templates', WorkorderTemplateController::class)->names([
+    Route::resource('workorder-templates', WorkorderTemplateController::class)->except(['show'])->names([
         'index' => 'workorder-templates.index',
         'create' => 'workorder-templates.create',
         'store' => 'workorder-templates.store',
@@ -136,7 +136,8 @@ Route::middleware(['auth'])->group(function () {
         'destroy' => 'workorder-templates.destroy',
     ])->middleware('role:admin,workorder_manager');
     
-    Route::post('workorder-templates/{workorderTemplate}/createFromTemplate', [WorkorderTemplateController::class, 'createFromTemplate'])->name('workorder-templates.createFromTemplate')->middleware('role:admin,workorder_manager');
+    Route::get('workorder-templates/{workorderTemplate}/createFromTemplate', [WorkorderTemplateController::class, 'createFromTemplate'])->name('workorder-templates.createFromTemplate')->middleware('role:admin,workorder_manager');
+    Route::get('api/template-by-category/{categoryId}', [WorkorderTemplateController::class, 'getByCategory'])->name('api.template-by-category');
     Route::post('workorder-templates/{workorderTemplate}/toggleStatus', [WorkorderTemplateController::class, 'toggleStatus'])->name('workorder-templates.toggleStatus')->middleware('role:admin,workorder_manager');
     
     // 附件相关
@@ -333,7 +334,7 @@ Route::middleware(['auth'])->group(function () {
     Route::post('notifications/batch-read', [NotificationController::class, 'batchMarkAsRead'])->name('notifications.batch-read');
     Route::delete('notifications/batch', [NotificationController::class, 'batchDestroy'])->name('notifications.batch-destroy');
     Route::post('notifications/read-all', [NotificationController::class, 'markAllAsRead'])->name('notifications.read-all');
-    Route::post('notifications/create-announcement', [NotificationController::class, 'createAnnouncement'])->name('notifications.create-announcement');
+    Route::post('notifications/create-announcement', [NotificationController::class, 'createAnnouncement'])->name('notifications.create-announcement')->middleware('role:admin');
     
     // 单个通知操作
     Route::post('notifications/{notification}/read', [NotificationController::class, 'markAsRead'])->name('notifications.read');

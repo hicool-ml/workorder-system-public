@@ -74,10 +74,14 @@ class RegisteredUserController extends Controller
 
         DB::beginTransaction();
         try {
-            $data = $request->all();
+            // 白名单取值，防止注入 SSO 绑定字段（wechat_openid/oidc_sub 等）
+            $data = $request->only([
+                'name', 'username', 'email', 'password', 'phone',
+                'employee_id', 'department_id', 'location', 'account_type',
+            ]);
             $data['password'] = Hash::make($data['password']);
             $data['role'] = SystemSetting::getDefaultUserRole();
-            $data['status'] = 'active'; // 新注册用户默认为激活状态
+            $data['status'] = 'active';
 
             User::create($data);
 

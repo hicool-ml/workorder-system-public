@@ -24,11 +24,19 @@ class BackupController extends Controller
     private const DISK_NAME = 'local';
     private const ROOT = 'backups';
 
+    private function guardAdmin(): void
+    {
+        if (!\Illuminate\Support\Facades\Auth::user() || !\Illuminate\Support\Facades\Auth::user()->isAdmin()) {
+            abort(403, '仅管理员可操作备份');
+        }
+    }
+
     /**
      * 列出所有备份
      */
     public function index()
     {
+        $this->guardAdmin();
         $disk = Storage::disk(self::DISK_NAME);
         $items = [];
 
@@ -54,6 +62,7 @@ class BackupController extends Controller
      */
     public function create(Request $request)
     {
+        $this->guardAdmin();
         @set_time_limit(0);
         @ini_set('memory_limit', '512M');
         try {
@@ -82,6 +91,7 @@ class BackupController extends Controller
      */
     public function download(string $name)
     {
+        $this->guardAdmin();
         if (!$this->validName($name)) {
             return $this->jsonFail('无效的备份名称', 400);
         }
@@ -113,6 +123,7 @@ class BackupController extends Controller
      */
     public function destroy(string $name)
     {
+        $this->guardAdmin();
         if (!$this->validName($name)) {
             return $this->jsonFail('无效的备份名称', 400);
         }
@@ -130,6 +141,7 @@ class BackupController extends Controller
      */
     public function upload(Request $request)
     {
+        $this->guardAdmin();
         @set_time_limit(0);
         @ini_set('memory_limit', '512M');
         $request->validate([
@@ -200,6 +212,7 @@ class BackupController extends Controller
      */
     public function restore(Request $request, string $name)
     {
+        $this->guardAdmin();
         @set_time_limit(0);
         @ini_set('memory_limit', '1024M');
         if (!$this->validName($name)) {

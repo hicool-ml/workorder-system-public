@@ -89,7 +89,11 @@ class UserController extends Controller
 
         DB::beginTransaction();
         try {
-            $data = $request->all();
+            $data = $request->only([
+                'name', 'username', 'email', 'password', 'phone', 'employee_id',
+                'department_id', 'role', 'status', 'location', 'remarks', 'account_type',
+                'wecom_userid', 'dingtalk_userid', 'feishu_user_id',
+            ]);
             $data['password'] = Hash::make($data['password']);
             
             User::create($data);
@@ -172,7 +176,11 @@ class UserController extends Controller
 
         DB::beginTransaction();
         try {
-            $data = $request->all();
+            $data = $request->only([
+                'name', 'username', 'email', 'phone', 'employee_id',
+                'department_id', 'role', 'status', 'location', 'remarks', 'account_type',
+                'wecom_userid', 'dingtalk_userid', 'feishu_user_id',
+            ]);
             
             // 如果提供了新密码，则加密
             if ($request->filled('password')) {

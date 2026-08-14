@@ -14,27 +14,15 @@ class WorkorderTemplateController extends Controller
      */
     public function index(Request $request)
     {
-        $query = WorkorderTemplate::with(['category', 'creator'])
-            ->orderBy('name');
+        $query = WorkorderTemplate::with('creator')->orderBy('name');
 
-        // 搜索
         if ($request->filled('keyword')) {
-            $keyword = $request->input('keyword');
-            $query->where(function ($q) use ($keyword) {
-                $q->where('name', 'like', "%{$keyword}%")
-                  ->orWhere('description', 'like', "%{$keyword}%");
-            });
-        }
-
-        // 分类筛选
-        if ($request->filled('category_id')) {
-            $query->where('category_id', $request->input('category_id'));
+            $kw = $request->input('keyword');
+            $query->where('name', 'like', "%{$kw}%");
         }
 
         $templates = $query->paginate(15);
-        $categories = WorkorderCategorySimplified::getTopLevelCategories();
-
-        return view('workorder-templates.index', compact('templates', 'categories'));
+        return view('workorder-templates.index', compact('templates'));
     }
 
     /**
@@ -42,19 +30,16 @@ class WorkorderTemplateController extends Controller
      */
     public function create()
     {
+        $presetFields = WorkorderTemplate::getPresetFields();
         $categories = WorkorderCategorySimplified::getTopLevelCategories();
-        $subCategories = [];
-        foreach ($categories as $category) {
-            $subCategories[$category->id] = WorkorderCategorySimplified::getSubCategories($category->id);
-        }
-        $categoryOptions = [
-            'main' => $categories,
-            'sub' => $subCategories,
-        ];
-        $campusOptions = \App\Models\Location::getCampusOptionsForWorkorder();
-        $campusBuildings = \App\Models\Location::getCampusBuildingTree();
 
-        return view('workorder-templates.create', compact('categoryOptions', 'campusOptions', 'campusBuildings'));
+        // 已被其它模板绑定的大类，用于前端标记
+        $boundCategoryIds = WorkorderTemplate::whereNotNull('category_main_id')
+            ->where('is_active', true)
+            ->pluck('category_main_id')
+            ->all();
+
+        return view('workorder-templates.create', compact('presetFields', 'categories', 'boundCategoryIds'));
     }
 
     /**
@@ -64,41 +49,29 @@ class WorkorderTemplateController extends Controller
     {
         $request->validate([
             'name' => 'required|string|max:200',
-            'description' => 'required|string',
-            'category_main' => 'required|exists:workorder_categories_simplified,id',
-            'category_sub' => 'required|exists:workorder_categories_simplified,id',
-            'contact_name' => 'nullable|string|max:100',
-            'contact_phone' => 'nullable|string|max:20',
-            'contact_email' => 'nullable|email|max:100',
-            'campus_id' => 'nullable|exists:locations,id',
-            'building' => 'nullable|exists:locations,id',
-            'location_detail' => 'nullable|string|max:500',
-            'time_limit_hours' => 'nullable|integer|min:1|max:168',
-            'priority' => 'nullable|in:high,medium,low',
-            'source' => 'nullable|in:phone,web,email,scene,other',
-            'department_name' => 'nullable|string|max:100',
-            'need_visit' => 'boolean',
-            'is_emergency' => 'boolean',
-            'phone_assisted' => 'boolean',
-            'other_reason' => 'nullable|string|max:500',
+            'fields' => 'required|json',
+            'category_main_id' => 'nullable|integer',
         ]);
 
-        $data = $request->only([
-            'name', 'description', 'contact_name', 'contact_phone', 'contact_email',
-            'location_detail', 'time_limit_hours', 'priority', 'source',
-            'department_name', 'need_visit', 'is_emergency', 'phone_assisted',
-            'other_reason',
-        ]);
-        $data['category_id'] = $request->input('category_sub');
-        $data['creator_id'] = Auth::id();
-        $data['is_active'] = true;
-        // 表单 building（楼栋 location id）→ location_id
-        $data['location_id'] = (int) $request->input('building') ?: null;
+        $fields = json_decode($request->input('fields'), true);
 
-        WorkorderTemplate::create($data);
+        $catMainId = $request->filled('category_main_id') ? (int) $request->input('category_main_id') : null;
+
+        // 一个大类只能绑定一个模板
+        if ($catMainId) {
+            WorkorderTemplate::where('category_main_id', $catMainId)->update(['category_main_id' => null]);
+        }
+
+        WorkorderTemplate::create([
+            'name' => $request->input('name'),
+            'fields' => $fields,
+            'category_main_id' => $catMainId,
+            'is_active' => true,
+            'creator_id' => Auth::id(),
+        ]);
 
         return redirect()->route('workorder-templates.index')
-            ->with('success', '工单模板创建成功');
+            ->with('success', '模板创建成功');
     }
 
     /**
@@ -106,19 +79,17 @@ class WorkorderTemplateController extends Controller
      */
     public function edit(WorkorderTemplate $workorderTemplate)
     {
+        $presetFields = WorkorderTemplate::getPresetFields();
         $categories = WorkorderCategorySimplified::getTopLevelCategories();
-        $subCategories = [];
-        foreach ($categories as $category) {
-            $subCategories[$category->id] = WorkorderCategorySimplified::getSubCategories($category->id);
-        }
-        $categoryOptions = [
-            'main' => $categories,
-            'sub' => $subCategories,
-        ];
-        $campusOptions = \App\Models\Location::getCampusOptionsForWorkorder();
-        $campusBuildings = \App\Models\Location::getCampusBuildingTree();
+        $existingFields = $workorderTemplate->fields ?? [];
 
-        return view('workorder-templates.edit', compact('workorderTemplate', 'categoryOptions', 'campusOptions', 'campusBuildings'));
+        $boundCategoryIds = WorkorderTemplate::whereNotNull('category_main_id')
+            ->where('is_active', true)
+            ->where('id', '!=', $workorderTemplate->id)
+            ->pluck('category_main_id')
+            ->all();
+
+        return view('workorder-templates.edit', compact('workorderTemplate', 'presetFields', 'categories', 'existingFields', 'boundCategoryIds'));
     }
 
     /**
@@ -128,38 +99,27 @@ class WorkorderTemplateController extends Controller
     {
         $request->validate([
             'name' => 'required|string|max:200',
-            'description' => 'required|string',
-            'category_main' => 'required|exists:workorder_categories_simplified,id',
-            'category_sub' => 'required|exists:workorder_categories_simplified,id',
-            'contact_name' => 'nullable|string|max:100',
-            'contact_phone' => 'nullable|string|max:20',
-            'contact_email' => 'nullable|email|max:100',
-            'campus_id' => 'nullable|exists:locations,id',
-            'building' => 'nullable|exists:locations,id',
-            'location_detail' => 'nullable|string|max:500',
-            'time_limit_hours' => 'nullable|integer|min:1|max:168',
-            'priority' => 'nullable|in:high,medium,low',
-            'source' => 'nullable|in:phone,web,email,scene,other',
-            'department_name' => 'nullable|string|max:100',
-            'need_visit' => 'boolean',
-            'is_emergency' => 'boolean',
-            'phone_assisted' => 'boolean',
-            'other_reason' => 'nullable|string|max:500',
+            'fields' => 'required|json',
+            'category_main_id' => 'nullable|integer',
         ]);
 
-        $data = $request->only([
-            'name', 'description', 'contact_name', 'contact_phone', 'contact_email',
-            'location_detail', 'time_limit_hours', 'priority', 'source',
-            'department_name', 'need_visit', 'is_emergency', 'phone_assisted',
-            'other_reason',
-        ]);
-        $data['category_id'] = $request->input('category_sub');
-        $data['location_id'] = (int) $request->input('building') ?: null;
+        $fields = json_decode($request->input('fields'), true);
+        $catMainId = $request->filled('category_main_id') ? (int) $request->input('category_main_id') : null;
 
-        $workorderTemplate->update($data);
+        if ($catMainId) {
+            WorkorderTemplate::where('category_main_id', $catMainId)
+                ->where('id', '!=', $workorderTemplate->id)
+                ->update(['category_main_id' => null]);
+        }
+
+        $workorderTemplate->update([
+            'name' => $request->input('name'),
+            'fields' => $fields,
+            'category_main_id' => $catMainId,
+        ]);
 
         return redirect()->route('workorder-templates.index')
-            ->with('success', '工单模板更新成功');
+            ->with('success', '模板更新成功');
     }
 
     /**
@@ -168,24 +128,54 @@ class WorkorderTemplateController extends Controller
     public function destroy(WorkorderTemplate $workorderTemplate)
     {
         $workorderTemplate->delete();
-
         return redirect()->route('workorder-templates.index')
-            ->with('success', '工单模板删除成功');
+            ->with('success', '模板已删除');
     }
 
     /**
-     * 根据模板创建工单
+     * 根据模板创建工单（预填数据）
      */
     public function createFromTemplate(Request $request, WorkorderTemplate $workorderTemplate)
     {
-        // 获取模板数据并转换为工单数据
-        $workorderData = $workorderTemplate->toWorkorderData();
-        
-        // 重定向到工单创建页面并预填充数据
+        $data = $workorderTemplate->toWorkorderData();
+
         return redirect()->route('workorders.create', ['template' => $workorderTemplate->id])
             ->with('from_template', true)
             ->with('template_name', $workorderTemplate->name)
-            ->withInput($workorderData);
+            ->withInput($data);
+    }
+
+    /**
+     * 按大类 ID 获取绑定的模板（工单创建页 AJAX 调用）
+     */
+    public function getByCategory($categoryId)
+    {
+        $template = WorkorderTemplate::where('category_main_id', $categoryId)
+            ->where('is_active', true)
+            ->first();
+
+        if (!$template) {
+            return response()->json(['found' => false]);
+        }
+
+        // 提取已启用字段名列表（essential 永远启用，suggested 看模板里有没有）
+        $enabledFields = [];
+        $fields = $template->fields ?? [];
+        $essentialNames = array_column(WorkorderTemplate::ESSENTIAL_FIELDS, 'name');
+        foreach ($essentialNames as $n) $enabledFields[] = $n;
+        foreach ($fields as $f) {
+            if (($f['category'] ?? '') === 'suggested') {
+                $enabledFields[] = $f['name'];
+            }
+        }
+
+        return response()->json([
+            'found' => true,
+            'template_name' => $template->name,
+            'fields' => $template->toWorkorderData(),
+            'custom_fields' => $template->getCustomFields(),
+            'enabled_fields' => $enabledFields,
+        ]);
     }
 
     /**
@@ -193,13 +183,11 @@ class WorkorderTemplateController extends Controller
      */
     public function toggleStatus(Request $request, WorkorderTemplate $workorderTemplate)
     {
-        $workorderTemplate->update([
-            'is_active' => !$workorderTemplate->is_active
-        ]);
+        $workorderTemplate->update(['is_active' => !$workorderTemplate->is_active]);
 
         return response()->json([
             'success' => true,
-            'is_active' => $workorderTemplate->is_active
+            'is_active' => $workorderTemplate->is_active,
         ]);
     }
 }

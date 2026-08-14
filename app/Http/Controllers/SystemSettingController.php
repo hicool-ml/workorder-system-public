@@ -13,6 +13,15 @@ use Illuminate\Support\Facades\Storage;
 class SystemSettingController extends Controller
 {
     /**
+     * 防御层：确保只有管理员可操作（不依赖路由中间件，防止路由重组后越权）
+     */
+    private function guardAdmin(): void
+    {
+        if (!Auth::user() || !Auth::user()->isAdmin()) {
+            abort(403, '仅管理员可访问系统设置');
+        }
+    }
+    /**
      * 系统设置列表页面
      */
         /**
@@ -20,6 +29,7 @@ class SystemSettingController extends Controller
      */
     public function index()
     {
+        $this->guardAdmin();
         return view('system-settings.index', $this->settingsViewData());
     }
 

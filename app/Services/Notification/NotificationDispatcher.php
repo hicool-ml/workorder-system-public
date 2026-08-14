@@ -484,23 +484,16 @@ class NotificationDispatcher
      * 构建站内通知内容
      */
     /**
-     * Build address string from workorder campus/building/location
+     * Build address string from workorder campus_name/building_name/location_detail
      */
     private function buildAddress(Workorder $workorder): string
     {
         $parts = [];
-        if ($workorder->campus && trim($workorder->campus)) {
-            $parts[] = trim($workorder->campus);
+        if ($workorder->campus_name) {
+            $parts[] = $workorder->campus_name;
         }
-        if ($workorder->building && trim($workorder->building)) {
-            $b = trim($workorder->building);
-            $b = preg_replace('/^(new_|old_|asean_)campus\s*[-_]?\s*/i', '', $b);
-            // building 存的是 locations 表的 id，查完整楼名
-            $loc = \App\Models\Location::find($b);
-            if ($loc) {
-                $b = $loc->name;
-            }
-            $parts[] = $b;
+        if ($workorder->building_name) {
+            $parts[] = $workorder->building_name;
         }
         if ($workorder->location_detail && trim($workorder->location_detail)) {
             $parts[] = trim($workorder->location_detail);

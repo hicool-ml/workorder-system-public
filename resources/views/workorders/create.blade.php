@@ -117,6 +117,44 @@
                         </div>
                     </div>
                     
+                    <!-- 工单分类（移到最前面：选大类自动加载模板） -->
+                    <div class="card mb-4">
+                        <div class="px-4 py-3 border-b border-border bg-surface-muted rounded-t-xl">
+                            <h6 class="mb-0"><svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2 M9 3a2 2 0 0 0-2 2v0a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2v0a2 2 0 0 0-2-2H9z"/></svg> 工单分类</h6>
+                        </div>
+                        <div class="p-4">
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+                                <div>
+                                    <label for="category_main" class="label">工单大类 <span class="text-red-500">*</span></label>
+                                    <select class="input" id="category_main" name="category_main" required>
+                                        <option value="">请选择工单大类</option>
+                                        @foreach($categories['main'] as $category)
+                                        <option value="{{ $category->id }}"
+                                                data-prefix="{{ $category->ticket_prefix }}"
+                                                data-hours="{{ $category->default_hours }}"
+                                                {{ old('category_main') == $category->id ? 'selected' : '' }}>
+                                            {{ $category->name }}
+                                        </option>
+                                        @endforeach
+                                    </select>
+                                    @error('category_main')
+                                        <div class="text-xs text-red-600 mt-1">{{ $message }}</div>
+                                    @enderror
+                                </div>
+                                <div>
+                                    <label for="category_sub" class="label">故障分类 <span class="text-red-500">*</span></label>
+                                    <select class="input" id="category_sub" name="category_sub" required>
+                                        <option value="">请先选择工单大类</option>
+                                    </select>
+                                    @error('category_sub')
+                                        <div class="text-xs text-red-600 mt-1">{{ $message }}</div>
+                                    @enderror
+                                </div>
+                            </div>
+                            <div id="templateHint" class="hidden text-xs text-blue-600 mb-2"></div>
+                        </div>
+                    </div>
+
                     <!-- 自报家门：地址信息 -->
                     <div class="card mb-4">
                         <div class="px-4 py-3 border-b border-border bg-surface-muted rounded-t-xl">
@@ -195,35 +233,6 @@
                             <h6 class="mb-0"><svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg> 工单信息</h6>
                         </div>
                         <div>
-                            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
-                                <div>
-                                    <label for="category_main" class="label">工单大类 <span class="text-red-500">*</span></label>
-                                    <select class="input" id="category_main" name="category_main" required>
-                                        <option value="">请选择工单大类</option>
-                                        @foreach($categories['main'] as $category)
-                                        <option value="{{ $category->id }}"
-                                                data-prefix="{{ $category->ticket_prefix }}"
-                                                data-hours="{{ $category->default_hours }}"
-                                                {{ old('category_main') == $category->id ? 'selected' : '' }}>
-                                            {{ $category->name }}
-                                        </option>
-                                        @endforeach
-                                    </select>
-                                    @error('category_main')
-                                        <div class="text-xs text-red-600 mt-1">{{ $message }}</div>
-                                    @enderror
-                                </div>
-                                <div>
-                                    <label for="category_sub" class="label">故障分类 <span class="text-red-500">*</span></label>
-                                    <select class="input" id="category_sub" name="category_sub" required>
-                                        <option value="">请先选择工单大类</option>
-                                    </select>
-                                    @error('category_sub')
-                                        <div class="text-xs text-red-600 mt-1">{{ $message }}</div>
-                                    @enderror
-                                </div>
-                            </div>
-                            
                             <div class="mb-4">
                                 <label for="description" class="label">问题描述 <span class="text-red-500">*</span></label>
                                 <textarea class="input" id="description" name="description" rows="3" required
@@ -232,49 +241,55 @@
                                     <div class="text-xs text-red-600 mt-1">{{ $message }}</div>
                                 @enderror
                             </div>
-                            
+
                             <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
-                                <div>
+                                <div data-tf="priority">
+                                    <label for="priority" class="label">优先级</label>
+                                    <select class="input" id="priority" name="priority">
+                                        <option value="medium" {{ old('priority') == 'medium' ? 'selected' : '' }}>中</option>
+                                        <option value="high" {{ old('priority') == 'high' ? 'selected' : '' }}>高</option>
+                                        <option value="low" {{ old('priority') == 'low' ? 'selected' : '' }}>低</option>
+                                    </select>
+                                </div>
+                                <div data-tf="time_limit_hours">
                                     <label for="time_limit_hours" class="label">处理时限（小时）</label>
                                     <input type="number" class="input" id="time_limit_hours" name="time_limit_hours"
                                            value="{{ old('time_limit_hours') }}" min="1" max="168" step="1"
                                            placeholder="默认根据工单类型设置" autocomplete="off">
-                                    @error('time_limit_hours')
-                                        <div class="text-xs text-red-600 mt-1">{{ $message }}</div>
-                                    @enderror
+                                </div>
+                                <div data-tf="source">
+                                    <label for="source" class="label">来源</label>
+                                    <select class="input" id="source" name="source">
+                                        <option value="">请选择</option>
+                                        <option value="phone" {{ old('source') == 'phone' ? 'selected' : '' }}>电话</option>
+                                        <option value="web" {{ old('source') == 'web' ? 'selected' : '' }}>网页</option>
+                                        <option value="scene" {{ old('source') == 'scene' ? 'selected' : '' }}>现场</option>
+                                        <option value="email" {{ old('source') == 'email' ? 'selected' : '' }}>邮件</option>
+                                    </select>
                                 </div>
                             </div>
-                            
+
                             <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
-                                <div>
+                                <div data-tf="need_visit">
                                     <div class="flex items-center gap-2 mt-2">
                                         <input class="rounded border-border-strong w-4 h-4" type="checkbox" id="need_visit" name="need_visit"
                                                value="1" {{ old('need_visit') ? 'checked' : '' }} autocomplete="off">
-                                        <label class="text-sm" for="need_visit">
-                                            需要回访
-                                        </label>
+                                        <label class="text-sm" for="need_visit">需要回访</label>
                                     </div>
                                 </div>
-                                <div>
+                                <div data-tf="is_emergency">
                                     <div class="flex items-center gap-2 mt-2">
                                         <input class="rounded border-border-strong w-4 h-4" type="checkbox" id="is_emergency" name="is_emergency"
                                                value="1" {{ old('is_emergency') ? 'checked' : '' }} autocomplete="off">
-                                        <label class="text-sm" for="is_emergency">
-                                            紧急工单
-                                        </label>
+                                        <label class="text-sm" for="is_emergency">紧急工单</label>
                                     </div>
                                 </div>
-                                <div>
+                                <div data-tf="requires_signature">
                                     <div class="flex items-center gap-2 mt-2">
                                         <input class="rounded border-border-strong w-4 h-4" type="checkbox" id="requires_signature" name="requires_signature"
                                                value="1" {{ old('requires_signature') ? 'checked' : '' }} autocomplete="off">
-                                        <label class="text-sm" for="requires_signature">
-                                            需签单
-                                        </label>
+                                        <label class="text-sm" for="requires_signature">需签单</label>
                                     </div>
-
-
-
                                 </div>
                                 @if(auth()->user()->canUsePhoneAssist())
                                 <div>
@@ -380,6 +395,16 @@
                         </button>
                     </div>
                 </form>
+                @if(!empty($templateCustomFields))
+                <div class="mt-4 p-3 rounded-lg bg-blue-50 border border-blue-200">
+                    <p class="text-xs font-medium text-blue-800 mb-1">模板自定义字段（请填入备注或详细描述中）：</p>
+                    <ul class="text-xs text-blue-700 space-y-0.5">
+                        @foreach($templateCustomFields as $label => $value)
+                        <li>{{ $label }}：{{ $value }}</li>
+                        @endforeach
+                    </ul>
+                </div>
+                @endif
             </div>
         </div>
     </div>
@@ -410,29 +435,84 @@ $(document).ready(function() {
         }
     });
     
-    // 工单大类变更时更新故障分类
+    // 工单大类变更时：更新故障分类 + 自动加载绑定模板
     $('#category_main').change(function() {
         var mainCategoryId = $(this).val();
         var subSelect = $('#category_sub');
         var timeLimitInput = $('#time_limit_hours');
-        
+
         subSelect.empty().append('<option value="">请选择故障分类</option>');
-        
+
         if (mainCategoryId && categoryData.sub[mainCategoryId]) {
             $.each(categoryData.sub[mainCategoryId], function(index, category) {
                 subSelect.append('<option value="' + category.id + '">' + category.name + '</option>');
             });
-            
-            // 设置默认处理时限
+
             var mainCategory = categoryData.main.find(function(cat) {
                 return cat.id == mainCategoryId;
             });
-            
             if (mainCategory && !timeLimitInput.val()) {
                 timeLimitInput.val(mainCategory.default_hours);
             }
         }
+
+        // 自动加载该大类绑定的模板
+        if (mainCategoryId) {
+            applyTemplateByCategory(mainCategoryId);
+        } else {
+            $('#templateHint').addClass('hidden');
+        }
     });
+
+    // 按大类 AJAX 查询绑定模板并预填表单
+    function applyTemplateByCategory(categoryId) {
+        // 先恢复所有模板字段为可见
+        document.querySelectorAll('[data-tf]').forEach(function(el) { el.style.display = ''; });
+
+        $.getJSON('{{ route("api.template-by-category", "__CAT__") }}'.replace('__CAT__', categoryId), function(data) {
+            if (!data.found) {
+                $('#templateHint').addClass('hidden');
+                return;
+            }
+            $('#templateHint').removeClass('hidden').text('已应用模板：' + data.template_name);
+
+            // 按模板隐藏未启用的建议字段
+            var enabled = data.enabled_fields || [];
+            document.querySelectorAll('[data-tf]').forEach(function(el) {
+                var name = el.dataset.tf;
+                if (enabled.indexOf(name) === -1) {
+                    el.style.display = 'none';
+                }
+            });
+
+            // 预填值
+            var fields = data.fields;
+            Object.keys(fields).forEach(function(key) {
+                var val = fields[key];
+                if (val === null || val === '' || val === false) return;
+                if (key === 'category_main' || key === 'category_sub') return;
+
+                var input = $('[name="' + key + '"]');
+                if (input.length === 0) return;
+                if (input.is(':checkbox')) {
+                    input.prop('checked', val);
+                } else if (input.is('select')) {
+                    input.val(val);
+                } else {
+                    if (!input.val()) input.val(val);
+                }
+            });
+
+            // 自定义字段提示
+            var customFields = data.custom_fields;
+            if (customFields && Object.keys(customFields).length > 0) {
+                $('#templateHint').append('<br>自定义字段：' + Object.entries(customFields).map(function(e) { return e[0] + '=' + e[1]; }).join('，'));
+            }
+        }).fail(function() {
+            $('#templateHint').addClass('hidden');
+            document.querySelectorAll('[data-tf]').forEach(function(el) { el.style.display = ''; });
+        });
+    }
     
     // 故障分类变更时更新处理时限
     $('#category_sub').change(function() {
