@@ -89,12 +89,12 @@ Route::middleware(['auth'])->group(function () {
     Route::get('report', [WorkorderController::class, 'reportCreate'])->name('workorders.report.create');
     Route::post('report', [WorkorderController::class, 'reportStore'])->name('workorders.report.store');
 
-        // 批量操作 - 必须放在资源路由之前，避免路由冲突
-    Route::post('workorders/batch/assign', [WorkorderController::class, 'batchAssign'])->name('workorders.batch.assign');
-    Route::post('workorders/batch/start', [WorkorderController::class, 'batchStart'])->name('workorders.batch.start');
-    Route::post('workorders/batch/resolve', [WorkorderController::class, 'batchResolve'])->name('workorders.batch.resolve');
-    Route::post('workorders/batch/complete', [WorkorderController::class, 'batchComplete'])->name('workorders.batch.complete');
-    Route::post('workorders/batch/close', [WorkorderController::class, 'batchClose'])->name('workorders.batch.close');
+        // 批量操作 - WorkorderBatchController（必须放在资源路由之前，避免路由冲突）
+    Route::post('workorders/batch/assign', [App\Http\Controllers\WorkorderBatchController::class, 'assign'])->name('workorders.batch.assign');
+    Route::post('workorders/batch/start', [App\Http\Controllers\WorkorderBatchController::class, 'start'])->name('workorders.batch.start');
+    Route::post('workorders/batch/resolve', [App\Http\Controllers\WorkorderBatchController::class, 'resolve'])->name('workorders.batch.resolve');
+    Route::post('workorders/batch/complete', [App\Http\Controllers\WorkorderBatchController::class, 'complete'])->name('workorders.batch.complete');
+    Route::post('workorders/batch/close', [App\Http\Controllers\WorkorderBatchController::class, 'close'])->name('workorders.batch.close');
     
     // 工单管理
     // whereNumber: 限制 {workorder} 为数字，避免非法 URL（如 /workorders/report）触发 PG bigint 崩溃
@@ -118,10 +118,10 @@ Route::middleware(['auth'])->group(function () {
     Route::post('workorders/{workorder}/logs', [WorkorderController::class, 'addLog'])->name('workorders.logs.add');
   Route::post('workorders/{workorder}/materials', [WorkorderController::class, 'updateMaterials'])->name('workorders.materials.update');
     Route::post('workorders/{workorder}/rollback', [WorkorderController::class, 'rollback'])->name('workorders.rollback');
-   Route::post('workorders/{workorder}/invite-collaborator', [WorkorderController::class, 'inviteCollaborator'])->name('workorders.invite.collaborator');
-    Route::post('workorder-collaborations/{collaboration}/accept', [WorkorderController::class, 'acceptCollaboration'])->name('workorders.collaborations.accept');
-  Route::post('workorder-collaborations/{collaboration}/reject', [WorkorderController::class, 'rejectCollaboration'])->name('workorders.collaborations.reject');
-   Route::post('workorder-collaborations/{collaboration}/cancel', [WorkorderController::class, 'cancelCollaboration'])->name('workorders.collaborations.cancel');
+    Route::post('workorders/{workorder}/invite-collaborator', [App\Http\Controllers\WorkorderCollaborationController::class, 'invite'])->name('workorders.invite.collaborator');
+    Route::post('workorder-collaborations/{collaboration}/accept', [App\Http\Controllers\WorkorderCollaborationController::class, 'accept'])->name('workorders.collaborations.accept');
+    Route::post('workorder-collaborations/{collaboration}/reject', [App\Http\Controllers\WorkorderCollaborationController::class, 'reject'])->name('workorders.collaborations.reject');
+    Route::post('workorder-collaborations/{collaboration}/cancel', [App\Http\Controllers\WorkorderCollaborationController::class, 'cancel'])->name('workorders.collaborations.cancel');
     Route::post('workorders/{workorder}/visit', [WorkorderController::class, 'storeVisit'])->name('workorders.visit.store');
     Route::get('api/workorders/subcategories', [WorkorderController::class, 'getSubCategories'])->name('api.workorders.subcategories');
     Route::get('workorders/{workorder}/materials-usage', [WorkorderController::class, 'getMaterialsUsage'])->name('workorders.materials-usage');
