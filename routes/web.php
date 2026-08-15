@@ -60,15 +60,15 @@ Route::post('sms/reply', [App\Http\Controllers\SmsReplyController::class, 'recei
 
 // 通知规则 & 短信测试 API（仅管理员）
 Route::middleware(['auth', 'role:admin'])->group(function () {
-    Route::get('api/notification-rules', [App\Http\Controllers\SystemSettingController::class, 'getNotificationRules'])->name('api.notification-rules');
-    Route::put('api/notification-rules', [App\Http\Controllers\SystemSettingController::class, 'updateNotificationRules'])->name('api.notification-rules.update');
-   Route::post('api/sms/test', [App\Http\Controllers\SystemSettingController::class, 'testSms'])->name('api.sms.test');
-    Route::post('api/wecom/test', [App\Http\Controllers\SystemSettingController::class, 'testWecom'])->name('api.wecom.test');
-    Route::post('api/dingtalk/test', [App\Http\Controllers\SystemSettingController::class, 'testDingtalk'])->name('api.dingtalk.test');
-    Route::post('api/feishu/test', [App\Http\Controllers\SystemSettingController::class, 'testFeishu'])->name('api.feishu.test');
-    Route::post('api/upload-cacert', [App\Http\Controllers\SystemSettingController::class, 'uploadCacert'])->name('api.upload-cacert');
-    Route::post('api/ssl-verify', [App\Http\Controllers\SystemSettingController::class, 'toggleSslVerify'])->name('api.ssl-verify');
-    Route::delete('api/cacert', [App\Http\Controllers\SystemSettingController::class, 'deleteCacert'])->name('api.cacert.delete');
+    Route::get('api/notification-rules', [App\Http\Controllers\Settings\NotificationRuleController::class, 'getNotificationRules'])->name('api.notification-rules');
+    Route::put('api/notification-rules', [App\Http\Controllers\Settings\NotificationRuleController::class, 'updateNotificationRules'])->name('api.notification-rules.update');
+   Route::post('api/sms/test', [App\Http\Controllers\Settings\SmsSettingController::class, 'testSms'])->name('api.sms.test');
+    Route::post('api/wecom/test', [App\Http\Controllers\Settings\ChannelSettingController::class, 'testWecom'])->name('api.wecom.test');
+    Route::post('api/dingtalk/test', [App\Http\Controllers\Settings\ChannelSettingController::class, 'testDingtalk'])->name('api.dingtalk.test');
+    Route::post('api/feishu/test', [App\Http\Controllers\Settings\ChannelSettingController::class, 'testFeishu'])->name('api.feishu.test');
+    Route::post('api/upload-cacert', [App\Http\Controllers\Settings\SslSettingController::class, 'uploadCacert'])->name('api.upload-cacert');
+    Route::post('api/ssl-verify', [App\Http\Controllers\Settings\SslSettingController::class, 'toggleSslVerify'])->name('api.ssl-verify');
+    Route::delete('api/cacert', [App\Http\Controllers\Settings\SslSettingController::class, 'deleteCacert'])->name('api.cacert.delete');
 });
 
 // PWA manifest
@@ -280,24 +280,24 @@ Route::middleware(['auth'])->group(function () {
         Route::post('system-settings', [SystemSettingController::class, 'update'])->name('system-settings.update');
         Route::post('system-settings/toggle-registration', [SystemSettingController::class, 'toggleRegistration'])->name('system-settings.toggle-registration');
         Route::post('system-settings/initialize-defaults', [SystemSettingController::class, 'initializeDefaults'])->name('system-settings.initialize-defaults');
-        Route::post('system-settings/update-version', [SystemSettingController::class, 'updateVersion'])->name('system-settings.update-version');
-        Route::get('system-settings/version-history', [SystemSettingController::class, 'getVersionHistory'])->name('system-settings.version-history');
+        Route::post('system-settings/update-version', [App\Http\Controllers\Settings\VersionController::class, 'updateVersion'])->name('system-settings.update-version');
+        Route::get('system-settings/version-history', [App\Http\Controllers\Settings\VersionController::class, 'getVersionHistory'])->name('system-settings.version-history');
         Route::get('system-settings/notification-rules', function () { return view('system-settings.notification-rules'); })->name('system-settings.notification-rules');
-       Route::get('system-settings/sms', [SystemSettingController::class, 'sms'])->name('system-settings.sms');
-       Route::post('system-settings/sms', [SystemSettingController::class, 'updateSms'])->name('system-settings.update-sms');
-        Route::get('system-settings/wecom', [SystemSettingController::class, 'wecom'])->name('system-settings.wecom');
-       Route::post('system-settings/wecom', [SystemSettingController::class, 'updateWecom'])->name('system-settings.update-wecom');
-        Route::get('system-settings/dingtalk', [SystemSettingController::class, 'dingtalk'])->name('system-settings.dingtalk');
-        Route::post('system-settings/dingtalk', [SystemSettingController::class, 'updateDingtalk'])->name('system-settings.update-dingtalk');
-        Route::get('system-settings/feishu', [SystemSettingController::class, 'feishu'])->name('system-settings.feishu');
-        Route::post('system-settings/feishu', [SystemSettingController::class, 'updateFeishu'])->name('system-settings.update-feishu');
-      Route::get('system-settings/cas', [SystemSettingController::class, 'cas'])->name('system-settings.cas');
-      Route::post('system-settings/cas', [SystemSettingController::class, 'updateCas'])->name('system-settings.update-cas');
-      Route::get('system-settings/oidc', [SystemSettingController::class, 'oidc'])->name('system-settings.oidc');
-      Route::post('system-settings/oidc', [SystemSettingController::class, 'updateOidc'])->name('system-settings.update-oidc');
-      Route::get('system-settings/wechat-oauth', [SystemSettingController::class, 'wechatOauth'])->name('system-settings.wechat-oauth');
-      Route::post('system-settings/wechat-oauth', [SystemSettingController::class, 'updateWechatOauth'])->name('system-settings.update-wechat-oauth');
-      Route::delete('system-settings/version-history', [SystemSettingController::class, 'deleteVersionHistory'])->name('system-settings.version-history.delete');
+       Route::get('system-settings/sms', [App\Http\Controllers\Settings\SmsSettingController::class, 'sms'])->name('system-settings.sms');
+       Route::post('system-settings/sms', [App\Http\Controllers\Settings\SmsSettingController::class, 'updateSms'])->name('system-settings.update-sms');
+        Route::get('system-settings/wecom', [App\Http\Controllers\Settings\ChannelSettingController::class, 'wecom'])->name('system-settings.wecom');
+       Route::post('system-settings/wecom', [App\Http\Controllers\Settings\ChannelSettingController::class, 'updateWecom'])->name('system-settings.update-wecom');
+        Route::get('system-settings/dingtalk', [App\Http\Controllers\Settings\ChannelSettingController::class, 'dingtalk'])->name('system-settings.dingtalk');
+        Route::post('system-settings/dingtalk', [App\Http\Controllers\Settings\ChannelSettingController::class, 'updateDingtalk'])->name('system-settings.update-dingtalk');
+        Route::get('system-settings/feishu', [App\Http\Controllers\Settings\ChannelSettingController::class, 'feishu'])->name('system-settings.feishu');
+        Route::post('system-settings/feishu', [App\Http\Controllers\Settings\ChannelSettingController::class, 'updateFeishu'])->name('system-settings.update-feishu');
+      Route::get('system-settings/cas', [App\Http\Controllers\Settings\AuthSettingController::class, 'cas'])->name('system-settings.cas');
+      Route::post('system-settings/cas', [App\Http\Controllers\Settings\AuthSettingController::class, 'updateCas'])->name('system-settings.update-cas');
+      Route::get('system-settings/oidc', [App\Http\Controllers\Settings\AuthSettingController::class, 'oidc'])->name('system-settings.oidc');
+      Route::post('system-settings/oidc', [App\Http\Controllers\Settings\AuthSettingController::class, 'updateOidc'])->name('system-settings.update-oidc');
+      Route::get('system-settings/wechat-oauth', [App\Http\Controllers\Settings\AuthSettingController::class, 'wechatOauth'])->name('system-settings.wechat-oauth');
+      Route::post('system-settings/wechat-oauth', [App\Http\Controllers\Settings\AuthSettingController::class, 'updateWechatOauth'])->name('system-settings.update-wechat-oauth');
+      Route::delete('system-settings/version-history', [App\Http\Controllers\Settings\VersionController::class, 'deleteVersionHistory'])->name('system-settings.version-history.delete');
       Route::delete('system-settings/{systemSetting}', [SystemSettingController::class, 'destroy'])->name('system-settings.destroy');
 
         // 数据备份与恢复（仅管理员）
