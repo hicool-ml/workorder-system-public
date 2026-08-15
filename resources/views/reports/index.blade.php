@@ -236,7 +236,7 @@ document.addEventListener('DOMContentLoaded', function() {
     var cssVar = function(name){ return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); };
     var inkMuted = cssVar('--c-ink-muted') || '#888';
 
-    // Trend chart
+    // Trend chart：细线 + 悬停高亮点 + 主题感知网格/图例；多线遮挡时悬停可辨
     <?php
         $trendStats = $recentStats['stats'];
         $trendCats = $recentStats['topCats'];
@@ -260,13 +260,39 @@ document.addEventListener('DOMContentLoaded', function() {
                     borderColor: '{{ $catColors[$catColorIdx % count($catColors)] }}',
                     backgroundColor: 'transparent',
                     tension: 0.3,
-                    pointRadius: 2
+                    borderWidth: 1.5,
+                    pointRadius: 0,
+                    pointHoverRadius: 4,
+                    pointBackgroundColor: '{{ $catColors[$catColorIdx % count($catColors)] }}',
+                    pointBorderColor: cssVar('--c-card') || '#fff',
+                    pointBorderWidth: 1.5,
+                    fill: false,
+                    spanGaps: true
                 },
                 @php $catColorIdx++; @endphp
                 @endforeach
             ]
         },
-        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top' } }, scales: { x: { ticks: { color: inkMuted, maxTicksLimit: 12 } }, y: { beginAtZero: true, ticks: { color: inkMuted } } } }
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
+            plugins: {
+                legend: { position: 'top', align: 'center', labels: { color: inkMuted, boxWidth: 18, boxHeight: 2, padding: 14, usePointStyle: false, font: { size: 12 } } },
+                tooltip: { itemSort: function (a, b) { return b.parsed.y - a.parsed.y; } }
+            },
+            scales: {
+                x: {
+                    ticks: { color: inkMuted, maxTicksLimit: 12, font: { size: 11 } },
+                    grid: { display: false }
+                },
+                y: {
+                    beginAtZero: true,
+                    ticks: { color: inkMuted, font: { size: 11 }, precision: 0 },
+                    grid: { color: cssVar('--c-border') || 'rgba(0,0,0,0.06)', tickBorderDash: [3, 3] },
+                    border: { display: false }
+                }
+            }
+        }
     });
 
     @php
