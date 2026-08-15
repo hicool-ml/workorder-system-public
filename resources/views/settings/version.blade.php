@@ -91,18 +91,7 @@
 @endsection
 @section('scripts')
 <script>
-function openModal(id) {
-    var el = document.getElementById(id);
-    el.classList.remove('hidden');
-    el.classList.add('flex');
-    document.body.classList.add('overflow-hidden');
-}
-function closeModal(id) {
-    var el = document.getElementById(id);
-    el.classList.add('hidden');
-    el.classList.remove('flex');
-    document.body.classList.remove('overflow-hidden');
-}
+// openModal/closeModal 由 layouts/app 全局提供
 document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') closeModal('versionUpdateModal');
 });

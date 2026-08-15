@@ -922,10 +922,18 @@ class Workorder extends Model
      *
      * 接收者完全由 NotificationDispatcher::resolveRecipients 按事件类型决定，
      * 并自动排除触发操作的用户本人；此方法仅转发事件，不再接收指定用户列表。
+     *
+     * NOTIFY_QUEUE=true 时走队列异步发送（需运行 queue:work，Docker 部署已内置），
+     * 默认保持同步以便本地开发无需 worker。
      */
     public function sendNotification(string $type, array $data = []): void
     {
         try {
+            if (config('notification.queue_enabled')) {
+                \App\Jobs\SendWorkorderNotificationJob::dispatch($this, $type);
+                return;
+            }
+
             // 多通道调度：根据通知规则决定站内/短信是否发送
             try {
                 app(\App\Services\Notification\NotificationDispatcher::class)

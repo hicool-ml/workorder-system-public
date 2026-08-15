@@ -19,6 +19,8 @@ services:
       - QUEUE_CONNECTION=database
       - CACHE_STORE=database
       - SESSION_DRIVER=database
+      - SESSION_SECURE_COOKIE=true
+      - NOTIFY_QUEUE=true
     depends_on:
       db:
         condition: service_healthy

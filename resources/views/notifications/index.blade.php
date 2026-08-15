@@ -186,8 +186,7 @@
 
 @section('scripts')
 <script>
-function openModal(id) { var m = document.getElementById(id); if (m) { m.classList.remove('hidden'); m.classList.add('flex'); document.body.classList.add('overflow-hidden'); } }
-function closeModal(id) { var m = document.getElementById(id); if (m) { m.classList.add('hidden'); m.classList.remove('flex'); document.body.classList.remove('overflow-hidden'); } }
+// openModal/closeModal 已由 layouts/app 全局提供
 document.querySelectorAll('[data-modal]').forEach(function(modal) { modal.addEventListener('click', function(e) { if (e.target === this) closeModal(this.id); }); });
 document.addEventListener('keydown', function(e) { if (e.key === 'Escape') document.querySelectorAll('[data-modal]').forEach(function(m) { if (!m.classList.contains('hidden')) closeModal(m.id); }); });
 

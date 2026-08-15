@@ -298,8 +298,21 @@
 
     @endif
 
-    {{-- jQuery for pages that use it (create/edit workorder) --}}
+    {{-- jQuery for pages that use it (create/edit workorder)。
+         注意：多个内联脚本在解析时调用 $(document).ready()，必须同步加载，不能加 defer。 --}}
     <script src="{{ asset('js/jquery.min.js') }}"></script>
+
+    {{-- 全站共享的模态框工具（原先在 8 个视图各复制一份） --}}
+    <script>
+    function openModal(id) {
+        var m = document.getElementById(id);
+        if (m) { m.classList.remove('hidden'); m.classList.add('flex'); document.body.classList.add('overflow-hidden'); }
+    }
+    function closeModal(id) {
+        var m = document.getElementById(id);
+        if (m) { m.classList.add('hidden'); m.classList.remove('flex'); document.body.classList.remove('overflow-hidden'); }
+    }
+    </script>
 
     @yield('scripts')
 

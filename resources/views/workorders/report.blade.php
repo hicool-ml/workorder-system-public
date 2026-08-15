@@ -148,7 +148,7 @@
 @endsection
 
 @section('scripts')
-<script src="https://cdn.jsdelivr.net/npm/browser-image-compression@2.0.2/dist/browser-image-compression.min.js"></script>
+<script src="{{ asset('vendor/browser-image-compression.min.js') }}" defer></script>
 <script>
 var subCategories = @json($categories['sub']);
 var campusBuildings = @json($campusBuildings);

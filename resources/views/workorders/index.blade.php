@@ -536,17 +536,7 @@ var listCategoryData = @json($categories);
 document.addEventListener('DOMContentLoaded', function() {
     var csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '{{ csrf_token() }}';
 
-    // -- 模态框系统 --
-    function openModal(id) {
-        var m = document.getElementById(id);
-        if (m) { m.classList.remove('hidden'); m.classList.add('flex'); document.body.classList.add('overflow-hidden'); }
-    }
-    function closeModal(id) {
-        var m = document.getElementById(id);
-        if (m) { m.classList.add('hidden'); m.classList.remove('flex'); document.body.classList.remove('overflow-hidden'); }
-    }
-    window.openModal = openModal;
-    window.closeModal = closeModal;
+    // openModal/closeModal 由 layouts/app 全局提供
 
     // data-modal-close 按钮
     document.querySelectorAll('[data-modal-close]').forEach(function(btn) {

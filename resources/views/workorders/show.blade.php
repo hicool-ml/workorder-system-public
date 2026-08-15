@@ -737,15 +737,7 @@
 
 @section('scripts')
 <script>
-// Modal helpers
-function openModal(id) {
-    var m = document.getElementById(id);
-    if (m) { m.classList.remove('hidden'); m.classList.add('flex'); document.body.classList.add('overflow-hidden'); }
-}
-function closeModal(id) {
-    var m = document.getElementById(id);
-    if (m) { m.classList.add('hidden'); m.classList.remove('flex'); document.body.classList.remove('overflow-hidden'); }
-}
+// openModal/closeModal 由 layouts/app 全局提供
 // Close on backdrop click
 document.querySelectorAll('[data-modal]').forEach(function(modal) {
     modal.addEventListener('click', function(e) { if (e.target === this) closeModal(this.id); });
