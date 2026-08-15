@@ -426,57 +426,85 @@ document.addEventListener('DOMContentLoaded', function() {
     ctCounts.push(@json($ctCat['counts']));
     @endforeach
 
-    // 标注插件：高色块内标注数量+百分比；矮色块改为外部标注+引导线，保证打印/截图都能看到每项数据
-    // 标注插件：大色块内标注数量+百分比；矮色块统一在柱顶上方分层标注，避免重叠
+    // 标注插件：大色块内标注数量+百分比；小色块标注在柱状图右侧（引导线连接，
+    // 文字带底色描边，保证在任何背景/打印下可读；同柱多条侧标自动避让）
     var catLabelPlugin = {
         id: 'catLabels',
         afterDatasetsDraw: function (chart) {
             var ctx = chart.ctx;
             var fontFamily = getComputedStyle(document.body).fontFamily;
+            var cardBg = (getComputedStyle(document.body).getPropertyValue('--c-card') || '#fff').trim();
             ctx.save();
-            ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            var smallByBar = {};
+
+            // 收集每根柱的色块信息
+            var bars = {};
             chart.data.datasets.forEach(function (ds, di) {
                 var meta = chart.getDatasetMeta(di);
                 meta.data.forEach(function (el, bi) {
                     var cnt = ctCounts[di][bi];
                     var pct = ds.data[bi];
                     if (!cnt) return;
-                    var h = Math.abs(el.base - el.y);
-                    var topY = Math.min(el.base, el.y);
-                    if (h >= 18) {
-                        // 色块内居中标注（白字）
-                        ctx.fillStyle = '#fff';
-                        ctx.font = '600 11px ' + fontFamily;
-                        var cy = (el.base + el.y) / 2;
-                        ctx.fillText(cnt + '起', el.x, cy - 7);
-                        if (h >= 34) ctx.fillText(pct + '%', el.x, cy + 8);
-                    } else {
-                        if (!smallByBar[bi]) smallByBar[bi] = { x: el.x, top: Infinity, segs: [] };
-                        if (topY < smallByBar[bi].top) smallByBar[bi].top = topY;
-                        smallByBar[bi].segs.push({ cnt: cnt, pct: pct, color: ds.backgroundColor, topY: topY });
-                    }
+                    var top = Math.min(el.base, el.y);
+                    var bottom = Math.max(el.base, el.y);
+                    if (!bars[bi]) bars[bi] = { x: el.x, half: (el.width || 20) / 2, elements: [] };
+                    bars[bi].elements.push({
+                        cnt: cnt, pct: pct, color: ds.backgroundColor,
+                        top: top, h: bottom - top, midY: (top + bottom) / 2
+                    });
                 });
             });
-            // 矮色块：统一在柱顶上方分层标注（自上而下排列，间距16px），引导线连接
-            Object.keys(smallByBar).forEach(function (bi) {
-                var info = smallByBar[bi];
-                var segs = info.segs.sort(function (a, b) { return a.topY - b.topY; });
-                var baseY = info.top - 24;
+
+            Object.keys(bars).forEach(function (bi) {
+                var bar = bars[bi];
+                var right = bar.x + bar.half;
+                var sideLabels = [];
+
+                // 大色块：块内白字标注（数量 + 百分比）
+                bar.elements.forEach(function (seg) {
+                    if (seg.h >= 20) {
+                        ctx.fillStyle = '#fff';
+                        ctx.textAlign = 'center';
+                        ctx.font = '600 11px ' + fontFamily;
+                        ctx.fillText(seg.cnt + '起', bar.x, seg.midY - 6);
+                        if (seg.h >= 34) {
+                            ctx.font = '500 10px ' + fontFamily;
+                            ctx.fillText(seg.pct + '%', bar.x, seg.midY + 8);
+                        }
+                    } else {
+                        sideLabels.push(seg);
+                    }
+                });
+
+                // 小色块：标注在柱右侧，垂直对齐色块中心；相邻标注重叠时向下顺延
+                if (!sideLabels.length) return;
+                sideLabels.sort(function (a, b) { return a.midY - b.midY; });
+                var minGap = 13;
+                var lastY = null;
+                sideLabels.forEach(function (s) {
+                    s.ly = (lastY === null) ? s.midY : Math.max(s.midY, lastY + minGap);
+                    lastY = s.ly;
+                });
+
                 ctx.font = '600 10px ' + fontFamily;
-                for (var si = 0; si < segs.length; si++) {
-                    var s = segs[si];
-                    var labelY = baseY - si * 16;
+                ctx.textAlign = 'left';
+                sideLabels.forEach(function (s) {
+                    // 引导线：色块右缘 → 标注文字
                     ctx.strokeStyle = s.color;
-                    ctx.lineWidth = 1;
+                    ctx.lineWidth = 1.2;
                     ctx.beginPath();
-                    ctx.moveTo(info.x, s.topY - 1);
-                    ctx.lineTo(info.x, labelY + 5);
+                    ctx.moveTo(right + 1, s.midY);
+                    ctx.lineTo(right + 8, s.ly);
                     ctx.stroke();
+                    // 文字：底色描边（halo）保证跨柱/打印可读
+                    var text = s.cnt + '起 ' + s.pct + '%';
+                    ctx.lineWidth = 3;
+                    ctx.strokeStyle = cardBg;
+                    ctx.lineJoin = 'round';
+                    ctx.strokeText(text, right + 11, s.ly);
                     ctx.fillStyle = s.color;
-                    ctx.fillText(s.cnt + '起 ' + s.pct + '%', info.x, labelY);
-                }
+                    ctx.fillText(text, right + 11, s.ly);
+                });
             });
             ctx.restore();
         }
@@ -488,10 +516,12 @@ document.addEventListener('DOMContentLoaded', function() {
         data: { labels: ctLabels, datasets: ctDatasets },
         options: {
             responsive: true, maintainAspectRatio: false,
-            layout: { padding: { top: 70 } },
+            // 右侧留白：容纳末柱（汇总）的侧边标注
+            layout: { padding: { top: 8, right: 90 } },
             interaction: { mode: 'index', intersect: false },
             plugins: {
-                legend: { position: 'right', labels: { color: inkMuted, boxWidth: 14, padding: 12, font: { size: 13 } } },
+                // 图例：水平排列，全图顶部居中
+                legend: { position: 'top', align: 'center', labels: { color: inkMuted, boxWidth: 14, padding: 16, font: { size: 13 } } },
                 tooltip: {
                     callbacks: {
                         label: function (c) {
