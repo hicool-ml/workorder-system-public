@@ -26,33 +26,33 @@ Route::get('/', function () {
 // 认证路由
 Route::middleware('guest')->group(function () {
     Route::get('login', [App\Http\Controllers\Auth\AuthenticatedSessionController::class, 'create'])->name('login');
-    Route::post('login', [App\Http\Controllers\Auth\AuthenticatedSessionController::class, 'store']);
-    
+    Route::post('login', [App\Http\Controllers\Auth\AuthenticatedSessionController::class, 'store'])->middleware('throttle:auth');
+
     // 注册路由
     Route::get('register', [App\Http\Controllers\Auth\RegisteredUserController::class, 'create'])->name('register');
-    Route::post('register', [App\Http\Controllers\Auth\RegisteredUserController::class, 'store']);
+    Route::post('register', [App\Http\Controllers\Auth\RegisteredUserController::class, 'store'])->middleware('throttle:register');
 });
 
 // CAS / LinkID 统一身份认证路由
 Route::prefix('cas')->group(function () {
     Route::get('login', [App\Http\Controllers\Auth\CasAuthController::class, 'login'])->name('cas.login');
-    Route::get('callback', [App\Http\Controllers\Auth\CasAuthController::class, 'callback'])->name('cas.callback');
+    Route::get('callback', [App\Http\Controllers\Auth\CasAuthController::class, 'callback'])->name('cas.callback')->middleware('throttle:auth');
     Route::get('logout', [App\Http\Controllers\Auth\CasAuthController::class, 'logout'])->name('cas.logout')->middleware('auth');
 });
 
 // OIDC / OAuth2 统一身份认证路由
 Route::prefix('oidc')->group(function () {
     Route::get('login', [App\Http\Controllers\Auth\OidcAuthController::class, 'login'])->name('oidc.login');
-    Route::get('callback', [App\Http\Controllers\Auth\OidcAuthController::class, 'callback'])->name('oidc.callback');
+    Route::get('callback', [App\Http\Controllers\Auth\OidcAuthController::class, 'callback'])->name('oidc.callback')->middleware('throttle:auth');
     Route::get('logout', [App\Http\Controllers\Auth\OidcAuthController::class, 'logout'])->name('oidc.logout')->middleware('auth');
 });
 
 // 微信公众号 OAuth 登录路由
 Route::prefix('wechat')->group(function () {
     Route::get('login', [App\Http\Controllers\Auth\WechatOauthController::class, 'login'])->name('wechat.login');
-    Route::get('callback', [App\Http\Controllers\Auth\WechatOauthController::class, 'callback'])->name('wechat.callback');
+    Route::get('callback', [App\Http\Controllers\Auth\WechatOauthController::class, 'callback'])->name('wechat.callback')->middleware('throttle:auth');
     Route::get('bind', [App\Http\Controllers\Auth\WechatOauthController::class, 'bindPage'])->name('wechat.bind');
-    Route::post('bind', [App\Http\Controllers\Auth\WechatOauthController::class, 'bind']);
+    Route::post('bind', [App\Http\Controllers\Auth\WechatOauthController::class, 'bind'])->middleware('throttle:auth');
 });
 
 // 短信上行回复回调（服务商 → 系统，无需登录，CSRF 已在 bootstrap/app.php 排除）
@@ -136,7 +136,7 @@ Route::middleware(['auth'])->group(function () {
     ])->middleware('role:admin,workorder_manager');
     
     Route::get('workorder-templates/{workorderTemplate}/createFromTemplate', [WorkorderTemplateController::class, 'createFromTemplate'])->name('workorder-templates.createFromTemplate')->middleware('role:admin,workorder_manager');
-    Route::get('api/template-by-category/{categoryId}', [WorkorderTemplateController::class, 'getByCategory'])->name('api.template-by-category');
+    Route::get('api/template-by-category/{categoryId}', [WorkorderTemplateController::class, 'getByCategory'])->name('api.template-by-category')->middleware('role:admin,workorder_manager,engineer');
     Route::post('workorder-templates/{workorderTemplate}/toggleStatus', [WorkorderTemplateController::class, 'toggleStatus'])->name('workorder-templates.toggleStatus')->middleware('role:admin,workorder_manager');
     
     // 附件相关

@@ -224,11 +224,11 @@ class User extends Authenticatable
     }
 
     /**
-     * 检查是否可以处理工单
+     * 检查是否可以处理工单（工单管理员与 admin/engineer 同级处理能力，与批量/关闭权限口径一致）
      */
     public function canHandleWorkorders(): bool
     {
-        return in_array($this->role, ['admin', 'engineer']);
+        return in_array($this->role, ['admin', 'workorder_manager', 'engineer']);
     }
 
     /**

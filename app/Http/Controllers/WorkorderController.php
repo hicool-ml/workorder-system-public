@@ -585,8 +585,17 @@ class WorkorderController extends Controller
                 'contact_email', 'location_detail',
                 'appointment_time_start', 'appointment_time_end', 'appointment_time',
                 'time_limit_hours', 'priority', 'source', 'other_source', 'department_id',
-                'need_visit', 'is_emergency', 'remarks', 'materials_usage', 'solution',
+                'need_visit', 'is_emergency', 'remarks',
             ];
+            // solution/materials_usage 属于处理结果：仅处理侧（处理人/协作者/管理员）可改，
+            // 且仅已进入处理后期（processing 及之后）开放；普通创建人不可篡改工程师的处理记录
+            if ($workorder->canBeOperatedBy(Auth::user(), 'resolve')
+                && in_array($workorder->status, ['processing', 'resolved', 'completed', 'closed'])) {
+                $allowedFields[] = 'materials_usage';
+                if (in_array($workorder->status, ['resolved', 'completed', 'closed'])) {
+                    $allowedFields[] = 'solution';
+                }
+            }
             // 仅管理员和工单管理员可通过编辑表单改派 assignee_id
             if (Auth::user()->canAssignWorkorders()) {
                 $allowedFields[] = 'assignee_id';
@@ -983,8 +992,9 @@ class WorkorderController extends Controller
      */
     public function updateMaterials(Request $request, Workorder $workorder)
     {
-        // 权限检查：只有工单的分配处理人、工单管理员或管理员可以编辑备件耗材
-        if (!auth()->user()->canUploadAttachment($workorder)) {
+        // 权限检查：只有工单的分配处理人、协作工程师、工单管理员或管理员可以编辑备件耗材
+        // （canBeOperatedBy 'add_materials' 不含创建人分支——报修人不应篡改备件记录）
+        if (!$workorder->canBeOperatedBy(auth()->user(), 'add_materials')) {
             $message = '您没有权限编辑备件耗材使用情况';
             if ($request->isMethod('get')) {
                 return redirect(\App\Helpers\UrlHelper::relative_url("/workorders/{$workorder->id}"))->with('error', $message);

@@ -51,9 +51,9 @@ class WechatOauthController extends Controller
         $state = Str::random(32);
         session(['wechat.state' => $state]);
 
-        // 保存 intended URL 以便登录后跳转
+        // 保存 intended URL 以便登录后跳转（仅接受本站相对路径，防开放重定向）
         if ($request->has('intended')) {
-            session(['wechat.intended' => $request->input('intended')]);
+            session(['wechat.intended' => \App\Helpers\UrlHelper::safeRedirectTarget($request->input('intended'))]);
         }
 
         $params = http_build_query([
@@ -125,7 +125,7 @@ class WechatOauthController extends Controller
                 return redirect()->route('login')->with('error', '该账号已被禁用，请联系管理员');
             }
 
-            $intended = session('wechat.intended', route('workorders.index'));
+            $intended = \App\Helpers\UrlHelper::safeRedirectTarget(session('wechat.intended'));
 
             session()->forget(['wechat.state', 'wechat.pending_openid', 'wechat.nickname', 'wechat.headimgurl', 'wechat.intended']);
 
@@ -211,7 +211,7 @@ class WechatOauthController extends Controller
         auth()->login($user, true);
         session()->regenerate(true);
 
-        $intended = session('wechat.intended', route('workorders.index'));
+        $intended = \App\Helpers\UrlHelper::safeRedirectTarget(session('wechat.intended'));
         session()->forget('wechat.intended');
 
         return redirect($intended);

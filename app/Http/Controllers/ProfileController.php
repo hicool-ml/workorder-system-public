@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\Rules\Password;
 
 class ProfileController extends Controller
 {
@@ -61,7 +62,7 @@ class ProfileController extends Controller
 
         $request->validate([
             'current_password' => 'required|string',
-            'password' => 'required|string|min:6|confirmed',
+            'password' => ['required', 'string', Password::min(8)->letters()->numbers(), 'confirmed'],
         ]);
 
         if (!Hash::check($request->current_password, auth()->user()->password)) {
@@ -70,9 +71,16 @@ class ProfileController extends Controller
 
         auth()->user()->update([
             'password' => Hash::make($request->password),
+            'password_changed_at' => now(),
         ]);
 
-        return back()->with('success', '密码修改成功');
+        // 改密后失效其他设备上的会话与 remember-me（防改密前已窃取的会话继续潜伏）
+        auth()->logoutOtherDevices($request->password);
+        if (auth()->user()->remember_token) {
+            auth()->user()->forceFill(['remember_token' => null])->save();
+        }
+
+        return back()->with('success', '密码修改成功，其他设备已强制下线');
     }
 
     /**
@@ -90,7 +98,7 @@ class ProfileController extends Controller
     {
         $request->validate([
             'current_password' => 'required|string',
-            'password' => 'required|string|min:6|confirmed',
+            'password' => ['required', 'string', Password::min(8)->letters()->numbers(), 'confirmed'],
         ]);
 
         if (!Hash::check($request->current_password, auth()->user()->password)) {
@@ -101,6 +109,9 @@ class ProfileController extends Controller
             'password' => $request->password,
             'password_changed_at' => now(),
         ]);
+
+        // 改密后失效其他设备会话
+        auth()->logoutOtherDevices($request->password);
 
         return redirect()->route('dashboard')->with('success', '密码修改成功，欢迎使用系统');
     }

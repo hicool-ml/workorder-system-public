@@ -54,9 +54,9 @@ class OidcAuthController extends Controller
             'oidc.code_verifier' => $codeVerifier,
         ]);
 
-        // 保存 intended URL 以便登录后跳转
+        // 保存 intended URL 以便登录后跳转（仅接受本站相对路径，防开放重定向）
         if ($request->has('intended')) {
-            session(['oidc.intended' => $request->input('intended')]);
+            session(['oidc.intended' => \App\Helpers\UrlHelper::safeRedirectTarget($request->input('intended'))]);
         }
 
         $params = http_build_query([
@@ -89,11 +89,11 @@ class OidcAuthController extends Controller
             return redirect()->route('login')->with('error', '认证失败：' . $errorDesc);
         }
 
-        // 验证 state（CSRF 防护）
+        // 验证 state（CSRF 防护；hash_equals 防时序侧信道）
         $state = $request->input('state');
         $sessionState = session('oidc.state');
 
-        if (!$state || $state !== $sessionState) {
+        if (!$state || !hash_equals((string) $sessionState, (string) $state)) {
             Log::error('OIDC state 验证失败', [
                 'received' => $state,
                 'expected' => $sessionState,
@@ -153,7 +153,7 @@ class OidcAuthController extends Controller
         auth()->login($user, true);
         session()->regenerate(true);
 
-        $intended = session('oidc.intended', route('workorders.index'));
+        $intended = \App\Helpers\UrlHelper::safeRedirectTarget(session('oidc.intended'));
         session()->forget('oidc.intended');
 
         return redirect($intended);
@@ -368,7 +368,11 @@ class OidcAuthController extends Controller
     }
 
     /**
-     * 校验 id_token：nonce / exp / aud / iss，签名在拿到 jwks_uri 时验证（失败即拒）
+     * 校验 id_token：nonce / exp / aud / iss 必须全部存在且匹配；签名验证为强制项。
+     *
+     * 安全背景：此前 exp/aud/iss 缺失时全部跳过、验签仅在配置 jwks_uri 时"尽力而为"——
+     * 未配置验签的 id_token 等于 base64 明文，任何能影响 token endpoint 响应的攻击者
+     * 可注入任意 sub 直接铸造身份。OIDC 规范要求客户端必须验签。
      */
     private function validateIdToken(string $idToken, array $config): bool
     {
@@ -378,41 +382,55 @@ class OidcAuthController extends Controller
             return false;
         }
 
-        // nonce：防止重放
+        // nonce：防止重放（双向必须存在——我们发起时总是携带）
         $expectedNonce = session('oidc.nonce');
-        if (!empty($payload['nonce']) && $expectedNonce && !hash_equals((string) $expectedNonce, (string) $payload['nonce'])) {
-            Log::error('OIDC id_token nonce 不匹配', ['nonce' => $payload['nonce']]);
+        if (empty($payload['nonce']) || empty($expectedNonce)
+            || !hash_equals((string) $expectedNonce, (string) $payload['nonce'])) {
+            Log::error('OIDC id_token nonce 缺失或不匹配');
             return false;
         }
 
-        // exp：过期时间
-        if (!empty($payload['exp']) && (int) $payload['exp'] < time()) {
-            Log::error('OIDC id_token 已过期');
+        // exp：必须存在且未过期
+        if (empty($payload['exp']) || (int) $payload['exp'] < time()) {
+            Log::error('OIDC id_token 缺少 exp 或已过期');
             return false;
         }
 
-        // aud：必须包含本应用的 client_id
-        if (!empty($payload['aud'])) {
-            $auds = is_array($payload['aud']) ? $payload['aud'] : [$payload['aud']];
-            if (!in_array($config['client_id'], $auds, true)) {
-                Log::error('OIDC id_token aud 不匹配', ['aud' => $payload['aud']]);
-                return false;
-            }
+        // aud：必须存在且包含本应用 client_id
+        if (empty($payload['aud'])) {
+            Log::error('OIDC id_token 缺少 aud');
+            return false;
+        }
+        $auds = is_array($payload['aud']) ? $payload['aud'] : [$payload['aud']];
+        if (!in_array($config['client_id'], $auds, true)) {
+            Log::error('OIDC id_token aud 不匹配', ['aud' => $payload['aud']]);
+            return false;
         }
 
-        // iss：与配置的 issuer 一致（若已配置）
+        // iss：必须与配置的 issuer 一致（已配置时）
         $issuer = SystemSetting::get('oidc_issuer', '');
-        if (!empty($issuer) && !empty($payload['iss']) && rtrim((string) $payload['iss'], '/') !== rtrim((string) $issuer, '/')) {
-            Log::error('OIDC id_token iss 不匹配', ['iss' => $payload['iss'] ?? null]);
+        if (!empty($issuer)) {
+            if (empty($payload['iss']) || rtrim((string) $payload['iss'], '/') !== rtrim((string) $issuer, '/')) {
+                Log::error('OIDC id_token iss 缺失或不匹配', ['iss' => $payload['iss'] ?? null]);
+                return false;
+            }
+        }
+
+        // 签名验证（强制）：jwks_uri 缺失时从 discovery 获取，仍拿不到则拒绝启用
+        $jwksUri = $config['jwks_uri'] ?? '';
+        if (empty($jwksUri)) {
+            $issuer = SystemSetting::get('oidc_issuer', '');
+            $discovery = $issuer ? $this->discover($issuer) : null;
+            $jwksUri = $discovery['jwks_uri'] ?? '';
+        }
+        if (empty($jwksUri)) {
+            Log::error('OIDC 无法获取 jwks_uri，id_token 无法验签——拒绝登录（请在设置中配置 JWKS 地址或补全 issuer 以启用 discovery）');
             return false;
         }
 
-        // 签名验证（best-effort：仅在拿到 jwks_uri 时执行，任何失败直接拒绝）
-        if (!empty($config['jwks_uri'])) {
-            if (!$this->verifyIdTokenSignature($idToken, $config['jwks_uri'])) {
-                Log::error('OIDC id_token 签名验证失败');
-                return false;
-            }
+        if (!$this->verifyIdTokenSignature($idToken, $jwksUri)) {
+            Log::error('OIDC id_token 签名验证失败');
+            return false;
         }
 
         return true;
@@ -596,27 +614,27 @@ class OidcAuthController extends Controller
             }
         }
 
-        // 先按 OIDC sub 查找
+        // 仅按不可变标识查找：oidc_sub（首次登录后绑定）与 username（工号，IdP 侧受管字段）。
+        // 安全红线：禁止按手机号/邮箱等用户可在 IdP 自助修改的属性自动关联本地账号，
+        // 否则攻击者在 IdP 侧把邮箱改成与管理员相同即可零密码接管管理员账户。
         $user = User::where('oidc_sub', $sub)->first();
 
-        // 再按工号/学号查找
         if (!$user && $username !== $sub) {
-            $user = User::where('employee_id', $username)->first();
+            $candidate = User::where('employee_id', $username)->first();
+            // 工号匹配仅对普通用户放行；管理员/工单管理员账户禁止被 SSO 属性自动关联
+            if ($candidate && !in_array($candidate->role, ['admin', 'workorder_manager'], true)) {
+                $user = $candidate;
+            } elseif ($candidate) {
+                Log::warning('OIDC 工号命中特权账号，拒绝自动关联', [
+                    'employee_id' => $username,
+                    'role' => $candidate->role,
+                ]);
+            }
         }
 
-        // 再按用户名查找（OIDC 账号）
+        // 再按历史 OIDC 保留用户名查找（同样是 IdP 受管标识）
         if (!$user) {
             $user = User::where('username', 'oidc_' . $username)->first();
-        }
-
-        // 按手机号查找（已有本地用户手机号匹配则关联）
-        if (!$user && $phone) {
-            $user = User::where('phone', $phone)->first();
-        }
-
-        // 按邮箱查找
-        if (!$user && $email) {
-            $user = User::where('email', $email)->first();
         }
 
         if ($user) {

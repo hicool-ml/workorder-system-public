@@ -38,18 +38,38 @@ class SmsReplyController extends Controller
 
     /**
      * 校验回调来源合法性：
-     * 1) 若配置了 sms_reply_secret，则要求请求带 sign（md5(phone|content|secret)）或 token；
-     * 2) 否则若配置了 sms_reply_ip_whitelist（逗号分隔 CIDR/IP），按 IP 放行；
+     * 1) 若配置了 sms_reply_secret：
+     *    - 优先校验 hmac（hmac-sha256(phone|content|timestamp, secret)，时间窗 ±10 分钟，防截获重放）；
+     *    - 兼容旧 sign（md5(phone|content|secret)）与静态 token；
+     * 2) 否则若配置了 sms_reply_ip_whitelist（逗号分隔 CIDR/IP），按 IP 放行
+     *    （仅在配置 TRUSTED_PROXIES 时生效，否则 XFF 可伪造）；
      * 3) 两者都未配置则拒绝对外开放访问。
      */
     private function verifyCaller(Request $request): bool
     {
         $secret = (string) SystemSetting::get('sms_reply_secret', '');
         if ($secret !== '') {
+            // 新式 HMAC-SHA256 签名（含时间戳，防重放）
+            $hmac = (string) ($request->input('hmac', $request->header('X-Sms-Hmac')) ?? '');
+            $timestamp = (string) ($request->input('timestamp', $request->header('X-Sms-Timestamp')) ?? '');
+            if ($hmac !== '' && $timestamp !== '' && is_numeric($timestamp)) {
+                if (abs(time() - (int) $timestamp) > 600) {
+                    return false; // 时间窗外的签名直接拒绝（重放）
+                }
+                [$phone, $content] = $this->resolveReplyFields($request);
+                $expected = hash_hmac('sha256', $phone . '|' . $content . '|' . $timestamp, $secret);
+                if (hash_equals($expected, $hmac)) {
+                    return true;
+                }
+                return false;
+            }
+
+            // 兼容旧式静态 token
             $token = $request->input('token', $request->header('X-Sms-Token'));
             if (is_string($token) && hash_equals($secret, (string) $token)) {
                 return true;
             }
+            // 兼容旧式 md5 拼接签名
             [$phone, $content] = $this->resolveReplyFields($request);
             $expectedSign = md5($phone . '|' . $content . '|' . $secret);
             $sign = (string) ($request->input('sign', $request->header('X-Sms-Sign')) ?? '');
@@ -59,8 +79,15 @@ class SmsReplyController extends Controller
             return false;
         }
 
+        // IP 白名单仅在配置了可信代理（TRUSTED_PROXIES）时才有意义：
+        // 否则 $request->ip() 来自可伪造的 X-Forwarded-For，白名单形同虚设。
+        // 生产环境要求配置 sms_reply_secret（sign/token），白名单仅作叠加防线。
         $ipList = (string) SystemSetting::get('sms_reply_ip_whitelist', '');
         if ($ipList !== '') {
+            if (env('TRUSTED_PROXIES', '') === '') {
+                \Log::warning('sms/reply：配置了 IP 白名单但未配置 TRUSTED_PROXIES，X-Forwarded-For 可伪造，白名单已失效');
+                return false;
+            }
             $ips = array_filter(array_map('trim', explode(',', $ipList)));
             foreach ($ips as $allowed) {
                 if ($this->ipMatch($request->ip(), $allowed)) {
@@ -154,15 +181,18 @@ class SmsReplyController extends Controller
      */
     public function recordReply(?string $phone, string $content)
     {
+        // 日志注入防护：短信原文可含换行，压平后入日志防伪造日志行
+        $logContent = preg_replace('/\r?\n/', ' ', $content);
+
         if (empty($phone)) {
-            Log::warning('短信回复缺少手机号', ['content' => $content]);
+            Log::warning('短信回复缺少手机号', ['content' => $logContent]);
             return response()->json(['success' => false, 'message' => 'missing phone'], 200);
         }
 
         // 解析满意度：1=满意, 0=不满意，其它视为无效回复
         $satisfaction = $this->parseSatisfaction($content);
         if ($satisfaction === null) {
-            Log::info('短信回复内容无法识别为满意度', ['phone' => $phone, 'content' => $content]);
+            Log::info('短信回复内容无法识别为满意度', ['phone' => $phone, 'content' => $logContent]);
             return response()->json(['success' => false, 'message' => 'unrecognized content'], 200);
         }
 
@@ -184,7 +214,7 @@ class SmsReplyController extends Controller
         }
 
         if (!$workorder) {
-            Log::info('短信回复未匹配到工单', ['phone' => $phone, 'content' => $content]);
+            Log::info('短信回复未匹配到工单', ['phone' => $phone, 'content' => $logContent]);
             return response()->json(['success' => false, 'message' => 'no matching workorder'], 200);
         }
 

@@ -156,17 +156,17 @@ class WorkorderSignatureController extends Controller
             // 渲染打印用的 HTML 快照（自包含完整 CSS + 签名图片）
             $html = view('workorders.signature-html', compact('workorder'))->render();
 
-            // 写入 storage/app/public/workorder_attachments/
-            $filename  = 'record_' . $workorder->ticket_no . '_' . time() . '.html';
+            // 写入私有 attachments 盘（不暴露 /storage 直链，读取走鉴权路由）
+            $filename  = 'record_' . $workorder->ticket_no . '_' . \Illuminate\Support\Str::uuid()->toString() . '.html';
             $directory = 'workorder_attachments';
             $filePath  = $directory . '/' . $filename;
 
-            if (!\Illuminate\Support\Facades\Storage::disk('public')->exists($directory)) {
-                \Illuminate\Support\Facades\Storage::disk('public')->makeDirectory($directory);
+            if (!\Illuminate\Support\Facades\Storage::disk('attachments')->exists($directory)) {
+                \Illuminate\Support\Facades\Storage::disk('attachments')->makeDirectory($directory);
             }
 
-            \Illuminate\Support\Facades\Storage::disk('public')->put($filePath, $html);
-            $fileSize = \Illuminate\Support\Facades\Storage::disk('public')->size($filePath);
+            \Illuminate\Support\Facades\Storage::disk('attachments')->put($filePath, $html);
+            $fileSize = \Illuminate\Support\Facades\Storage::disk('attachments')->size($filePath);
 
             \App\Models\WorkorderAttachment::create([
                 'workorder_id'   => $workorder->id,

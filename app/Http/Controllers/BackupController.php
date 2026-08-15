@@ -600,6 +600,21 @@ class BackupController extends Controller
                 continue;
             }
 
+            // Zip-Slip 防护：写盘前逐段校验，任何 ../、绝对路径、盘符前缀一律拒绝
+            // （外层 zip 上传时的检查覆盖不到这个嵌套的 attachments.zip）
+            $segments = explode('/', $normalized);
+            $safe = true;
+            foreach ($segments as $seg) {
+                if ($seg === '..' || $seg === '.') {
+                    $safe = false;
+                    break;
+                }
+            }
+            if (!$safe || preg_match('#^[A-Za-z]:#', $normalized)) {
+                \Log::warning('备份附件恢复：拦截到路径穿越条目，已跳过', ['entry' => $name]);
+                continue;
+            }
+
             $stream = $zip->getStream($name);
             if ($stream === false) {
                 continue;

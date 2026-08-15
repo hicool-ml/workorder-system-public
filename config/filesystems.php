@@ -38,6 +38,15 @@ return [
             'report' => false,
         ],
 
+        // 工单附件专用磁盘：不建 public 符号链接，所有读取必须经
+        // AttachmentController 的 canViewWorkorder 鉴权后流式输出
+        'attachments' => [
+            'driver' => 'local',
+            'root' => storage_path('app/attachments'),
+            'throw' => false,
+            'report' => false,
+        ],
+
         'public' => [
             'driver' => 'local',
             'root' => storage_path('app/public'),

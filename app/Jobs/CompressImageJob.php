@@ -41,14 +41,15 @@ class CompressImageJob implements ShouldQueue
                 return;
             }
 
-            // 检查原始文件是否存在
-            if (!Storage::disk('public')->exists($this->originalPath)) {
+            // 附件已迁移到私有 attachments 盘；兼容迁移期间的旧 public 盘路径
+            $disk = Storage::disk('attachments')->exists($this->originalPath) ? 'attachments' : 'public';
+            if ($disk === 'public' && !Storage::disk('public')->exists($this->originalPath)) {
                 \Log::error('原始文件不存在: ' . $this->originalPath);
                 return;
             }
 
             // 获取原始文件信息
-            $originalPath = storage_path('app/public/' . $this->originalPath);
+            $originalPath = storage_path($disk === 'attachments' ? 'app/attachments/' : 'app/public/') . $this->originalPath;
             $imageInfo = getimagesize($originalPath);
             if (!$imageInfo) {
                 \Log::error('无法获取图片信息: ' . $this->originalPath);
@@ -121,7 +122,7 @@ class CompressImageJob implements ShouldQueue
             // 创建压缩后的文件名
             $compressedFilename = 'compressed_' . $this->filename;
             $compressedPath = 'workorder_attachments/' . $compressedFilename;
-            $fullCompressedPath = storage_path('app/public/' . $compressedPath);
+            $fullCompressedPath = storage_path($disk === 'attachments' ? 'app/attachments/' : 'app/public/') . $compressedPath;
 
             // 确保目录存在
             $dir = dirname($fullCompressedPath);
@@ -169,7 +170,7 @@ class CompressImageJob implements ShouldQueue
             ]);
 
             // 删除原始文件
-            Storage::disk('public')->delete($this->originalPath);
+            Storage::disk($disk)->delete($this->originalPath);
 
             \Log::info('图片压缩完成: ' . $this->filename . 
                       ', 原始大小: ' . round($originalSize / 1024 / 1024, 2) . 'MB' . 

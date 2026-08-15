@@ -100,17 +100,8 @@ trait HandlesReport
             if ($request->hasFile('attachments')) {
                 foreach ($request->file('attachments') as $file) {
                     if ($file->isValid()) {
-                        $path = $file->store('workorder-attachments', 'public');
-                        WorkorderAttachment::create([
-                            'workorder_id' => $workorder->id,
-                            'filename'      => $file->getClientOriginalName(),
-                            'original_name' => $file->getClientOriginalName(),
-                            'file_path'    => $path,
-                            'file_size'    => $file->getSize(),
-                            'mime_type'    => $file->getMimeType(),
-                            'user_id'       => $user->id,
-                            'file_type'     => str_starts_with($file->getMimeType(), 'image/') ? 'image' : 'file',
-                        ]);
+                        // 统一走 uploadFile：私有盘 + UUID 文件名 + 危险扩展名兜底拦截
+                        WorkorderAttachment::uploadFile($file, $workorder->id);
                     }
                 }
             }

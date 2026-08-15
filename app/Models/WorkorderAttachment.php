@@ -131,11 +131,11 @@ class WorkorderAttachment extends Model
     }
 
     /**
-     * 获取文件的完整URL
+     * 获取文件的完整URL（经鉴权的预览路由；附件存储在私有盘，无公开直链）
      */
     public function getUrlAttribute(): string
     {
-        return Storage::url($this->file_path);
+        return route('attachments.preview', $this->id);
     }
 
     /**
@@ -152,11 +152,8 @@ class WorkorderAttachment extends Model
     public function getPreviewUrlAttribute(): ?string
     {
         if ($this->isImage()) {
-            // 如果有缩略图，返回缩略图URL
-            if ($this->thumbnail_path) {
-                return Storage::url($this->thumbnail_path);
-            }
-            return $this->url;
+            // 经鉴权的预览路由（私有盘无直链）
+            return route('attachments.preview', $this->id);
         }
         
         // 对于PDF文件，可以生成预览图（如果需要的话）
@@ -178,14 +175,14 @@ class WorkorderAttachment extends Model
     public function getThumbnailUrlAttribute(): ?string
     {
         if ($this->thumbnail_path) {
-            return Storage::url($this->thumbnail_path);
+            return route('attachments.preview', $this->id);
         }
-        
-        // 如果是图片但没有缩略图，返回原图
+
+        // 如果是图片但没有缩略图，走鉴权预览
         if ($this->isImage()) {
             return $this->url;
         }
-        
+
         return null;
     }
 
@@ -255,46 +252,33 @@ class WorkorderAttachment extends Model
 
     /**
      * 上传文件
+     * 安全设计：
+     *  - 存储磁盘为私有 attachments 盘（无 public 直链），读取必须经鉴权路由
+     *  - 文件名 = 随机 UUID + 白名单扩展名，杜绝时间戳+原名枚举猜测
      */
-    public static function uploadFile($file, int $workorderId, string $description = null, bool $isPublic = true): self
+    public static function uploadFile($file, int $workorderId, ?string $description = null, bool $isPublic = true): self
     {
         // 兜底防御：即使上层 validation 缺失 mimes 规则，这里也强制拒绝危险扩展名
         self::guardBlockedExtension($file);
 
-        $filename = time() . '_' . $file->getClientOriginalName();
+        $extension = strtolower($file->getClientOriginalExtension());
+        $filename = \Illuminate\Support\Str::uuid()->toString() . '.' . $extension;
         $originalSize = $file->getSize();
         $fileType = 'other';
-        $extension = strtolower($file->getClientOriginalExtension());
         $thumbnailPath = null;
-        
-        // 处理图片文件 - 检查是否需要压缩
+
         if (in_array($extension, ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'])) {
             $fileType = 'image';
-            
-            // 直接存储文件，不进行压缩，避免卡顿问题
-            $filePath = $file->storeAs('workorder_attachments', $filename, 'public');
-            $fileSize = $originalSize;
-            
-            // 完全禁用缩略图生成，避免卡顿问题
-            $thumbnailPath = null;
-        } elseif (in_array($extension, ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'txt'])) {
+        } elseif (in_array($extension, ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'txt', 'md'])) {
             $fileType = 'document';
-            $filePath = $file->storeAs('workorder_attachments', $filename, 'public');
-            $fileSize = $originalSize;
         } elseif (in_array($extension, ['mp4', 'avi', 'mov', 'wmv', 'flv', 'mkv'])) {
             $fileType = 'video';
-            $filePath = $file->storeAs('workorder_attachments', $filename, 'public');
-            $fileSize = $originalSize;
         } elseif (in_array($extension, ['mp3', 'wav', 'flac', 'aac', 'ogg'])) {
             $fileType = 'audio';
-            $filePath = $file->storeAs('workorder_attachments', $filename, 'public');
-            $fileSize = $originalSize;
-        } else {
-            // 其他文件类型
-            $filePath = $file->storeAs('workorder_attachments', $filename, 'public');
-            $fileSize = $originalSize;
         }
-        
+
+        $filePath = $file->storeAs('workorder_attachments', $filename, 'attachments');
+
         return static::create([
             'workorder_id' => $workorderId,
             'user_id' => auth()->id(),
@@ -302,7 +286,7 @@ class WorkorderAttachment extends Model
             'original_name' => $file->getClientOriginalName(),
             'file_path' => $filePath,
             'file_type' => $fileType,
-            'file_size' => $fileSize,
+            'file_size' => $originalSize,
             'mime_type' => $file->getMimeType(),
             'description' => $description,
             'type' => $fileType,
@@ -331,7 +315,7 @@ class WorkorderAttachment extends Model
             $thumbnailPath = 'workorder_attachments/thumbnails/' . $thumbnailFilename;
             
             // 创建缩略图目录
-            $fullThumbnailPath = storage_path('app/public/' . $thumbnailPath);
+            $fullThumbnailPath = storage_path('app/attachments/' . $thumbnailPath);
             $thumbnailDir = dirname($fullThumbnailPath);
             if (!is_dir($thumbnailDir)) {
                 mkdir($thumbnailDir, 0755, true);
@@ -505,7 +489,7 @@ class WorkorderAttachment extends Model
             // 创建压缩后的文件名
             $compressedFilename = 'compressed_' . $filename;
             $compressedPath = 'workorder_attachments/' . $compressedFilename;
-            $fullCompressedPath = storage_path('app/public/' . $compressedPath);
+            $fullCompressedPath = storage_path('app/attachments/' . $compressedPath);
             
             // 确保目录存在
             $dir = dirname($fullCompressedPath);
@@ -575,14 +559,16 @@ class WorkorderAttachment extends Model
     }
 
     /**
-     * 删除文件
+     * 删除文件（优先新私有盘，兼容迁移期间的旧 public 盘路径）
      */
     public function deleteFile(): bool
     {
-        if (Storage::disk('public')->exists($this->file_path)) {
+        if (Storage::disk('attachments')->exists($this->file_path)) {
+            Storage::disk('attachments')->delete($this->file_path);
+        } elseif (Storage::disk('public')->exists($this->file_path)) {
             Storage::disk('public')->delete($this->file_path);
         }
-        
+
         return $this->delete();
     }
 
@@ -701,7 +687,9 @@ class WorkorderAttachment extends Model
         }
         
         try {
-            $content = Storage::disk('public')->get($this->file_path);
+            $content = Storage::disk('attachments')->exists($this->file_path)
+                ? Storage::disk('attachments')->get($this->file_path)
+                : Storage::disk('public')->get($this->file_path);
             $linesArray = explode("\n", $content);
             
             if (count($linesArray) > $lines) {
@@ -733,7 +721,10 @@ class WorkorderAttachment extends Model
         }
         
         try {
-            $imagePath = storage_path('app/public/' . $this->file_path);
+            $imagePath = storage_path('app/attachments/' . $this->file_path);
+            if (!file_exists($imagePath)) {
+                $imagePath = storage_path('app/public/' . $this->file_path); // 迁移期兼容
+            }
             if (file_exists($imagePath)) {
                 $imageInfo = getimagesize($imagePath);
                 if ($imageInfo) {

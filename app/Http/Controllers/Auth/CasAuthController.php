@@ -38,9 +38,9 @@ class CasAuthController extends Controller
         // CAS 标准登录入口
         $loginUrl = "{$casBaseUrl}/login?service=" . urlencode($serviceUrl);
 
-        // 保存 intended URL 以便登录后跳转
+        // 保存 intended URL 以便登录后跳转（仅接受本站相对路径，防开放重定向）
         if ($request->has('intended')) {
-            session(['cas.intended' => $request->input('intended')]);
+            session(['cas.intended' => \App\Helpers\UrlHelper::safeRedirectTarget($request->input('intended'))]);
         }
 
         return redirect($loginUrl);
@@ -84,7 +84,7 @@ class CasAuthController extends Controller
         auth()->login($user, true);
         session()->regenerate(true);
 
-        $intended = session('cas.intended', route('workorders.index'));
+        $intended = \App\Helpers\UrlHelper::safeRedirectTarget(session('cas.intended'));
         session()->forget('cas.intended');
 
         return redirect($intended);
@@ -253,17 +253,23 @@ class CasAuthController extends Controller
             }
         }
 
-        // 先按工号/学号查找
+        // 仅按不可变标识查找：工号（CAS 侧受管字段）与历史 CAS 用户名。
+        // 安全红线：禁止按手机号自动关联本地账号（IdP 侧手机号可自助修改，
+        // 弱属性匹配 = 零密码接管任意同手机号本地账户，含管理员）。
         $user = User::where('employee_id', $casUsername)->first();
+
+        // 特权账号禁止被 CAS 工号自动关联（防止 IdP 侧账号配置错误直接映射到 admin）
+        if ($user && in_array($user->role, ['admin', 'workorder_manager'], true)) {
+            Log::warning('CAS 工号命中特权账号，拒绝自动关联', [
+                'employee_id' => $casUsername,
+                'role' => $user->role,
+            ]);
+            $user = null;
+        }
 
         // 再按用户名查找（CAS 账号）
         if (!$user) {
             $user = User::where('username', 'cas_' . $casUsername)->first();
-        }
-
-        // 按手机号查找（已有本地用户手机号匹配则关联）
-        if (!$user && $phone) {
-            $user = User::where('phone', $phone)->first();
         }
 
         if ($user) {

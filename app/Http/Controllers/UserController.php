@@ -72,7 +72,7 @@ class UserController extends Controller
             'name' => 'required|string|max:100',
             'username' => 'required|string|max:50|unique:users,username',
             'email' => 'required|email|max:100|unique:users,email',
-            'password' => 'required|string|min:6|confirmed',
+            'password' => ['required', 'string', \Illuminate\Validation\Rules\Password::min(8)->letters()->numbers(), 'confirmed'],
             'phone' => 'nullable|string|max:20',
             'employee_id' => 'nullable|string|max:50|unique:users,employee_id',
             'wecom_userid' => 'nullable|string|max:100',
@@ -169,7 +169,7 @@ class UserController extends Controller
 
         // 如果提供了密码，则添加密码验证规则
         if ($request->filled('password')) {
-            $rules['password'] = 'required|string|min:6|confirmed';
+            $rules['password'] = ['required', 'string', \Illuminate\Validation\Rules\Password::min(8)->letters()->numbers(), 'confirmed'];
         }
 
         $request->validate($rules);
@@ -238,7 +238,7 @@ class UserController extends Controller
     public function resetPassword(Request $request, User $user)
     {
         $request->validate([
-            'password' => 'required|string|min:6|confirmed',
+            'password' => ['required', 'string', \Illuminate\Validation\Rules\Password::min(8)->letters()->numbers(), 'confirmed'],
         ]);
 
         try {

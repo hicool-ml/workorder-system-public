@@ -234,7 +234,12 @@ class SystemSettingController extends Controller
         ]);
 
         try {
-            SystemSetting::create($request->all());
+            // 密钥类设置禁止标记为公开（防 publicSettings 端点未来启用时泄露）
+            $attributes = $request->all();
+            if (SystemSetting::isSecretKeyString($request->input('key'))) {
+                $attributes['is_public'] = false;
+            }
+            SystemSetting::create($attributes);
 
             return back()->with('success', '设置创建成功');
         } catch (\Exception $e) {
