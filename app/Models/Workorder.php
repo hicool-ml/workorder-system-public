@@ -502,9 +502,9 @@ class Workorder extends Model
     }
 
    /**
-    * 生成工单编号（委托给 generateTicketNoByPrefix）
-    */
-   public static function generateTicketNo($prefix = 'WO'): string
+     * 生成工单编号（委托给 generateTicketNoByPrefix）
+     */
+    public static function generateTicketNo($prefix = 'WO'): string
     {
         return static::generateTicketNoByPrefix($prefix);
     }
@@ -518,37 +518,82 @@ class Workorder extends Model
         $prefix = $type ? $type->ticket_prefix : 'WO';
         return self::generateTicketNo($prefix);
     }
-    
+
    /**
     * 根据前缀生成工单编号
-    * 格式：大类编码 + 日期 + 工单生成时间 + 序号
-    * 例如：N2015111813550011
-     *
-     * 使用数据库事务 + 行锁保证序号唯一性，防止并发请求生成重复编号。
-     */
+    * 格式：大类编码 + 日期 + 工单生成时间 + 序号（4位）
+    * 例如：N2015111813550001
+    *
+    * 序号来自 ticket_sequences 表的原子 UPSERT 自增：
+    * 消除"首单并发生成重复编号"（PG 空结果集不加行锁）与">99 单序号回绕"两类缺陷。
+    */
     public static function generateTicketNoByPrefix($prefix = 'WO'): string
     {
-        return DB::transaction(function () use ($prefix) {
-            $date = now()->format('Ymd');
-            $time = now()->format('His');
+        $date = now()->format('Ymd');
+        $time = now()->format('His');
 
-            // 在事务内查询当前前缀今日最大序号，使用 lockForUpdate 防止并发
-            $lastTicket = static::where('ticket_prefix', $prefix)
-                ->whereDate('created_at', today())
-                ->orderByDesc('id')
+        $seq = static::nextTicketSequence($prefix, $date);
+
+        return $prefix . $date . $time . str_pad((string) $seq, 4, '0', STR_PAD_LEFT);
+    }
+
+    /**
+     * 原子获取当日序号。
+     * 优先使用 PG 原生 UPSERT（单条 SQL，绝对原子）；
+     * 其他数据库退化为事务 + 行锁 + upsert 重试。
+     */
+    private static function nextTicketSequence(string $prefix, string $date): int
+    {
+        $driver = static::query()->getConnection()->getDriverName();
+
+        if ($driver === 'pgsql') {
+            $row = DB::selectOne(
+                'INSERT INTO ticket_sequences (prefix, date, seq, created_at, updated_at)
+                 VALUES (?, ?, 1, NOW(), NOW())
+                 ON CONFLICT (prefix, date) DO UPDATE SET seq = ticket_sequences.seq + 1, updated_at = NOW()
+                 RETURNING seq',
+                [$prefix, $date]
+            );
+            return (int) $row->seq;
+        }
+
+        return (int) DB::transaction(function () use ($prefix, $date) {
+            $affected = DB::table('ticket_sequences')
+                ->where('prefix', $prefix)
+                ->where('date', $date)
                 ->lockForUpdate()
-                ->first();
+                ->update([
+                    'seq' => DB::raw('seq + 1'),
+                    'updated_at' => now(),
+                ]);
 
-            $sequence = 1;
-            if ($lastTicket && $lastTicket->ticket_no) {
-                // 从已有编号中提取序号部分（最后2位）
-                $seqPart = substr($lastTicket->ticket_no, -2);
-                if (is_numeric($seqPart)) {
-                    $sequence = (int)$seqPart + 1;
+            if ($affected === 0) {
+                try {
+                    DB::table('ticket_sequences')->insert([
+                        'prefix' => $prefix,
+                        'date' => $date,
+                        'seq' => 1,
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]);
+                    return 1;
+                } catch (\Illuminate\Database\QueryException $e) {
+                    // 并发插入撞唯一约束：重试一次行锁更新
+                    DB::table('ticket_sequences')
+                        ->where('prefix', $prefix)
+                        ->where('date', $date)
+                        ->lockForUpdate()
+                        ->update([
+                            'seq' => DB::raw('seq + 1'),
+                            'updated_at' => now(),
+                        ]);
                 }
             }
 
-            return $prefix . $date . $time . str_pad($sequence, 2, '0', STR_PAD_LEFT);
+            return (int) DB::table('ticket_sequences')
+                ->where('prefix', $prefix)
+                ->where('date', $date)
+                ->value('seq');
         });
     }
     
@@ -758,7 +803,7 @@ class Workorder extends Model
     }
 
     /**
-     * 开始处理
+     * 开始处理（乐观锁：仅当状态仍为 assigned 时生效，防并发打穿状态机）
      */
     public function start(?int $userId = null): bool
     {
@@ -766,11 +811,19 @@ class Workorder extends Model
             return false;
         }
 
-        // started_at 已从 $fillable 移除（防 mass assignment），这里用 forceFill 在受信方法内写入
-        $this->forceFill([
-            'status' => 'processing',
-            'started_at' => now(),
-        ])->save();
+        $affected = static::where('id', $this->id)
+            ->where('status', 'assigned')
+            ->update([
+                'status' => 'processing',
+                'started_at' => now(),
+            ]);
+
+        if ($affected === 0) {
+            return false;
+        }
+
+        $this->status = 'processing';
+        $this->started_at = now();
 
         $this->addLog('started', '开始处理', $userId);
 
@@ -778,7 +831,7 @@ class Workorder extends Model
     }
 
     /**
-     * 解决工单
+     * 解决工单（乐观锁 + 同步落库 processing_duration，统计 SQL 直接读列）
      */
     public function resolve(string $solution, ?int $userId = null): bool
     {
@@ -786,11 +839,23 @@ class Workorder extends Model
             return false;
         }
 
-        $this->forceFill([
-            'status' => 'resolved',
-            'solution' => $solution,
-            'resolved_at' => now(),
-        ])->save();
+        $now = now();
+        $affected = static::where('id', $this->id)
+            ->where('status', 'processing')
+            ->update([
+                'status' => 'resolved',
+                'solution' => $solution,
+                'resolved_at' => $now,
+                'processing_duration' => $this->created_at->diffInMinutes($now),
+            ]);
+
+        if ($affected === 0) {
+            return false;
+        }
+
+        $this->status = 'resolved';
+        $this->solution = $solution;
+        $this->resolved_at = $now;
 
         $this->addLog('resolved', $solution, $userId);
 
@@ -798,7 +863,7 @@ class Workorder extends Model
     }
 
     /**
-     * 关闭工单
+     * 关闭工单（乐观锁）
      */
     public function close(?int $userId = null): bool
     {
@@ -806,10 +871,19 @@ class Workorder extends Model
             return false;
         }
 
-        $this->forceFill([
-            'status' => 'closed',
-            'closed_at' => now(),
-        ])->save();
+        $affected = static::where('id', $this->id)
+            ->where('status', 'resolved')
+            ->update([
+                'status' => 'closed',
+                'closed_at' => now(),
+            ]);
+
+        if ($affected === 0) {
+            return false;
+        }
+
+        $this->status = 'closed';
+        $this->closed_at = now();
 
         $this->addLog('closed', '工单已关闭', $userId);
 
@@ -817,7 +891,7 @@ class Workorder extends Model
     }
 
     /**
-     * 完结工单
+     * 完结工单（乐观锁）
      */
     public function complete(?int $userId = null): bool
     {
@@ -825,10 +899,19 @@ class Workorder extends Model
             return false;
         }
 
-        $this->forceFill([
-            'status' => 'completed',
-            'completed_at' => now(),
-        ])->save();
+        $affected = static::where('id', $this->id)
+            ->where('status', 'resolved')
+            ->update([
+                'status' => 'completed',
+                'completed_at' => now(),
+            ]);
+
+        if ($affected === 0) {
+            return false;
+        }
+
+        $this->status = 'completed';
+        $this->completed_at = now();
 
         $this->addLog('completed', '工单已完结', $userId);
 

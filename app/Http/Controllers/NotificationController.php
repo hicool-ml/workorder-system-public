@@ -215,7 +215,7 @@ class NotificationController extends Controller
                 return response()->json(['error' => '用户未认证'], 401);
             }
             
-            $limit = $request->input('limit', 5);
+            $limit = min(max((int) $request->input('limit', 5), 1), 50);
             
             $notifications = Notification::where('user_id', Auth::id())
                 ->orderBy('created_at', 'desc')

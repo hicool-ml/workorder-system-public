@@ -29,6 +29,9 @@ class WorkorderController extends Controller
     {
         $user = Auth::user();
 
+        // 预热地址全表内存映射：campus_name/address_full 等祖先链 accessor 由此零 SQL 解析（消除每行 N+1）
+        \App\Models\Location::allNodesCached();
+
         // 根据用户角色获取不同的查询范围
         // 直接 with('locationInfo') 即可，location_id 是标准 bigint 外键，不再需要 attachBuildingLocations hack
         $query = $user->getWorkorderQueryScope()
@@ -300,7 +303,7 @@ class WorkorderController extends Controller
             'is_emergency' => 'boolean',
             'phone_assisted' => 'boolean',
             'phone_solution' => 'nullable|string|max:2000',
-            'assignee_id' => 'nullable|string',
+            'assignee_id' => 'nullable|integer|exclude_unless:assignee_id,other|exists:users,id',
             'other_reason' => 'nullable|string|max:500',
             'requires_signature' => 'boolean',
             'attachments' => 'nullable|array',
@@ -358,14 +361,15 @@ class WorkorderController extends Controller
                     DB::rollBack();
                     return back()->withInput()->with('error', '您没有权限使用电话协助功能');
                 }
-                
+
                 $data['status'] = 'resolved';
                 $data['resolved_at'] = now();
                 $data['solution'] = $request->input('phone_solution', '通过电话协助完成');
                 // 电话协助完成的工单，处理人设置为创建人
                 $data['assignee_id'] = Auth::id();
                 $data['assigned_at'] = now();
-            } else {
+            } elseif (empty($data['assignee_id'])) {
+                // 未指派且非电话协助 → 待处理；已指派的保持上面的 assigned 状态
                 $data['status'] = 'pending';
             }
             
@@ -552,6 +556,7 @@ class WorkorderController extends Controller
             'need_visit' => 'boolean',
             'is_emergency' => 'boolean',
             'remarks' => 'nullable|string|max:1000',
+            'assignee_id' => 'nullable|integer|exists:users,id',
         ];
         
         // 根据工单状态添加额外验证规则
@@ -813,7 +818,8 @@ class WorkorderController extends Controller
         $request->validate([
             'solution' => 'required|string|max:2000',
             'no_materials' => 'boolean',
-            'materials_usage' => 'required_if:no_materials,false|nullable|string|max:2000',
+            // 复选框未勾选时字段缺失而非字符串 'false'，故用 required_unless 表达"未勾选无备件则必填"
+            'materials_usage' => 'required_unless:no_materials,1|nullable|string|max:2000',
         ]);
 
         // 注释掉签单检查，允许工单先解决再签单
@@ -1228,26 +1234,7 @@ class WorkorderController extends Controller
             abort(403, '您没有权限编辑此工单');
         }
     }
-    
-    /**
-     * 获取子分类API
-     */
-    public function getSubCategories(Request $request)
-    {
-        $parentId = $request->input('parent_id');
-        
-        if (!$parentId) {
-            return response()->json([]);
-        }
-        
-        $categories = WorkorderType::where('parent_id', $parentId)
-            ->where('status', 'active')
-            ->orderBy('sort_order')
-            ->get(['id', 'name']);
-            
-        return response()->json($categories);
-    }
-    
+
     /**
      * 获取工单的备品耗材使用情况（API）
      */

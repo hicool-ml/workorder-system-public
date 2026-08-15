@@ -284,11 +284,11 @@
                                 <div class="flex items-start gap-3">
                                     <div class="attachment-thumbnail mr-3">
                                         @if($attachment->isImage())
-                                            <img src="{{ $attachment->preview_url }}"
+                                             <img src="{{ $attachment->preview_url }}"
                                                  class="rounded-lg border border-border"
                                                  alt="{{ $attachment->original_name }}"
                                                  style="width: 50px; height: 50px; object-fit: cover; cursor: pointer;"
-                                                 onclick="showImagePreview('{{ $attachment->preview_url }}', '{{ $attachment->original_name }}')">
+                                                 data-image-preview data-src="{{ $attachment->preview_url }}" data-name="{{ $attachment->original_name }}">
                                         @else
                                             <i class="{{ $attachment->getFileIcon() }} text-lg text-ink-muted"></i>
                                         @endif
@@ -302,7 +302,7 @@
                                             <div class="flex gap-1">
                                                 @if($attachment->isImage())
                                                 <button type="button" class="btn btn-secondary"
-                                                        onclick="showImagePreview('{{ $attachment->preview_url }}', '{{ $attachment->original_name }}')"
+                                                        data-image-preview data-src="{{ $attachment->preview_url }}" data-name="{{ $attachment->original_name }}"
                                                         title="预览">
                                                     <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/></svg>
                                                 </button>
@@ -842,29 +842,59 @@ function getFileIcon(filename) {
     return iconMap[ext] || 'fas fa-file text-ink-muted';
 }
 
-// 显示图片预览模态框
+// 显示图片预览模态框（文件名经 DOM API 渲染，防止字符串拼接 XSS）
 function showImagePreview(imageSrc, fileName) {
     $('#imagePreviewModal').remove();
 
-    var modalHtml = '<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" id="imagePreviewModal" onclick="if(event.target===this)this.remove()">' +
-        '<div class="relative w-full max-w-3xl card shadow-2xl">' +
-            '<div class="flex items-center justify-between px-5 py-3 border-b border-border">' +
-                '<h5 class="text-sm font-semibold text-ink">\u56fe\u7247\u9884\u89c8 - ' + fileName + '</h5>' +
-                '<button type="button" class="btn btn-icon btn-ghost" onclick="document.getElementById(\'imagePreviewModal\').remove()">' +
-                    '<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12"/></svg>' +
-                '</button>' +
-            '</div>' +
-            '<div class="p-5 flex items-center justify-center" style="min-height: 300px;">' +
-                '<img src="' + imageSrc + '" class="max-w-full h-auto rounded-lg" alt="' + fileName + '" style="max-height: 70vh; object-fit: contain;">' +
-            '</div>' +
-        '</div>' +
-    '</div>';
+    var title = document.createElement('h5');
+    title.className = 'text-sm font-semibold text-ink';
+    title.textContent = '图片预览 - ' + (fileName || '');
 
-    $('body').append(modalHtml);
+    var closeBtn = document.createElement('button');
+    closeBtn.type = 'button';
+    closeBtn.className = 'btn btn-icon btn-ghost';
+    closeBtn.onclick = function() { $('#imagePreviewModal').remove(); };
+    closeBtn.innerHTML = '<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12"/></svg>';
+
+    var header = document.createElement('div');
+    header.className = 'flex items-center justify-between px-5 py-3 border-b border-border';
+    header.appendChild(title);
+    header.appendChild(closeBtn);
+
+    var img = document.createElement('img');
+    img.src = imageSrc;
+    img.alt = fileName || '';
+    img.className = 'max-w-full h-auto rounded-lg';
+    img.style.cssText = 'max-height: 70vh; object-fit: contain;';
+
+    var bodyWrap = document.createElement('div');
+    bodyWrap.className = 'p-5 flex items-center justify-center';
+    bodyWrap.style.minHeight = '300px';
+    bodyWrap.appendChild(img);
+
+    var card = document.createElement('div');
+    card.className = 'relative w-full max-w-3xl card shadow-2xl';
+    card.appendChild(header);
+    card.appendChild(bodyWrap);
+
+    var modal = document.createElement('div');
+    modal.id = 'imagePreviewModal';
+    modal.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4';
+    modal.onclick = function(e) { if (e.target === modal) modal.remove(); };
+    modal.appendChild(card);
+
+    $('body').append(modal);
 
     $(document).on('keydown.imgPreview', function(e) {
         if (e.keyCode === 27) { $('#imagePreviewModal').remove(); $(this).off('keydown.imgPreview'); }
     });
 }
+
+// 事件委托：附件缩略图/预览按钮
+document.addEventListener('click', function(e) {
+    var el = e.target.closest('[data-image-preview]');
+    if (!el) return;
+    showImagePreview(el.dataset.src, el.dataset.name);
+});
 </script>
 @endsection

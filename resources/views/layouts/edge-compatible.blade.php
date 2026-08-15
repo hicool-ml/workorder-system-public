@@ -199,7 +199,7 @@
                 
                 <ul class="navbar-nav">
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ route('logout.get') }}"
+                        <a class="nav-link" href="{{ route('logout') }}"
                            data-method="post"
                            onclick="event.preventDefault(); document.getElementById('logout-form').submit();">
                             <i class="fas fa-sign-out-alt"></i> {{ auth()->user()->name }}

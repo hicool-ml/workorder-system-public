@@ -177,7 +177,7 @@
                     <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2 M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z"/></svg>
                     <span>个人资料</span>
                 </a>
-                <form method="POST" action="{{ route('logout.get') }}" class="inline-block w-full">
+                <form method="POST" action="{{ route('logout') }}" class="inline-block w-full">
                     @csrf
                     <button type="submit" class="nav-item w-full text-left text-brand-100 hover:bg-brand-700">
                         <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4 M16 17l5-5-5-5 M21 12H9"/></svg>

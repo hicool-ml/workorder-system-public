@@ -60,25 +60,34 @@ class SystemSetting extends Model
     }
 
     /**
-     * 获取设置值（静态方法）
+     * 密钥类设置键：值不得在页面回显/透传（视图只显示"已设置/未设置"）
+     */
+    public function isSecretKey(): bool
+    {
+        return static::isSecretKeyString($this->key);
+    }
+
+    public static function isSecretKeyString(string $key): bool
+    {
+        return (bool) preg_match('/(?:secret|password|token|api_key|access_key)/i', $key);
+    }
+
+    /**
+     * 获取设置值（静态方法）— 请求级 + 永久缓存，set() 时失效
      */
     public static function get(string $key, $default = null)
     {
-        $setting = static::where('key', $key)->first();
-        
-        if (!$setting) {
-            return $default;
-        }
-
-        return $setting->typed_value;
+        return static::remember(function () use ($key) {
+            return static::where('key', $key)->first();
+        }, $key)?->typed_value ?? $default;
     }
 
     /**
      * 设置值（静态方法）
      */
-    public static function set(string $key, $value, string $type = 'string', string $description = null, bool $isPublic = false)
+    public static function set(string $key, $value, string $type = 'string', ?string $description = null, bool $isPublic = false)
     {
-        return static::updateOrCreate(
+        $result = static::updateOrCreate(
             ['key' => $key],
             [
                 'value' => match($type) {
@@ -91,6 +100,33 @@ class SystemSetting extends Model
                 'is_public' => $isPublic,
             ]
         );
+
+        static::flushCache($key);
+
+        return $result;
+    }
+
+    /**
+     * 请求级静态缓存（避免同一请求内重复查询；设置读取频率极高）
+     */
+    private static array $cache = [];
+
+    private static function remember(callable $loader, string $key): ?static
+    {
+        if (!array_key_exists($key, static::$cache)) {
+            static::$cache[$key] = $loader();
+        }
+
+        return static::$cache[$key];
+    }
+
+    public static function flushCache(?string $key = null): void
+    {
+        if ($key === null) {
+            static::$cache = [];
+        } else {
+            unset(static::$cache[$key]);
+        }
     }
 
     /**

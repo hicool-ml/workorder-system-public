@@ -66,15 +66,39 @@ class Location extends Model
     // ===== 祖先链 =====
 
     /**
+     * 请求级 id => Location 映射（一次全表载入，供祖先链/校区查找复用）。
+     * 地址表行数有限（楼宇/房间级），整表内存映射是最简单可靠的 N+1 消除方式。
+     */
+    private static ?Collection $allNodesCache = null;
+    private static ?Location $prefixRootCache = null;
+
+    public static function allNodesCached(): Collection
+    {
+        return static::$allNodesCache ??= static::all()->keyBy('id');
+    }
+
+    /**
      * 获取从根到当前节点的完整祖先链（含自身）
-     * 逐层查询 parent_id（带循环引用保护），适合少量节点调用。
-     * 批量场景应配合 getTree() 已预加载的 children 关系使用。
+     * 优先走请求级内存映射（零 SQL）；未预热时逐层查询 parent_id（带循环引用保护）。
      */
     public function getAncestors(): Collection
     {
         $chain = collect([$this]);
         $seen = [$this->id => true];
         $pid = $this->parent_id;
+
+        if (static::$allNodesCache !== null) {
+            $nodes = static::$allNodesCache;
+            while ($pid && ! isset($seen[$pid]) && $nodes->has($pid)) {
+                $parent = $nodes[$pid];
+                $seen[$pid] = true;
+                $chain->prepend($parent);
+                $pid = $parent->parent_id;
+            }
+
+            return $chain;
+        }
+
         while ($pid && ! isset($seen[$pid])) {
             $parent = static::find($pid);
             if (! $parent) {
@@ -168,7 +192,7 @@ class Location extends Model
 
     /**
      * 地址前缀根节点（来自系统设置 address_prefix_location_id）。
-     * 未设置时返回 null（不截断，展示所有项目）。
+     * 未设置时返回 null（不截断，展示所有项目）。请求级缓存。
      */
     public static function getPrefixRoot(): ?Location
     {
@@ -176,7 +200,7 @@ class Location extends Model
         if (! $id) {
             return null;
         }
-        return static::find($id);
+        return static::$prefixRootCache ??= static::find($id);
     }
 
     /**

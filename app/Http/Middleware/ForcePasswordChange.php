@@ -20,7 +20,6 @@ class ForcePasswordChange
         'password.change',
         'password.update',
         'logout',
-        'logout.get',
         'cas.logout',
         'profile.password',
     ];

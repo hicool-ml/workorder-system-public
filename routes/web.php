@@ -79,7 +79,6 @@ Route::get('/manifest.json', function () {
 
 Route::middleware('auth')->group(function () {
     Route::post('logout', [App\Http\Controllers\Auth\AuthenticatedSessionController::class, 'destroy'])->name('logout');
-    Route::get('logout', [App\Http\Controllers\Auth\AuthenticatedSessionController::class, 'destroy'])->name('logout.get');
 });
 
 // 需要登录的路由
@@ -123,7 +122,7 @@ Route::middleware(['auth'])->group(function () {
     Route::post('workorder-collaborations/{collaboration}/reject', [App\Http\Controllers\WorkorderCollaborationController::class, 'reject'])->name('workorders.collaborations.reject');
     Route::post('workorder-collaborations/{collaboration}/cancel', [App\Http\Controllers\WorkorderCollaborationController::class, 'cancel'])->name('workorders.collaborations.cancel');
     Route::post('workorders/{workorder}/visit', [WorkorderController::class, 'storeVisit'])->name('workorders.visit.store');
-    Route::get('api/workorders/subcategories', [WorkorderController::class, 'getSubCategories'])->name('api.workorders.subcategories');
+
     Route::get('workorders/{workorder}/materials-usage', [WorkorderController::class, 'getMaterialsUsage'])->name('workorders.materials-usage');
     
     // 工单模板管理（管理员和工单管理员）

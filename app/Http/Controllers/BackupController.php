@@ -249,13 +249,20 @@ class BackupController extends Controller
         try {
             if ($driver === 'mysql') {
                 $ok = $this->restoreMysql($sqlPath, $dbName);
+                $stats = null;
             } elseif ($driver === 'pgsql') {
                 $ok = $this->restorePg($sqlPath, $dbName);
+                $stats = null;
             } else {
-                $ok = $this->restoreViaPdo($sqlPath);
+                $result = $this->restoreViaPdo($sqlPath);
+                $ok = $result['ok'];
+                $stats = $result;
             }
             if (!$ok) {
-                return $this->jsonFail('数据库恢复失败，请检查日志');
+                $detail = $stats
+                    ? sprintf('（执行 %d 条 / 跳过 %d 条 / 失败 %d 条%s）', $stats['executed'], $stats['skipped'], $stats['failed'], $stats['firstError'] ? '，首个错误：' . $stats['firstError'] : '')
+                    : '';
+                return $this->jsonFail('数据库恢复失败，请检查日志' . $detail);
             }
         } catch (\Throwable $e) {
             return $this->jsonFail('数据库恢复异常：' . $e->getMessage());
@@ -267,9 +274,13 @@ class BackupController extends Controller
             $this->restoreAttachments($attachmentsZip);
         }
 
+        $suffix = $stats && ($stats['skipped'] > 0 || $stats['failed'] > 0)
+            ? sprintf('（执行 %d 条 / 跳过 %d 条 / 失败 %d 条）', $stats['executed'], $stats['skipped'], $stats['failed'])
+            : '';
+
         return response()->json([
             'success' => true,
-            'message' => '恢复完成，恢复前已自动备份当前状态以便回滚',
+            'message' => '恢复完成，恢复前已自动备份当前状态以便回滚' . $suffix,
         ]);
     }
 
@@ -389,7 +400,7 @@ class BackupController extends Controller
 
         $mysql = trim((string) shell_exec('where mysql 2>NUL') ?? '');
         if ($mysql === '' || stripos($mysql, 'INFO') !== false || stripos($mysql, 'could not find') !== false) {
-            return $this->restoreViaPdo($sqlPath);
+            return $this->restoreViaPdo($sqlPath)['ok'];
         }
 
         // 用 MYSQL_PWD 环境变量传递密码，避免出现在进程列表（ps/wmic）中
@@ -408,7 +419,7 @@ class BackupController extends Controller
             2 => ['pipe', 'w'],
         ], $pipes, null, $env);
         if (!is_resource($proc)) {
-            return $this->restoreViaPdo($sqlPath);
+            return $this->restoreViaPdo($sqlPath)['ok'];
         }
         fclose($pipes[1]);
         $err = stream_get_contents($pipes[2]);
@@ -433,7 +444,7 @@ class BackupController extends Controller
 
         $psql = pg_bin_path('psql');
         if ($psql === '') {
-            return $this->restoreViaPdo($sqlPath);
+            return $this->restoreViaPdo($sqlPath)['ok'];
         }
 
         $prevPass = getenv('PGPASSWORD');
@@ -457,14 +468,17 @@ class BackupController extends Controller
 
     /**
      * 纯 PDO 执行 SQL 文件：按 ";" 切分语句逐条执行。
+     * 白名单机制：仅允许备份文件应有的语句类型；失败语句如实计数返回。
+     *
+     * @return array{ok: bool, executed: int, skipped: int, failed: int, firstError: ?string}
      */
-    private function restoreViaPdo(string $sqlPath): bool
+    private function restoreViaPdo(string $sqlPath): array
     {
         @set_time_limit(0);
         @ini_set('memory_limit', '1024M');
         $sql = file_get_contents($sqlPath);
         if ($sql === false) {
-            return false;
+            return ['ok' => false, 'executed' => 0, 'skipped' => 0, 'failed' => 0, 'firstError' => '无法读取 SQL 文件'];
         }
         $sql = preg_replace('/^\s*--.*$/m', '', $sql);
         $sql = preg_replace('/^\s*\/\*.*?\*\//ms', '', $sql);
@@ -506,6 +520,15 @@ class BackupController extends Controller
             ? "SET session_replication_role = 'origin'"
             : ($driver === 'mysql' ? 'SET FOREIGN_KEY_CHECKS=1' : 'PRAGMA foreign_keys = ON');
 
+        // 白名单：备份文件只应包含数据与结构恢复语句（CREATE/INSERT/UPDATE/DELETE/SET/ALTER TABLE/SELECT into/DROP TABLE IF EXISTS for re-create）
+        // 有意排除：DATABASE/SCHEMA 级操作、用户/权限管理、GRANT、TRUNCATE、CALL/EXEC 等
+        $allowed = '#^\s*(SELECT|INSERT|UPDATE|DELETE|CREATE\s+(TABLE|INDEX|UNIQUE|VIEW|SEQUENCE|TYPE|DOMAIN|FUNCTION|TRIGGER|EXTENSION)|ALTER\s+TABLE|DROP\s+TABLE|CREATE\s+OR\s+REPLACE|COMMENT\s+ON|SET|BEGIN|COMMIT|ROLLBACK|ANALYZE|VACUUM|GRANT\s+USAGE\s+ON\s+SEQUENCE)\b#i';
+
+        $executed = 0;
+        $skipped = 0;
+        $failed = 0;
+        $firstError = null;
+
         DB::unprepared($disableFk);
         foreach ($statements as $stmt) {
             $up = strtoupper(ltrim($stmt));
@@ -514,20 +537,29 @@ class BackupController extends Controller
                 || Str::startsWith($up, 'PRAGMA FOREIGN_KEYS')) {
                 continue;
             }
-            // 危险语句黑名单：禁止跨库 / 系统级操作
-            // （备份正常只含 CREATE TABLE / INSERT / UPDATE / DELETE，不应触及下列语句）
-            if (preg_match('#\b(DROP\s+(DATABASE|SCHEMA)|CREATE\s+(DATABASE|SCHEMA)|GRANT|REVOKE|ALTER\s+USER|CREATE\s+USER|DROP\s+USER|SHUTDOWN|TRUNCATE)\b#i', $stmt)) {
-                \Log::warning('备份恢复拦截到危险语句，已跳过：' . substr($stmt, 0, 200));
+            if (!preg_match($allowed, $stmt)) {
+                $skipped++;
+                \Log::warning('备份恢复拦截到非白名单语句，已跳过：' . substr($stmt, 0, 200));
                 continue;
             }
             try {
                 DB::unprepared($stmt);
+                $executed++;
             } catch (\Throwable $e) {
+                $failed++;
+                $firstError ??= $e->getMessage();
                 \Log::warning('备份恢复语句失败：' . $e->getMessage() . ' | ' . substr($stmt, 0, 200));
             }
         }
         DB::unprepared($enableFk);
-        return true;
+
+        return [
+            'ok' => $failed === 0,
+            'executed' => $executed,
+            'skipped' => $skipped,
+            'failed' => $failed,
+            'firstError' => $firstError,
+        ];
     }
 
     private function restoreAttachments(string $zipPath): void

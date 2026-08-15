@@ -137,6 +137,13 @@ class SystemSettingController extends Controller
         DB::beginTransaction();
         try {
             foreach ($request->input('settings') as $key => $value) {
+                // 密钥类设置留空提交 = 保留原值（页面上旧值已隐藏，无法回显）
+                if ($value === '' && SystemSetting::isSecretKeyString($key)) {
+                    $existing = SystemSetting::where('key', $key)->first();
+                    if ($existing && $existing->value !== '') {
+                        continue;
+                    }
+                }
                 // firstOrCreate：若该 key 尚未在表中初始化（如 system_url），则自动建立记录，
                 // 否则表单提交会被静默丢弃，表现为"保存无效"。
                 $setting = SystemSetting::firstOrCreate(

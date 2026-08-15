@@ -287,9 +287,9 @@
                 <div class="flex items-center gap-3 p-2.5 rounded-lg border border-border">
                     <div class="w-10 h-10 rounded-lg overflow-hidden shrink-0 flex items-center justify-center" style="background-color: var(--c-muted);">
                         @if($attachment->isImage())
-                        <img src="{{ route('attachments.preview', $attachment->id) }}?v={{ $attachment->updated_at ? $attachment->updated_at->timestamp : $attachment->id }}" alt="{{ $attachment->original_name }}" class="w-full h-full object-cover cursor-pointer" onclick="showFilePreview({{ $attachment->id }}, '{{ $attachment->preview_type }}', '{{ route('attachments.preview', $attachment->id) }}?v={{ $attachment->updated_at ? $attachment->updated_at->timestamp : $attachment->id }}', '{{ $attachment->description ?: $attachment->original_name }}')">
+                        <img src="{{ route('attachments.preview', $attachment->id) }}?v={{ $attachment->updated_at ? $attachment->updated_at->timestamp : $attachment->id }}" alt="{{ $attachment->original_name }}" class="w-full h-full object-cover cursor-pointer" data-file-preview data-id="{{ $attachment->id }}" data-type="{{ $attachment->preview_type }}" data-name="{{ $attachment->description ?: $attachment->original_name }}">
                         @else
-                        <button type="button" onclick="showFilePreview({{ $attachment->id }}, '{{ $attachment->preview_type }}', '{{ route('attachments.preview', $attachment->id) }}?v={{ $attachment->updated_at ? $attachment->updated_at->timestamp : $attachment->id }}', '{{ $attachment->description ?: $attachment->original_name }}')" class="w-full h-full flex flex-col items-center justify-center gap-0.5 cursor-pointer">
+                        <button type="button" data-file-preview data-id="{{ $attachment->id }}" data-type="{{ $attachment->preview_type }}" data-name="{{ $attachment->description ?: $attachment->original_name }}" class="w-full h-full flex flex-col items-center justify-center gap-0.5 cursor-pointer">
                             <?php
                                 $ext = strtolower($attachment->extension);
                                 $fileIcons = [
@@ -913,7 +913,16 @@ function showFilePreview(fileId, previewType, previewUrl, fileName) {
     dl.href = '/attachments/' + fileId + '/download';
 
     if (previewType === 'image') {
-        body.innerHTML = '<div class="flex items-center justify-center p-4"><img src="/attachments/' + fileId + '/preview?t=' + Date.now() + '" alt="' + fileName + '" class="max-h-[75vh] rounded-lg" onerror="this.style.display=\'none\'"></div>';
+        var img = document.createElement('img');
+        img.src = '/attachments/' + fileId + '/preview?t=' + Date.now();
+        img.alt = fileName || '预览';
+        img.className = 'max-h-[75vh] rounded-lg';
+        img.onerror = function() { img.style.display = 'none'; };
+        var wrap = document.createElement('div');
+        wrap.className = 'flex items-center justify-center p-4';
+        wrap.appendChild(img);
+        body.innerHTML = '';
+        body.appendChild(wrap);
     } else if (previewType === 'pdf') {
         body.innerHTML = '<iframe src="/attachments/' + fileId + '/preview?t=' + Date.now() + '" class="w-full border-none" style="height: 75vh;" title="PDF预览"></iframe>';
     } else if (previewType === 'text') {
@@ -942,5 +951,17 @@ function closeFilePreview() {
     document.body.classList.remove('overflow-hidden');
     document.getElementById('filePreviewBody').innerHTML = '';
 }
+
+// 附件预览事件委托：文件名等用户输入经 dataset 读取 + textContent 渲染，杜绝 onclick 字符串注入
+document.addEventListener('click', function(e) {
+    var el = e.target.closest('[data-file-preview]');
+    if (!el) return;
+    showFilePreview(
+        parseInt(el.dataset.id, 10),
+        el.dataset.type,
+        '',
+        el.dataset.name
+    );
+});
 </script>
 @endsection

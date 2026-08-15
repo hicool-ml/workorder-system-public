@@ -190,11 +190,14 @@ class ReportController extends Controller
 
     private function getStatusDistribution($rs = null, $re = null)
     {
+        // 单条 GROUP BY 聚合，替代逐状态 COUNT
+        $q = Workorder::query();
+        if ($rs && $re) $q->whereBetween('created_at', [$rs, $re]);
+        $rows = $q->selectRaw('status, COUNT(*) as c')->groupBy('status')->pluck('c', 'status');
+
         $distribution = [];
         foreach (['pending', 'assigned', 'processing', 'resolved', 'verifying', 'closed', 'rejected'] as $status) {
-            $q = Workorder::where('status', $status);
-            if ($rs && $re) $q->whereBetween('created_at', [$rs, $re]);
-            $distribution[$status] = $q->count();
+            $distribution[$status] = $rows->get($status, 0);
         }
         return $distribution;
     }
@@ -202,17 +205,27 @@ class ReportController extends Controller
     private function getCategoryDistribution($rs = null, $re = null)
     {
         $topCats = WorkorderCategorySimplified::whereNull('parent_id')->orderBy('sort_order')->orderBy('name')->get();
-        $allDescendantIds = function($parentId) use (&$allDescendantIds) {
-            $ids = WorkorderCategorySimplified::where('parent_id', $parentId)->pluck('id')->toArray();
-            $result = $ids;
-            foreach ($ids as $id) { $result = array_merge($result, $allDescendantIds($id)); }
-            return $result;
-        };
+        // 一次载入全部分类构建 id→root 映射（分类表规模小），配合单条 GROUP BY 聚合
+        $allCats = WorkorderCategorySimplified::select('id', 'parent_id')->get()->keyBy('id');
+        $catToRoot = [];
+        foreach ($allCats as $id => $cat) {
+            $current = $id; $guard = 0;
+            while ($allCats->has($current) && $allCats[$current]->parent_id && $guard++ < 10) { $current = $allCats[$current]->parent_id; }
+            $catToRoot[$id] = $current;
+        }
+
+        $q = Workorder::query();
+        if ($rs && $re) $q->whereBetween('created_at', [$rs, $re]);
+        $counts = $q->selectRaw('category_id, COUNT(*) as c')->groupBy('category_id')->pluck('c', 'category_id');
+
         foreach ($topCats as $cat) {
-            $allIds = array_merge([$cat->id], $allDescendantIds($cat->id));
-            $q = Workorder::whereIn('category_id', $allIds);
-            if ($rs && $re) $q->whereBetween('created_at', [$rs, $re]);
-            $cat->workorders_count = $q->count();
+            $total = 0;
+            foreach ($catToRoot as $catId => $rootId) {
+                if ($rootId == $cat->id) {
+                    $total += $counts->get($catId, 0);
+                }
+            }
+            $cat->workorders_count = $total;
         }
         return $topCats->sortByDesc('workorders_count')->values();
     }
@@ -224,6 +237,8 @@ class ReportController extends Controller
     {
         $periodInfo = $this->computeReportPeriods($request);
         $periods = $periodInfo['periods'];
+        $rangeStart = $periodInfo['rangeStart'];
+        $rangeEnd = $periodInfo['rangeEnd'];
         $allCats = WorkorderCategorySimplified::select('id', 'parent_id')->get()->keyBy('id');
         $catToRoot = [];
         foreach ($allCats as $id => $cat) {
@@ -233,12 +248,38 @@ class ReportController extends Controller
         }
         $topCats = WorkorderCategorySimplified::whereNull('parent_id')->orderBy('sort_order')->orderBy('name')->get();
 
+        // 单条聚合取回 (category_id, 各周期计数)，替代 分类数×周期数 次 COUNT
+        $cases = [];
+        $bindings = [];
+        foreach ($periods as $p) {
+            $cases[] = "SUM(CASE WHEN created_at BETWEEN ? AND ? THEN 1 ELSE 0 END)";
+            $bindings[] = $p['start'];
+            $bindings[] = $p['end'];
+        }
+        $selectRaw = 'category_id, ' . implode(', ', $cases);
+        $rows = Workorder::whereBetween('created_at', [$rangeStart, $rangeEnd])
+            ->selectRaw($selectRaw, $bindings)
+            ->groupBy('category_id')
+            ->get();
+
+        // 组装 matrix: [catId => [period => count]]
+        $matrix = [];
+        foreach ($rows as $row) {
+            $arr = (array) $row;
+            $catId = array_shift($arr);
+            $matrix[$catId] = array_values($arr);
+        }
+
         $categories = [];
         foreach ($topCats as $cat) {
-            $allIds = array_merge([$cat->id], array_keys(array_filter($catToRoot, function ($v) use ($cat) { return $v == $cat->id; })));
-            $counts = [];
-            foreach ($periods as $p) {
-                $counts[] = Workorder::whereIn('category_id', $allIds)->whereBetween('created_at', [$p['start'], $p['end']])->count();
+            $ids = array_merge([$cat->id], array_keys(array_filter($catToRoot, function ($v) use ($cat) { return $v == $cat->id; })));
+            $counts = array_fill(0, count($periods), 0);
+            foreach ($ids as $id) {
+                if (isset($matrix[$id])) {
+                    foreach ($matrix[$id] as $i => $c) {
+                        $counts[$i] += (int) $c;
+                    }
+                }
             }
             $categories[] = ['name' => $cat->name, 'counts' => $counts];
         }
@@ -265,13 +306,31 @@ class ReportController extends Controller
     private function getSubCategoryDistribution($rootId, $rs = null, $re = null)
     {
         $subs = WorkorderCategorySimplified::where('parent_id', $rootId)->orderBy('sort_order')->orderBy('name')->get(['id', 'name']);
+        // 一次载入全部子分类树（分类表小），单条 GROUP BY 聚合，替代逐子分类 BFS 查询
+        $allCats = WorkorderCategorySimplified::select('id', 'parent_id')->get()->keyBy('id');
+        $q = Workorder::query();
+        if ($rs && $re) $q->whereBetween('created_at', [$rs, $re]);
+        $counts = $q->selectRaw('category_id, COUNT(*) as c')->groupBy('category_id')->pluck('c', 'category_id');
+
         $result = [];
         foreach ($subs as $sub) {
-            $descendantIds = [$sub->id]; $queue = [$sub->id];
-            while (!empty($queue)) { $children = WorkorderCategorySimplified::whereIn('parent_id', $queue)->pluck('id')->toArray(); $descendantIds = array_merge($descendantIds, $children); $queue = $children; }
-            $q = Workorder::whereIn('category_id', $descendantIds);
-            if ($rs && $re) $q->whereBetween('created_at', [$rs, $re]);
-            $cnt = $q->count();
+            // 收集该子分类的全部后代 id
+            $descendantIds = [$sub->id];
+            $queue = [$sub->id];
+            while (!empty($queue)) {
+                $next = [];
+                foreach ($allCats as $catId => $cat) {
+                    if (in_array($cat->parent_id, $queue)) {
+                        $next[] = $catId;
+                    }
+                }
+                $descendantIds = array_merge($descendantIds, $next);
+                $queue = $next;
+            }
+            $cnt = 0;
+            foreach ($descendantIds as $id) {
+                $cnt += $counts->get($id, 0);
+            }
             if ($cnt > 0) $result[] = ['name' => $sub->name, 'count' => $cnt];
         }
         usort($result, function ($a, $b) { return $b['count'] <=> $a['count']; });
@@ -307,30 +366,25 @@ class ReportController extends Controller
             }
         }
 
-        // 拉时间范围内的工单 location_id
-        $q = Workorder::whereNotNull('location_id');
-        if ($rs && $re) $q->whereBetween('created_at', [$rs, $re]);
-        $woLocations = $q->pluck('location_id')->all();
-
-        // 按 campus 聚合
         $counts = [];
         foreach ($campusNodes as $cn) {
             $counts[$cn->id] = ['name' => $cn->name, 'total' => 0, 'pending' => 0, 'completed' => 0];
         }
 
-        // 拉工单状态用于分桶
-        $statusQ = Workorder::whereNotNull('location_id');
-        if ($rs && $re) $statusQ->whereBetween('created_at', [$rs, $re]);
-        $rows = $statusQ->get(['location_id', 'status']);
+        // 单条 GROUP BY (location_id, status) 聚合，替代全量行拉取 + PHP 分桶
+        $q = Workorder::whereNotNull('location_id');
+        if ($rs && $re) $q->whereBetween('created_at', [$rs, $re]);
+        $rows = $q->selectRaw('location_id, status, COUNT(*) as c')->groupBy('location_id', 'status')->get();
 
         foreach ($rows as $row) {
             $campusId = $locationToCampus[$row->location_id] ?? null;
             if (! $campusId || ! isset($counts[$campusId])) continue;
-            $counts[$campusId]['total']++;
+            $c = (int) $row->c;
+            $counts[$campusId]['total'] += $c;
             if (in_array($row->status, ['pending', 'assigned', 'processing'], true)) {
-                $counts[$campusId]['pending']++;
+                $counts[$campusId]['pending'] += $c;
             } elseif (in_array($row->status, ['resolved', 'closed'], true)) {
-                $counts[$campusId]['completed']++;
+                $counts[$campusId]['completed'] += $c;
             }
         }
 
@@ -444,7 +498,8 @@ class ReportController extends Controller
 
         $workorders = $query->get();
 
-        // 预取 location 节点名（避免逐行 N+1）
+        // 预热地址映射（campus_name 等祖先链 accessor 零 SQL）+ 预取节点名
+        \App\Models\Location::allNodesCached();
         $locationIds = $workorders->pluck('location_id')->filter()->unique();
         $locationNameMap = \App\Models\Location::whereIn('id', $locationIds)->get()->pluck('name', 'id');
 
@@ -554,13 +609,25 @@ class ReportController extends Controller
                     $hasVisit ? '是' : '否',
                     $visitResult
                 ];
-                
-                fputcsv($file, $rowData);
+
+                fputcsv($file, array_map([self::class, 'csvSafe'], $rowData));
             }
-            
+
             fclose($file);
         };
 
         return response()->stream($callback, 200, $headers);
+    }
+
+    /**
+     * CSV 公式注入防护：= + - @ 开头的单元格前加制表符，防止 Excel/Sheets 当公式执行
+     */
+    private static function csvSafe($value): string
+    {
+        $value = (string) $value;
+        if ($value !== '' && in_array($value[0], ['=', '+', '-', '@'], true)) {
+            return "\t" . $value;
+        }
+        return $value;
     }
 }

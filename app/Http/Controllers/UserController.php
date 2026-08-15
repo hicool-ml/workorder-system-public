@@ -182,11 +182,9 @@ class UserController extends Controller
                 'wecom_userid', 'dingtalk_userid', 'feishu_user_id',
             ]);
             
-            // 如果提供了新密码，则加密
+            // 如果提供了新密码，则加密（$request->only 白名单不含 password，须显式取值）
             if ($request->filled('password')) {
-                $data['password'] = Hash::make($data['password']);
-            } else {
-                unset($data['password']);
+                $data['password'] = Hash::make($request->input('password'));
             }
             
             $user->update($data);
@@ -211,12 +209,21 @@ class UserController extends Controller
             return back()->with('error', '不能删除自己的账户');
         }
 
+        // 防止删除最后一个管理员（与 UserManagementController 保持一致，避免系统无人可管理）
+        if ($user->role === 'admin' && User::where('role', 'admin')->count() <= 1) {
+            return back()->with('error', '不能删除最后一个管理员账户');
+        }
+
         // 检查是否有未完成的工单
         if ($user->assignedWorkorders()->whereIn('status', ['pending', 'assigned', 'processing'])->count() > 0) {
             return back()->with('error', '该用户还有未处理的工单，无法删除');
         }
 
         try {
+            // 归档已删除用户（审计留痕）
+            if (class_exists(\App\Models\DeletedUser::class)) {
+                \App\Models\DeletedUser::createFromUser($user);
+            }
             $user->delete();
             return redirect()->route('users.index', $request->query())
                 ->with('success', '用户删除成功');
@@ -345,15 +352,21 @@ class UserController extends Controller
                             $query->whereIn('status', ['pending', 'assigned', 'processing']);
                         })
                         ->exists();
-                    
+
                     if ($hasPendingWorkorders) {
                         throw new \Exception('选中的用户中还有未处理的工单，无法禁用');
                     }
-                    
+
+                    // 防止把最后一个管理员禁用
+                    if (User::whereIn('id', $userIds)->where('role', 'admin')->exists()
+                        && User::where('role', 'admin')->where('status', 'active')->count() <= User::whereIn('id', $userIds)->where('role', 'admin')->where('status', 'active')->count()) {
+                        throw new \Exception('不能禁用全部管理员，系统至少保留一个可登录的管理员');
+                    }
+
                     User::whereIn('id', $userIds)->update(['status' => 'inactive']);
                     $message = '用户批量禁用成功';
                     break;
-                    
+
                 case 'delete':
                     // 检查是否有未完成的工单
                     $hasPendingWorkorders = User::whereIn('id', $userIds)
@@ -361,11 +374,23 @@ class UserController extends Controller
                             $query->whereIn('status', ['pending', 'assigned', 'processing']);
                         })
                         ->exists();
-                    
+
                     if ($hasPendingWorkorders) {
                         throw new \Exception('选中的用户中还有未处理的工单，无法删除');
                     }
-                    
+
+                    // 防止删除全部管理员
+                    $selectedAdmins = User::whereIn('id', $userIds)->where('role', 'admin')->pluck('id');
+                    if ($selectedAdmins->isNotEmpty() && User::where('role', 'admin')->count() <= $selectedAdmins->count()) {
+                        throw new \Exception('不能删除全部管理员，系统至少保留一个管理员');
+                    }
+
+                    // 归档已删除用户（审计留痕）
+                    foreach (User::whereIn('id', $userIds)->get() as $toDelete) {
+                        if (class_exists(\App\Models\DeletedUser::class)) {
+                            \App\Models\DeletedUser::createFromUser($toDelete);
+                        }
+                    }
                     User::whereIn('id', $userIds)->delete();
                     $message = '用户批量删除成功';
                     break;
