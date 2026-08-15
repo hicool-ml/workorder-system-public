@@ -92,8 +92,6 @@
                 <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/></svg>
                 <span>工单列表</span>
             </a>
-            @endif
-            @if(!auth()->user()->isUser())
             <a href="{{ route('workorders.create') }}" class="nav-item {{ request()->routeIs('workorders.create') ? 'nav-active' : 'text-brand-100 hover:bg-brand-700' }}">
                 <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 5v14M5 12h14"/></svg>
                 <span>创建工单</span>
@@ -106,20 +104,6 @@
             </a>
             @endif
 
-            @if(auth()->user()->canManageWorkorderTypes())
-            <a href="{{ route('workorder-templates.index') }}" class="nav-item {{ request()->routeIs('workorder-templates.*') ? 'nav-active' : 'text-brand-100 hover:bg-brand-700' }}">
-                <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z M14 2v6h6 M16 13H8 M16 17H8 M10 9H8"/></svg>
-                <span>工单模板</span>
-            </a>
-            @endif
-
-            @if(auth()->user()->canViewReports())
-            <a href="{{ route('reports.index') }}" class="nav-item {{ request()->routeIs('reports.*') ? 'nav-active' : 'text-brand-100 hover:bg-brand-700' }}">
-                <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 3v18h18 M7 14l4-4 4 4 5-5"/></svg>
-                <span>统计报表</span>
-            </a>
-            @endif
-
             @if(!auth()->user()->isUser())
             <a href="{{ route('notifications.index') }}" class="nav-item {{ request()->routeIs('notifications.*') ? 'nav-active' : 'text-brand-100 hover:bg-brand-700' }}">
                 <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.4-1.4A2 2 0 0 1 18 14.2V11a6 6 0 0 0-4-5.7V5a2 2 0 0 0-4 0v.3A6 6 0 0 0 6 11v3.2c0 .5-.2 1-.6 1.4L4 17h5m6 0v1a3 3 0 0 1-6 0v-1m6 0H9"/></svg>
@@ -129,6 +113,11 @@
 
             @if(auth()->user()->isAdmin() || auth()->user()->isWorkorderManager())
             <p class="px-3 pt-4 pb-1 text-xs font-medium text-brand-300 uppercase tracking-wide">系统管理</p>
+
+            <a href="{{ route('workorder-templates.index') }}" class="nav-item {{ request()->routeIs('workorder-templates.*') ? 'nav-active' : 'text-brand-100 hover:bg-brand-700' }}">
+                <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z M14 2v6h6 M16 13H8 M16 17H8 M10 9H8"/></svg>
+                <span>工单模板</span>
+            </a>
 
             <a href="{{ route('locations.index') }}" class="nav-item {{ request()->routeIs('locations.*') ? 'nav-active' : 'text-brand-100 hover:bg-brand-700' }}">
                 <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z M12 13a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/></svg>
@@ -151,7 +140,17 @@
                 <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a4 4 0 0 0-3-3.87 M9 20H4v-2a4 4 0 0 1 3-3.87 M16 3.13a4 4 0 0 1 0 7.75 M12 11a4 4 0 1 1 0-8 4 4 0 0 1 0 8z"/></svg>
                 <span>用户管理</span>
             </a>
-                        <div class="settings-nav-group">
+            @endif
+
+            @if(auth()->user()->canViewReports())
+            <a href="{{ route('reports.index') }}" class="nav-item {{ request()->routeIs('reports.*') ? 'nav-active' : 'text-brand-100 hover:bg-brand-700' }}">
+                <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 3v18h18 M7 14l4-4 4 4 5-5"/></svg>
+                <span>统计报表</span>
+            </a>
+            @endif
+
+            @if(auth()->user()->isAdmin())
+            <div class="settings-nav-group">
                 <button type="button" class="nav-item w-full justify-between {{ request()->routeIs('settings.page', 'system-settings.*') ? 'nav-active' : 'text-brand-100 hover:bg-brand-700' }}" onclick="document.getElementById('settingsSubnav').classList.toggle('hidden')">
                     <span class="flex items-center gap-3">
                         <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
@@ -187,11 +186,11 @@
                 </form>
             </div>
         </nav>
-        {{-- Copyright footer --}}
+        {{-- Logo + Copyright footer --}}
         <div class="px-4 py-3 border-t border-brand-700 shrink-0">
+            <img src="{{ asset('images/logo.png') }}" alt="Logo" class="h-10 w-auto mb-2 opacity-90">
             <p class="text-[11px] text-brand-300 leading-relaxed">
-                {{ \App\Helpers\SystemHelper::getSystemCopyright() }}<br>
-                <span class="text-brand-400">© {{ date("Y") }} hicool</span>
+                {{ \App\Helpers\SystemHelper::getSystemCopyright() }}
             </p>
         </div>
     </aside>

@@ -296,14 +296,18 @@ class SystemSettingController extends Controller
     }
 
     /**
-     * 更新系统版本
+     * 更新系统版本（唯一版本源：DB + VERSION 文件同步写入）
      */
     public function updateVersion(Request $request)
     {
+        $this->guardAdmin();
+
         $request->validate([
-            'version' => 'required|string|max:20',
+            'version' => 'required|string|max:20|regex:/^\d+\.\d+\.\d+$/',
             'release_date' => 'required|date',
             'release_notes' => 'required|string|max:1000',
+        ], [
+            'version.regex' => '版本号格式应为 X.Y.Z（如 3.0.1）',
         ]);
 
         DB::beginTransaction();
@@ -335,11 +339,13 @@ class SystemSettingController extends Controller
                 false
             );
 
+            // 同步写入 VERSION 文件（部署版本与页面版本保持一致）
+            @file_put_contents(base_path('VERSION'), trim($request->input('version')) . PHP_EOL);
+
             DB::commit();
-            
-            $message = '系统版本更新成功';
-            
-            // 如果是AJAX请求，返回JSON响应
+
+            $message = '系统版本更新成功（VERSION 文件已同步）';
+
             if ($request->expectsJson()) {
                 return response()->json([
                     'success' => true,
@@ -348,7 +354,7 @@ class SystemSettingController extends Controller
                     'release_date' => $request->input('release_date')
                 ]);
             }
-            
+
             return back()->with('success', $message);
         } catch (\Exception $e) {
             DB::rollBack();
@@ -356,15 +362,14 @@ class SystemSettingController extends Controller
             if (empty($errorMessage)) {
                 $errorMessage = '版本更新失败';
             }
-            
-            // 如果是AJAX请求，返回JSON响应
+
             if ($request->expectsJson()) {
                 return response()->json([
                     'success' => false,
                     'message' => $errorMessage
                 ]);
             }
-            
+
             return back()->with('error', '版本更新失败：' . $errorMessage);
         }
     }

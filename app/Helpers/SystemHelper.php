@@ -73,12 +73,38 @@ class SystemHelper
     }
     
     /**
-     * 获取系统版权信息
+     * 获取项目名称（固定，用于版权信息；与用户可改的系统名称解耦）
+     */
+    public const PROJECT_NAME = '通用工单系统';
+
+    /**
+     * 获取系统版权信息：© 年份 项目名称 - v版本号
+     * 版本号以版本管理页（DB system_version）为唯一源。
      */
     public static function getSystemCopyright(): string
     {
         $year = date('Y');
-        $systemName = self::getSystemName();
-        return "© {$year} {$systemName} - " . self::getSystemVersion();
+        return '© ' . $year . ' ' . self::PROJECT_NAME . ' - ' . self::getProjectVersion();
+    }
+
+    /**
+     * 获取项目版本号
+     * 优先读版本管理页写入的 DB 值；DB 缺失时回退到 VERSION 文件。
+     */
+    public static function getProjectVersion(): string
+    {
+        $version = SystemSetting::get('system_version');
+        if ($version) {
+            return 'v' . $version;
+        }
+
+        $versionFile = base_path('VERSION');
+        if (file_exists($versionFile)) {
+            $v = trim((string) file_get_contents($versionFile));
+            if ($v !== '') {
+                return 'v' . $v;
+            }
+        }
+        return 'v1.0.0';
     }
 }
