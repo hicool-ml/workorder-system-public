@@ -180,13 +180,46 @@ php artisan backup:system
 备份文件位于 `storage/app/private/backups/`，包含 `database.sql` + `attachments.zip`。
 也支持通过 Web 界面操作（系统设置 → 备份&恢复）。
 
+## 从旧系统迁移（v1/v2 MySQL → v3 PG）
+
+上线工具链由三个 Artisan 命令组成：
+
+| 命令 | 用途 |
+|------|------|
+| `migrate:rehearsal --old-env=<旧项目/.env> --fresh` | **演练**：空库端到端走一遍完整上线流程并出对账报告 |
+| `workorders:import-mysql --old-env=<旧项目/.env>` | **正式导入**：全量对账式转库（幂等，可重复执行；`--dry-run` 预览） |
+| `categories:reorganize` | **分类整理**：合并重复大类、归并碎类（幂等，规则见命令源码） |
+
+特性：以 `ticket_no` 为幂等键全量对账（不关心增量边界）；工单全部时间戳/满意度/签名状态原样保留；用户按 username 匹配（缺失自动开户并强制首登改密）；旧分类按名称映射表归入新体系；TEST 测试单自动剔除。
+
+正式上线执行顺序：
+
+```bash
+# 1. 生产库快照恢复到本机后，先对账预览
+php artisan workorders:import-mysql --old-env=/path/to/old/.env --dry-run
+
+# 2. 确认差异报告后正式导入
+php artisan workorders:import-mysql --old-env=/path/to/old/.env
+
+# 3. 对新导入数据执行分类整理
+php artisan categories:reorganize
+```
+
+## 部署注意事项
+
+- **附件存储**：v3.1 起附件存私有盘（`storage/app/attachments`），不再依赖 `storage:link`；从旧版本升级需执行 `php artisan attachments:migrate-to-private`
+- **可信代理**：经反向代理/Cloudflare 隧道部署时必须配置 `TRUSTED_PROXIES`（代理网段），否则日志 IP 与 IP 白名单功能不可用
+- **通知队列**：`NOTIFY_QUEUE=true` 时工单通知改异步发送，需运行 `queue:work`（Docker 镜像已内置）
+- **OIDC**：v3.1 起 id_token 强制验签，IdP 必须提供 `jwks_uri`（或可通过 issuer 自动 discovery），否则 OIDC 登录会被拒绝
+
 ## 常见问题
 
 | 问题 | 解决方案 |
 |------|----------|
 | 登录后强制改密 | 安全策略，首次登录或密码被重置后必须修改 |
 | CAS/OIDC 用户无法改密 | 由身份认证服务方管理，此为预期行为 |
-| 附件预览异常 | 清除浏览器缓存或检查 `php artisan storage:link` |
+| 附件预览异常 | 清除浏览器缓存；v3.1 起附件走鉴权路由，无需 `storage:link` |
+| OIDC 登录被拒（无法验签） | 检查 IdP 是否提供 jwks_uri，或在设置中补全 issuer 启用 discovery |
 | cURL error 60 | 下载 [cacert.pem](https://curl.se/ca/cacert.pem)，在 `php.ini` 配置 `curl.cainfo` |
 | 企业微信 60020 | 服务器出口 IP 未加入企业可信 IP 列表 |
 | 企业微信 40001 | CorpID 或 Secret 错误，检查凭证 |

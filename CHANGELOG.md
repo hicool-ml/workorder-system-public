@@ -2,6 +2,55 @@
 
 本文件记录工单管理系统的版本变更。
 
+## v3.1.0 （2026-08-16）
+
+### 安全加固（三路审计 24 项全修）
+
+- **附件私有化**：附件迁移至私有 `attachments` 磁盘，文件名改 UUID，`/storage` 直链彻底关闭；下载/预览统一走鉴权路由；签单 HTML 快照同盘同规则
+- **SSO 防账户接管**：删除 OIDC 手机号/邮箱、CAS 手机号等弱属性自动关联；特权账号（admin/工单管理员）拒绝被 SSO 属性自动关联
+- **OIDC 强制验签**：id_token 的 nonce/exp/aud 必须存在且匹配，jwks_uri 缺失时从 discovery 兜底，无法验签直接拒绝登录
+- **防开放重定向**：CAS/OIDC/微信登录的 `intended` 参数仅接受本站相对路径
+- **速率限制**：登录/SSO 回调/微信绑定 10 次/分钟/IP，注册 5 次/分钟/IP
+- **TrustProxies 收敛**：从信任所有代理改为 `TRUSTED_PROXIES` 显式网段；短信回调 IP 白名单在未配置可信代理时失效拒绝（防 XFF 伪造）
+- **备份恢复白名单 + 嵌套 Zip-Slip 防护**；短信回调新增 HMAC-SHA256+时间戳签名（防重放）
+- **密码策略**：min:8 + 字母 + 数字；改密后强制其他设备下线并清 remember-me
+- **权限收紧**：编辑表单的 solution/materials_usage 仅处理侧可改；附件删除限上传者本人或管理员，resolved 后禁删；模板路由补 role 中间件
+
+### 性能优化
+
+- 工单列表深度 N+1 消除（地址树请求级内存映射）
+- `SystemSetting::get` 请求级缓存；报表页 5 个方法查询风暴改单条 GROUP BY 聚合
+- 工单号生成器重写：`ticket_sequences` 序号表 + PG 原子 UPSERT，消除首单并发竞态与 >99 单序号回绕；ticket_no 唯一索引兜底
+- 工单生命周期操作（start/resolve/close/complete）补乐观锁；`resolve` 同步落库 processing_duration（统计与展示口径统一）
+- 通知队列化可选开启（`NOTIFY_QUEUE=true`，Docker 部署已默认启用）
+
+### Bug 修复
+
+- 建单时已指派工单的状态不再被覆盖回 pending
+- 编辑用户密码不再被写成空串哈希
+- 备件耗材 required_if 校验失效问题
+- 登录 500（限流器类命名空间）与报表故障类型占比图全零（PG 聚合列别名折叠）
+
+### 上线工具链（MySQL 旧库 → PG 新库）
+
+- **`workorders:import-mysql`**：正式转库命令——ticket_no 幂等全量对账、时间戳精确保真、用户/分类/地址三级映射、TEST 单自动剔除
+- **`categories:reorganize`**：分类整理命令（幂等）——合并"网络/网络故障"重复大类、软件支持并入其它、咨询碎类归并电话咨询、物联网按内容拆分等规则显式固化
+- **`migrate:rehearsal`**：端到端迁移演练——空库重建 → 迁移 → 基础数据 → 导单 → 整理 → 对账报告；演练库自动关闭外发通知
+- 修复 5 个空库部署才会暴露的 PG 兼容迁移 bug（`->change()` 枚举语法等）
+- 数据清洗：调试残留（备份表/测试序号/测试通知/测试密钥）已清理
+
+### 界面优化
+
+- 故障类型占比图：图例水平居中顶部、小色块侧边标注（引导线+底色描边防重叠）
+- 工单量趋势图：细线 + 悬停高亮 + 主题感知网格
+- openModal/closeModal 前端收敛（8 处副本 → 布局全局）；browser-image-compression CDN 本地化
+
+### 代码重构
+
+- Notification 模型模板化（1093 → 476 行）、SystemSettingController 拆分（1132 → 322 行 + 6 个域控制器）
+- Workorder 模型抽取 HasWorkorderMetrics trait（1468 → 1085 行）
+- 净删除约 2300 行重复/死代码
+
 ## v3.0.0 （2026-08）
 
 ### 全新功能
