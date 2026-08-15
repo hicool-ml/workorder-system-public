@@ -31,6 +31,19 @@ return [
 
     'connections' => [
 
+        // 上线迁移演练专用连接（workorder_rehearsal 库），平时不受影响
+        'pgsql_rehearsal' => [
+            'driver' => 'pgsql',
+            'host' => env('DB_HOST', '127.0.0.1'),
+            'port' => env('DB_PORT', 5432),
+            'database' => 'workorder_rehearsal',
+            'username' => env('DB_USERNAME'),
+            'password' => env('DB_PASSWORD'),
+            'charset' => env('DB_CHARSET', 'utf8'),
+            'prefix' => '',
+            'search_path' => 'public',
+        ],
+
         'sqlite' => [
             'driver' => 'sqlite',
             'url' => env('DB_URL'),
