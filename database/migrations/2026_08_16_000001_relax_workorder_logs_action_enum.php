@@ -17,12 +17,17 @@ return new class extends Migration
      */
     public function up(): void
     {
-        if (DB::getDriverName() === 'pgsql') {
+        $driver = DB::getDriverName();
+        if ($driver === 'pgsql') {
             DB::statement('ALTER TABLE workorder_logs DROP CONSTRAINT IF EXISTS workorder_logs_action_check');
             DB::statement('ALTER TABLE workorder_logs ALTER COLUMN action TYPE varchar(50)');
             return;
         }
-        DB::statement("ALTER TABLE workorder_logs MODIFY action VARCHAR(50) NOT NULL");
+        if ($driver === 'mysql') {
+            DB::statement('ALTER TABLE workorder_logs MODIFY action VARCHAR(50) NOT NULL');
+            return;
+        }
+        // sqlite（测试环境）：无枚举约束，直接跳过
     }
 
     public function down(): void
