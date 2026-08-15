@@ -345,79 +345,16 @@ Route::middleware(['auth'])->group(function () {
     Route::get('notifications/latest', [NotificationController::class, 'getLatest'])->name('notifications.latest');
     
     // 仪表板
-    Route::get('/dashboard', function () {
-        return view('dashboard');
-    })->name('dashboard');
-    
+    Route::get('/dashboard', [App\Http\Controllers\ProfileController::class, 'dashboard'])->name('dashboard');
+
     // 个人资料
-    Route::get('/profile', function () {
-        return view('profile');
-    })->name('profile');
-    
-    Route::put('/profile', function (Illuminate\Http\Request $request) {
-        if (auth()->user()->isSsoUser()) {
-            return back()->with('error', '统一身份认证用户的个人信息由身份认证服务方管理，无法在此修改');
-        }
-        $request->validate([
-            'name' => 'required|string|max:100',
-            'email' => 'required|email|max:100|unique:users,email,' . auth()->id(),
-            'phone' => 'nullable|string|max:20',
-            'employee_id' => 'nullable|string|max:50',
-            'department_id' => 'nullable|exists:departments,id',
-            'location' => 'nullable|string|max:255',
-            'remarks' => 'nullable|string|max:500',
-        ]);
-        
-        auth()->user()->update($request->only([
-            'name', 'email', 'phone', 'employee_id',
-            'department_id', 'location', 'remarks'
-        ]));
-        
-        return back()->with('success', '个人信息更新成功');
-    })->name('profile.update');
-    
-    Route::put('/profile/password', function (Illuminate\Http\Request $request) {
-        if (auth()->user()->isSsoUser()) {
-            return back()->with('error', 'CAS 用户的密码由统一身份认证系统管理，无法在此修改');
-        }
-        $request->validate([
-            'current_password' => 'required|string',
-            'password' => 'required|string|min:6|confirmed',
-        ]);
-        
-        if (!\Illuminate\Support\Facades\Hash::check($request->current_password, auth()->user()->password)) {
-            return back()->withErrors(['current_password' => '当前密码不正确']);
-        }
-        
-        auth()->user()->update([
-            'password' => \Illuminate\Support\Facades\Hash::make($request->password)
-        ]);
-        
-        return back()->with('success', '密码修改成功');
-    })->name('profile.password');
+    Route::get('/profile', [App\Http\Controllers\ProfileController::class, 'index'])->name('profile');
+    Route::put('/profile', [App\Http\Controllers\ProfileController::class, 'update'])->name('profile.update');
+    Route::put('/profile/password', [App\Http\Controllers\ProfileController::class, 'updatePassword'])->name('profile.password');
 
     // 强制修改默认密码
-    Route::get('/password/change', function () {
-        return view('auth.passwords.change');
-    })->name('password.change');
-
-    Route::put('/password/update', function (Illuminate\Http\Request $request) {
-        $request->validate([
-            'current_password' => 'required|string',
-            'password' => 'required|string|min:6|confirmed',
-        ]);
-
-        if (!\Illuminate\Support\Facades\Hash::check($request->current_password, auth()->user()->password)) {
-            return back()->withErrors(['current_password' => '当前密码不正确']);
-        }
-
-        auth()->user()->update([
-            'password' => $request->password,
-            'password_changed_at' => now(),
-        ]);
-
-        return redirect()->route('dashboard')->with('success', '密码修改成功，欢迎使用系统');
-    })->name('password.update');
+    Route::get('/password/change', [App\Http\Controllers\ProfileController::class, 'passwordChange'])->name('password.change');
+    Route::put('/password/update', [App\Http\Controllers\ProfileController::class, 'passwordUpdate'])->name('password.update');
 });
 
 include base_path('routes/web_signature_routes.php');

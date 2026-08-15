@@ -110,7 +110,7 @@
                     <thead>
                         <tr class="border-b border-border bg-surface-muted">
                             <th class="px-4 py-3 text-left font-medium text-ink-muted">地址名称</th>
-                            <th class="px-4 py-3 text-left font-medium text-ink-muted">建筑类型</th>
+                            <th class="px-4 py-3 text-left font-medium text-ink-muted">层级</th>
                             <th class="px-4 py-3 text-left font-medium text-ink-muted">编码</th>
                             <th class="px-4 py-3 text-center font-medium text-ink-muted">排序</th>
                             <th class="px-4 py-3 text-center font-medium text-ink-muted">状态</th>
@@ -124,9 +124,9 @@
                                 <a href="{{ route('locations.show', $location->id) }}" class="hover:text-brand-600">{{ $location->name }}</a>
                             </td>
                             <td class="px-4 py-3">
-                                <span class="badge bg-slate-100 text-slate-600">{{ $location->building_type_text }}</span>
+                                <span class="badge bg-slate-100 text-slate-600">{{ $location->level?->name ?? '-' }}</span>
                             </td>
-                            <td class="px-4 py-3 text-ink-muted">{{ $location->building_code ?: '-' }}</td>
+                            <td class="px-4 py-3 text-ink-muted">{{ $location->code ?: '-' }}</td>
                             <td class="px-4 py-3 text-center text-ink-muted">{{ $location->sort_order }}</td>
                             <td class="px-4 py-3 text-center">
                                 @if($location->status == 'active')

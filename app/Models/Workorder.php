@@ -15,6 +15,37 @@ class Workorder extends Model
 {
     use HasFactory, SoftDeletes;
 
+    // ===== 领域常量（状态机 / 枚举文本映射）=====
+
+    /** 工单状态机：status => 中文文本 */
+    public const STATUS_TEXTS = [
+        'pending' => '待处理',
+        'assigned' => '已分配',
+        'processing' => '处理中',
+        'resolved' => '已解决',
+        'completed' => '已完结',
+        'closed' => '已关闭',
+    ];
+
+    /** 未完结状态集合 */
+    public const OPEN_STATUSES = ['pending', 'assigned', 'processing'];
+
+    /** 优先级文本 */
+    public const PRIORITY_TEXTS = [
+        'high' => '高',
+        'medium' => '中',
+        'low' => '低',
+    ];
+
+    /** 来源文本 */
+    public const SOURCE_TEXTS = [
+        'phone' => '电话',
+        'web' => '网络',
+        'email' => '邮件',
+        'scene' => '现场',
+        'other' => '其他',
+    ];
+
     protected $fillable = [
         'ticket_no',
         'ticket_prefix',
@@ -45,10 +76,10 @@ class Workorder extends Model
         'remarks',
         'materials_usage',
         'need_visit',
-       'is_emergency',
-       'phone_assisted',
-       'other_reason',
-       'requires_signature',
+        'is_emergency',
+        'phone_assisted',
+        'other_reason',
+        'requires_signature',
         'visit_status',
     ];
 
@@ -525,16 +556,7 @@ class Workorder extends Model
      */
     public function getStatusTextAttribute(): string
     {
-        $statuses = [
-            'pending' => '待处理',
-            'assigned' => '已分配',
-            'processing' => '处理中',
-            'resolved' => '已解决',
-            'completed' => '已完结',
-            'closed' => '已关闭',
-        ];
-        
-        return $statuses[$this->status] ?? $this->status;
+        return self::STATUS_TEXTS[$this->status] ?? $this->status;
     }
 
     /**
@@ -542,13 +564,7 @@ class Workorder extends Model
      */
     public function getPriorityTextAttribute(): string
     {
-        $priorities = [
-            'high' => '高',
-            'medium' => '中',
-            'low' => '低',
-        ];
-        
-        return $priorities[$this->priority] ?? $this->priority;
+        return self::PRIORITY_TEXTS[$this->priority] ?? $this->priority;
     }
 
     /**
@@ -559,16 +575,8 @@ class Workorder extends Model
         if ($this->source === 'custom' && $this->custom_source) {
             return $this->custom_source;
         }
-        
-        $sources = [
-            'phone' => '电话',
-            'web' => '网络',
-            'email' => '邮件',
-            'scene' => '现场',
-            'other' => '其他',
-        ];
-        
-        return $sources[$this->source] ?? (string)$this->source;
+
+        return self::SOURCE_TEXTS[$this->source] ?? (string) $this->source;
     }
 
     /**
@@ -820,12 +828,8 @@ class Workorder extends Model
     }
 
     /**
-     * 检查是否超时
-     */
-    /**
-     * ???????"????"?
-     * ?????????????(closed/completed/resolved),
-     * ???????? now() ?????
+     * 获取超时判定基准时间：
+     * 已完结工单按实际结束时间（closed/completed/resolved），未完结按 now()。
      */
     public function getOverdueCheckTime(): ?\Carbon\Carbon
     {

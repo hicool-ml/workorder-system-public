@@ -39,17 +39,6 @@ class Location extends Model
         'inactive' => '禁用',
     ];
 
-    // 旧字段兼容：建筑类型选项（仅用于已有数据展示，新数据走树结构）
-    const BUILDING_TYPES = [
-        'office_building' => '办公楼',
-        'meeting_room' => '会议室',
-        'data_center' => '机房/数据中心',
-        'common_area' => '公共区域',
-        'parking' => '停车场',
-        'warehouse' => '仓库',
-        'other' => '其他',
-    ];
-
     // ===== 树关系 =====
 
     public function parent(): BelongsTo
@@ -454,35 +443,9 @@ class Location extends Model
 
     // ===== 兼容旧接口 =====
 
-    public function getCampusTextAttribute()
-    {
-        if ($this->level) {
-            return $this->level->name;
-        }
-
-        return $this->campus ? $this->campus->name : '未设置';
-    }
-
-    public function getBuildingTypeTextAttribute()
-    {
-        return self::BUILDING_TYPES[$this->building_type] ?? $this->building_type ?? '';
-    }
-
     public function getStatusTextAttribute()
     {
         return self::STATUSES[$this->status] ?? $this->status;
-    }
-
-    public function getFullNameAttribute()
-    {
-        // 新树结构优先
-        if ($this->parent_id !== null || $this->level_id !== null) {
-            return $this->full_address_delimited;
-        }
-        // 回退到旧逻辑
-        $campus = $this->campus ? $this->campus->name : '未设置';
-
-        return "{$campus} - {$this->name}";
     }
 
     public function scopeActive($query)
@@ -490,47 +453,8 @@ class Location extends Model
         return $query->where('status', 'active');
     }
 
-    public function scopeByCampus($query, $campusId)
-    {
-        return $query->where('campus_id', $campusId);
-    }
-
-    public function scopeByBuildingType($query, $type)
-    {
-        return $query->where('building_type', $type);
-    }
-
     public function scopeOrdered($query)
     {
         return $query->orderBy('sort_order')->orderBy('name');
-    }
-
-    public static function getCampusOptions(): array
-    {
-        return Campus::where('status', 'active')
-            ->orderBy('sort_order')->orderBy('name')
-            ->pluck('name', 'id')->toArray();
-    }
-
-    public static function getCampusBuildings(): array
-    {
-        $locations = self::with('campus')->active()
-            ->orderBy('campus_id')->orderBy('sort_order')->get();
-
-        $result = [];
-        foreach ($locations as $location) {
-            $campusId = $location->campus_id ?? 0;
-            $campusName = $location->campus ? $location->campus->name : '未设置';
-            if (! isset($result[$campusId])) {
-                $result[$campusId] = ['name' => $campusName, 'buildings' => []];
-            }
-            $result[$campusId]['buildings'][] = [
-                'id' => $location->id,
-                'name' => $location->name,
-                'address' => $location->address ?? '',
-            ];
-        }
-
-        return $result;
     }
 }
