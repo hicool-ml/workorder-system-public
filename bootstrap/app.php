@@ -3,8 +3,6 @@
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
-use Illuminate\Http\Exceptions\ThrottleRequestsException;
-use Illuminate\Support\Facades\RateLimiter;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 
 return Application::configure(basePath: dirname(__DIR__))
@@ -18,15 +16,6 @@ return Application::configure(basePath: dirname(__DIR__))
             'role' => \App\Http\Middleware\RoleMiddleware::class,
             'password.changed' => \App\Http\Middleware\ForcePasswordChange::class,
         ]);
-
-        // 凭据类接口限流：登录/SSO 回调/微信绑定按 IP 限 10 次/分钟，
-        // 注册按 IP 限 5 次/分钟（防在线爆破与批量注册）
-        RateLimiter::for('auth', function ($request) {
-            return \Illuminate\Cache\RateLimit\Limit::perMinute(10)->by($request->ip());
-        });
-        RateLimiter::for('register', function ($request) {
-            return \Illuminate\Cache\RateLimit\Limit::perMinute(5)->by($request->ip());
-        });
 
         // 短信上行回复回调由服务商发起，无法携带 CSRF token，需排除校验
         $middleware->validateCsrfTokens(except: [

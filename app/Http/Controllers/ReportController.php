@@ -249,10 +249,12 @@ class ReportController extends Controller
         $topCats = WorkorderCategorySimplified::whereNull('parent_id')->orderBy('sort_order')->orderBy('name')->get();
 
         // 单条聚合取回 (category_id, 各周期计数)，替代 分类数×周期数 次 COUNT
+        // 注意：每个 SUM 必须显式 AS 别名——PG 对重复列名会折叠覆盖；
+        // 用 toBase() 避免 hydrate 成 Eloquent 模型（(array)$model 拿到的是模型内部结构而非列）
         $cases = [];
         $bindings = [];
-        foreach ($periods as $p) {
-            $cases[] = "SUM(CASE WHEN created_at BETWEEN ? AND ? THEN 1 ELSE 0 END)";
+        foreach ($periods as $i => $p) {
+            $cases[] = "SUM(CASE WHEN created_at BETWEEN ? AND ? THEN 1 ELSE 0 END) AS p{$i}";
             $bindings[] = $p['start'];
             $bindings[] = $p['end'];
         }
@@ -260,14 +262,17 @@ class ReportController extends Controller
         $rows = Workorder::whereBetween('created_at', [$rangeStart, $rangeEnd])
             ->selectRaw($selectRaw, $bindings)
             ->groupBy('category_id')
+            ->toBase()
             ->get();
 
         // 组装 matrix: [catId => [period => count]]
+        $periodKeys = [];
+        foreach (array_keys($periods) as $i) {
+            $periodKeys[] = "p{$i}";
+        }
         $matrix = [];
         foreach ($rows as $row) {
-            $arr = (array) $row;
-            $catId = array_shift($arr);
-            $matrix[$catId] = array_values($arr);
+            $matrix[$row->category_id] = array_map(fn ($k) => (int) $row->{$k}, $periodKeys);
         }
 
         $categories = [];

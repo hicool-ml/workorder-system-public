@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\Vite;
@@ -25,6 +26,16 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // 凭据类接口限流：登录/SSO 回调/微信绑定按 IP 限 10 次/分钟，
+        // 注册按 IP 限 5 次/分钟（防在线爆破与批量注册）
+        // 注意：必须定义在 ServiceProvider 中——bootstrap/app.php 的 withMiddleware
+        // 闭包执行时 Facade root 尚未绑定，在那里调用会抛 "A facade root has not been set"
+        RateLimiter::for('auth', function ($request) {
+            return \Illuminate\Cache\RateLimiting\Limit::perMinute(10)->by($request->ip());
+        });
+        RateLimiter::for('register', function ($request) {
+            return \Illuminate\Cache\RateLimiting\Limit::perMinute(5)->by($request->ip());
+        });
         // Vite 资源强制使用相对路径，确保 IP/域名/HTTP/HTTPS 访问都能正确加载
         Vite::createAssetPathsUsing(fn ($path) => '/'.ltrim($path, '/'));
 
