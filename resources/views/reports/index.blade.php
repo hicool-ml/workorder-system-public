@@ -299,8 +299,8 @@ document.addEventListener('DOMContentLoaded', function() {
         $treemapNetwork = collect($networkSubDistribution)->map(function ($i) { return ['name' => $i['name'], 'count' => (int)$i['count']]; })->values();
         $treemapMedia = collect($mediaSubDistribution)->map(function ($i) { return ['name' => $i['name'], 'count' => (int)$i['count']]; })->values();
     @endphp
-    var networkData = {!! json_encode($treemapNetwork, JSON_UNESCAPED_UNICODE) !!};
-    var mediaData = {!! json_encode($treemapMedia, JSON_UNESCAPED_UNICODE) !!};
+    var networkData = @json($treemapNetwork);
+    var mediaData = @json($treemapMedia);
 
     // 矩形树图（squarified treemap）：面积映射数值，颜色区分类别
     var TM_PALETTE = ['#2563eb', '#4f46e5', '#0891b2', '#7c3aed', '#db2777', '#dc2626', '#d97706', '#16a34a', '#0d9488', '#64748b'];

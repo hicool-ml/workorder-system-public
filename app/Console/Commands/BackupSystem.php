@@ -97,19 +97,26 @@ class BackupSystem extends Command
         $tmpSql = $disk->path("{$backupDir}/database.sql");
         File::ensureDirectoryExists(dirname($tmpSql));
 
-        $passPart = $pass !== '' ? '-p' . $pass : '';
+        // 密码经 MYSQL_PWD 环境变量传递：不出现在命令行/进程列表（ps 可见），
+        // 也避免特殊字符破坏 shell 拼接（此前 -p{$pass} 未转义双重风险）
         $cmd = sprintf(
-            '%s --host=%s --port=%s -u %s %s --single-transaction --quick --no-tablespaces %s > %s 2>&1',
+            '%s --host=%s --port=%s -u %s --single-transaction --quick --no-tablespaces %s > %s 2>&1',
             escapeshellarg(explode("\n", $mysqldump)[0]),
             escapeshellarg($host),
             escapeshellarg((string) $port),
             escapeshellarg($user),
-            $passPart,
             escapeshellarg($dbName),
             escapeshellarg($tmpSql)
         );
 
-        exec($cmd, $output, $code);
+        $proc = proc_open($cmd, [1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes, null, ['MYSQL_PWD' => $pass]);
+        if (!is_resource($proc)) {
+            return null;
+        }
+        fclose($pipes[1]);
+        stream_get_contents($pipes[2]);
+        fclose($pipes[2]);
+        $code = proc_close($proc);
 
         if ($code === 0 && File::exists($tmpSql) && filesize($tmpSql) > 0) {
             $this->info('Database backed up via mysqldump.');
@@ -291,42 +298,57 @@ class BackupSystem extends Command
 
     /**
      * Zip the attachments directory.
+     * v3.1 起附件存私有盘 storage/app/attachments；旧版残留仍在 storage/app/public。
+     * 两处都打包（条目名均为相对路径，如 workorder_attachments/xxx），恢复端写入私有盘。
      */
     private function backupAttachments($disk, string $backupDir, string $stamp): void
     {
-        $publicPath = storage_path('app/public');
-        if (!File::exists($publicPath)) {
-            $this->warn('Attachments directory missing; skipping attachment backup.');
-            return;
-        }
+        $sources = [
+            storage_path('app/attachments'),   // 现行私有盘（主）
+            storage_path('app/public'),        // 旧版公开盘（历史附件兼容）
+        ];
 
         $zipPath = $disk->path("{$backupDir}/attachments.zip");
         File::ensureDirectoryExists(dirname($zipPath));
 
-        // realpath normalizes path separators so str_replace works reliably on
-        // Windows where storage_path() can return mixed separators.
-        $realBase = realpath($publicPath);
-
         $zip = new \ZipArchive();
-        if ($zip->open($zipPath, \ZipArchive::CREATE | \ZipArchive::OVERWRITE) === true) {
+        if ($zip->open($zipPath, \ZipArchive::CREATE | \ZipArchive::OVERWRITE) !== true) {
+            $this->warn('Attachment zip failed; skipping.');
+            return;
+        }
+
+        $fileCount = 0;
+        foreach ($sources as $sourceDir) {
+            if (!File::exists($sourceDir)) {
+                continue;
+            }
+            $realBase = realpath($sourceDir);
+            if (!$realBase) {
+                continue;
+            }
             $files = new \RecursiveIteratorIterator(
-                new \RecursiveDirectoryIterator($publicPath, \RecursiveDirectoryIterator::SKIP_DOTS),
+                new \RecursiveDirectoryIterator($sourceDir, \RecursiveDirectoryIterator::SKIP_DOTS),
                 \RecursiveIteratorIterator::LEAVES_ONLY
             );
-            $fileCount = 0;
             foreach ($files as $file) {
                 if (!$file->isDir()) {
                     $real = $file->getRealPath();
-                    // Use a path relative to public/ as the zip entry name.
                     $relative = ltrim(str_replace(DIRECTORY_SEPARATOR, '/', substr($real, strlen($realBase))), '/');
+                    if ($relative === '') {
+                        continue;
+                    }
+                    // 私有盘条目保持原相对名；旧盘条目去掉 public/ 前缀语义由 realpath 基准天然处理
                     $zip->addFile($real, $relative);
                     $fileCount++;
                 }
             }
-            $zip->close();
+        }
+
+        $zip->close();
+        if ($fileCount > 0) {
             $this->info("Attachments backed up ({$fileCount} files).");
         } else {
-            $this->warn('Attachment zip failed; skipping.');
+            $this->warn('No attachments found to back up.');
         }
     }
 

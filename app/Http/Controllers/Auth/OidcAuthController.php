@@ -309,9 +309,10 @@ class OidcAuthController extends Controller
             $response = $request->post($config['token_endpoint'], $payload);
 
             if (!$response->ok()) {
+                // body 截断脱敏：错误响应偶含部分令牌片段/PII，只留前 200 字符排障用
                 Log::error('OIDC Token 交换失败', [
                     'status' => $response->status(),
-                    'body' => $response->body(),
+                    'body' => mb_substr($response->body(), 0, 200),
                 ]);
                 return null;
             }
@@ -350,9 +351,10 @@ class OidcAuthController extends Controller
                 ->get($config['userinfo_endpoint']);
 
             if (!$response->ok()) {
+                // body 截断脱敏：userinfo 响应含 PII（邮箱/手机号），只留前 200 字符排障用
                 Log::error('OIDC UserInfo 请求失败', [
                     'status' => $response->status(),
-                    'body' => $response->body(),
+                    'body' => mb_substr($response->body(), 0, 200),
                 ]);
                 return null;
             }
@@ -738,6 +740,8 @@ class OidcAuthController extends Controller
                 'role'         => 'user',
                 'status'       => 'active',
                 'account_type' => 'oidc',
+                // SSO 用户不走本地密码：直接视为已过改密节点（防 ForcePasswordChange 锁死）
+                'password_changed_at' => now(),
                 'remarks'      => $department ? "部门：{$department}" : null,
             ]);
         } catch (\Exception $e) {

@@ -305,6 +305,9 @@ class CasAuthController extends Controller
                 'role'         => 'user',
                 'status'       => 'active',
                 'account_type' => 'cas',
+                // SSO 用户不走本地密码：直接视为已过改密节点，
+                // 否则 ForcePasswordChange 会锁死（随机密码用户无从知晓，改密页要求 current_password）
+                'password_changed_at' => now(),
                 'remarks'      => $department ? "部门：{$department}" : null,
             ]);
         } catch (\Exception $e) {

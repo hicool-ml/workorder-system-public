@@ -81,16 +81,21 @@ class SmsSettingController extends Controller
             'sms_reply_ip_whitelist'      => 'nullable|string|max:500',
         ]);
 
+        // 云厂商密钥：密文不回显，留空 = 保留原值
         $fields = [
             'sms_provider'   => $request->input('sms_provider'),
             'sms_sign_name'  => $request->input('sms_sign_name'),
             'sms_access_key' => $request->input('sms_access_key'),
-            'sms_access_secret' => $request->input('sms_access_secret'),
             'sms_sdk_app_id' => $request->input('sms_sdk_app_id'),
             'sms_api_url'    => $request->input('sms_api_url'),
             'sms_method'     => $request->input('sms_method', 'POST'),
-            'sms_api_key'    => $request->input('sms_api_key'),
         ];
+        if ($request->filled('sms_access_secret')) {
+            $fields['sms_access_secret'] = $request->input('sms_access_secret');
+        }
+        if ($request->filled('sms_api_key')) {
+            $fields['sms_api_key'] = $request->input('sms_api_key');
+        }
 
         $fieldDescriptions = [
             'sms_provider'      => '短信服务提供商（aliyun/tencent/custom）',

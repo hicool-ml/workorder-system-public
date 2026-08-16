@@ -520,9 +520,11 @@ class BackupController extends Controller
             ? "SET session_replication_role = 'origin'"
             : ($driver === 'mysql' ? 'SET FOREIGN_KEY_CHECKS=1' : 'PRAGMA foreign_keys = ON');
 
-        // 白名单：备份文件只应包含数据与结构恢复语句（CREATE/INSERT/UPDATE/DELETE/SET/ALTER TABLE/SELECT into/DROP TABLE IF EXISTS for re-create）
+        // 白名单：备份文件只应包含数据与结构恢复语句。
+        // DROP TABLE 仅允许 IF EXISTS 形态（mysqldump/pg_dump 重建表的标准写法）——
+        // 裸 DROP TABLE 可被恶意备份用于清表后注入伪造数据
         // 有意排除：DATABASE/SCHEMA 级操作、用户/权限管理、GRANT、TRUNCATE、CALL/EXEC 等
-        $allowed = '#^\s*(SELECT|INSERT|UPDATE|DELETE|CREATE\s+(TABLE|INDEX|UNIQUE|VIEW|SEQUENCE|TYPE|DOMAIN|FUNCTION|TRIGGER|EXTENSION)|ALTER\s+TABLE|DROP\s+TABLE|CREATE\s+OR\s+REPLACE|COMMENT\s+ON|SET|BEGIN|COMMIT|ROLLBACK|ANALYZE|VACUUM|GRANT\s+USAGE\s+ON\s+SEQUENCE)\b#i';
+        $allowed = '#^\s*(SELECT|INSERT|UPDATE|DELETE|CREATE\s+(TABLE|INDEX|UNIQUE|VIEW|SEQUENCE|TYPE|DOMAIN|FUNCTION|TRIGGER|EXTENSION)|ALTER\s+TABLE|DROP\s+TABLE\s+IF\s+EXISTS|CREATE\s+OR\s+REPLACE|COMMENT\s+ON|SET|BEGIN|COMMIT|ROLLBACK|ANALYZE|VACUUM|GRANT\s+USAGE\s+ON\s+SEQUENCE)\b#i';
 
         $executed = 0;
         $skipped = 0;
@@ -564,7 +566,9 @@ class BackupController extends Controller
 
     private function restoreAttachments(string $zipPath): void
     {
-        $publicRoot = storage_path('app/public');
+        // v3.1 起附件恢复写入私有盘 storage/app/attachments（与 uploadFile/AttachmentController 一致；
+        // 旧版恢复到 public 盘会重新暴露 /storage 直链并导致 diskFor 回退读旧盘）
+        $publicRoot = storage_path('app/attachments');
         File::ensureDirectoryExists($publicRoot);
 
         $zip = new ZipArchive();

@@ -58,7 +58,7 @@
             </div>
             <div>
                 <label class="label" id="secret-label">AccessKey Secret / SecretKey</label>
-                <input type="text" class="input" name="sms_access_secret" value="{{ $smsSettings['access_secret'] }}" placeholder="API密钥">
+                <input type="password" class="input" name="sms_access_secret" value="" placeholder="{{ $smsSettings['access_secret'] !== '' && $smsSettings['access_secret'] !== null ? '已设置，留空则不修改' : 'API密钥' }}" autocomplete="new-password">
             </div>
             <div id="sdk-app-id-field" class="hidden">
                 <label class="label">SDK AppID（腾讯云）</label>
@@ -81,7 +81,7 @@
             </div>
             <div>
                 <label class="label">API Key（可选）</label>
-                <input type="text" class="input" name="sms_api_key" value="{{ $smsSettings['api_key'] ?? '' }}" placeholder="Bearer Token">
+                <input type="password" class="input" name="sms_api_key" value="" placeholder="{{ !empty($smsSettings['api_key']) ? '已设置，留空则不修改' : 'Bearer Token' }}" autocomplete="new-password">
             </div>
         </div>
     </div>

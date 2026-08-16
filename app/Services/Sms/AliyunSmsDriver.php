@@ -53,7 +53,9 @@ class AliyunSmsDriver implements SmsDriver
             // http_errors=false：阿里云 API 级错误（模板非法/签名错误/限流）返回 HTTP 400 + JSON Code/Message，
             // 默认 Guzzle 抛异常会吞掉真实原因只剩 "400 Bad Request"，排障极难
             $httpClient = new \GuzzleHttp\Client(['timeout' => 10, 'http_errors' => false]);
-            $response = $httpClient->post('https://dysmsapi.aliyuncs.com/', [
+            // 注意用 GET：computeSignature 按 POP RPC 规范以 "GET&%2F&" 构造签名字符串，
+            // 发送方法必须与签名方法一致（此前用 POST 发送 → 签名校验必然失败 InvalidSignature）
+            $response = $httpClient->get('https://dysmsapi.aliyuncs.com/', [
                 'query' => $apiParams,
             ]);
 
