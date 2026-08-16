@@ -17,6 +17,18 @@ return new class extends Migration
 {
     public function up(): void
     {
+        // 先删列上的索引：SQLite/部分版本 PG 不会随列级联删除索引，
+        // 残留索引会导致 dropColumn 报 "no such column: campus_id"（测试环境实测复现）
+        if (Schema::hasColumn('locations', 'campus_id')) {
+            try {
+                Schema::table('locations', function (Blueprint $table) {
+                    $table->dropIndex(['campus_id']);
+                });
+            } catch (\Throwable $e) {
+                // 索引可能不存在（历史差异），忽略
+            }
+        }
+
         Schema::table('locations', function (Blueprint $table) {
             if (Schema::hasColumn('locations', 'campus_id')) {
                 // 先删指向 campuses 的外键（若存在），再删列
