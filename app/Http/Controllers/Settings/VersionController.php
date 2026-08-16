@@ -63,6 +63,13 @@ class VersionController extends Controller
             // 同步写入 VERSION 文件（部署版本与页面版本保持一致）
             @file_put_contents(base_path('VERSION'), trim($request->input('version')) . PHP_EOL);
 
+            // 同步在 CHANGELOG 顶部插入版本条目，使页面版本 / VERSION 文件 / 更新说明三者一致
+            $this->prependChangelog(
+                $request->input('version'),
+                $request->input('release_date'),
+                $request->input('release_notes')
+            );
+
             DB::commit();
 
             $message = '系统版本更新成功（VERSION 文件已同步）';
@@ -93,6 +100,39 @@ class VersionController extends Controller
 
             return back()->with('error', '版本更新失败：' . $errorMessage);
         }
+    }
+
+    /**
+     * 在 CHANGELOG.md 顶部插入新版本条目（幂等：已存在同版本条目则跳过）。
+     */
+    private function prependChangelog(string $version, string $date, string $notes): void
+    {
+        $path = base_path('CHANGELOG.md');
+        if (! file_exists($path)) {
+            return;
+        }
+
+        $content = file_get_contents($path);
+        if ($content === false) {
+            return;
+        }
+
+        // 已存在该版本条目则跳过，避免重复插入
+        if (str_contains($content, "## v{$version} ")) {
+            return;
+        }
+
+        $entry = "## v{$version} （{$date}）\n\n{$notes}\n\n";
+
+        $anchor = "本文件记录工单管理系统的版本变更。\n\n";
+        if (str_contains($content, $anchor)) {
+            $content = str_replace($anchor, $anchor . $entry, $content);
+        } else {
+            // 兜底：插入到第一个「## 」标题之前
+            $content = preg_replace('/^## /m', $entry . '## ', $content, 1);
+        }
+
+        @file_put_contents($path, $content);
     }
 
     /**
