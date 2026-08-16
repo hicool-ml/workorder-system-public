@@ -32,7 +32,7 @@
                 <div class="flex justify-between gap-2"><dt style="color: var(--c-ink-muted);">邮箱</dt><dd class="text-ink text-right">{{ $department->email ?? '-' }}</dd></div>
                 <div class="flex justify-between gap-2"><dt style="color: var(--c-ink-muted);">排序</dt><dd class="text-ink text-right">{{ $department->sort_order }}</dd></div>
                 <div class="flex justify-between gap-2"><dt style="color: var(--c-ink-muted);">状态</dt><dd class="text-right">@if($department->is_active)<span class="badge bg-green-100 text-green-700">启用</span>@else<span class="badge bg-red-100 text-red-700">禁用</span>@endif</dd></div>
-                <div class="flex justify-between gap-2"><dt style="color: var(--c-ink-muted);">创建时间</dt><dd class="text-ink text-right">{{ $department->created_at->format('Y-m-d H:i') }}</dd></div>
+                <div class="flex justify-between gap-2"><dt style="color: var(--c-ink-muted);">创建时间</dt><dd class="text-ink text-right">{{ $department->created_at?->format('Y-m-d H:i') ?? '—' }}</dd></div>
             </dl>
             @if($department->description)
             <div class="mt-4 pt-4 border-t border-border">

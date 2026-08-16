@@ -81,7 +81,7 @@
             <dl class="space-y-2 text-sm">
                 <div class="flex justify-between"><dt style="color: var(--c-ink-muted);">ID</dt><dd class="text-ink">{{ $department->id }}</dd></div>
                 <div class="flex justify-between"><dt style="color: var(--c-ink-muted);">当前状态</dt><dd>@if($department->is_active)<span class="badge bg-green-100 text-green-700">启用</span>@else<span class="badge bg-red-100 text-red-700">禁用</span>@endif</dd></div>
-                <div class="flex justify-between"><dt style="color: var(--c-ink-muted);">创建时间</dt><dd class="text-ink">{{ $department->created_at->format('Y-m-d') }}</dd></div>
+                <div class="flex justify-between"><dt style="color: var(--c-ink-muted);">创建时间</dt><dd class="text-ink">{{ $department->created_at?->format('Y-m-d') ?? '—' }}</dd></div>
             </dl>
         </div>
     </div>

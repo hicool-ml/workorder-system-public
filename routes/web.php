@@ -219,7 +219,6 @@ Route::middleware(['auth'])->group(function () {
         Route::get('workorder-categories/cascade', [WorkorderCategoryController::class, 'cascade'])->name('workorder-categories.cascade');
         Route::post('workorder-categories/sort', [WorkorderCategoryController::class, 'updateSort'])->name('workorder-categories.sort');
         Route::get('workorder-categories/{workorderCategory}/statistics', [WorkorderCategoryController::class, 'statistics'])->name('workorder-categories.statistics');
-        Route::get('workorder-categories/{workorderCategory}/delete-confirm', [WorkorderCategoryController::class, 'deleteConfirm'])->name('workorder-categories.delete-confirm');
         Route::patch('workorder-categories/{workorderCategory}/toggle-status', [WorkorderCategoryController::class, 'toggleStatus'])->name('workorder-categories.toggle-status');
     });
     
