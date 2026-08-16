@@ -59,7 +59,7 @@ class WorkorderController extends Controller
 
             // 预先查出关键词匹配到的 location 节点 id，用于工单 location_id 反查
             $matchedLocationIds = \App\Models\Location::where('name', 'like', "%{$keyword}%")
-                ->orWhere('building_code', 'like', "%{$keyword}%")
+                ->orWhere('code', 'like', "%{$keyword}%")
                 ->pluck('id')
                 ->all();
 

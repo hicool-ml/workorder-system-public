@@ -65,16 +65,14 @@
     <div style="position:relative;height:300px;"><canvas id="trendChart"></canvas></div>
 </div>
 
-{{-- Charts row: network + media sub-category top10 --}}
+{{-- Charts row: 各重点分类的子类 Top10 分布（动态遍历所有根分类，有数据才展示） --}}
 <div class="grid grid-cols-1 gap-6 mb-6">
+    @foreach($featuredDistributions as $fdIdx => $fd)
     <div class="card p-5">
-        <h3 class="text-sm font-semibold text-ink mb-4">网络</h3>
-        <div id="networkSubChart" class="treemap" style="aspect-ratio:4/3;"></div>
+        <h3 class="text-sm font-semibold text-ink mb-4">{{ $fd['name'] }}</h3>
+        <div id="subChart-{{ $fdIdx }}" class="treemap" style="aspect-ratio:4/3;"></div>
     </div>
-    <div class="card p-5">
-        <h3 class="text-sm font-semibold text-ink mb-4">多媒体</h3>
-        <div id="mediaSubChart" class="treemap" style="aspect-ratio:4/3;"></div>
-    </div>
+    @endforeach
 </div>
 
 {{-- Charts row: category + source --}}
@@ -239,10 +237,8 @@ document.addEventListener('DOMContentLoaded', function() {
     // Trend chart：细线 + 悬停高亮点 + 主题感知网格/图例；多线遮挡时悬停可辨
     <?php
         $trendStats = $recentStats['stats'];
+        // 尊重分类管理里的 sort_order 排序（后端已按 sort_order 返回），不再硬编码业务分类名
         $trendCats = $recentStats['topCats'];
-        // 固定排序：网络→多媒体→专项，其它放最后
-        $ctOrder = ['网络' => 1, '多媒体' => 2, '专项' => 3, '其它' => 4];
-        $trendCats = collect($trendCats)->sortBy(function ($n, $id) use ($ctOrder) { return $ctOrder[$n] ?? 99; })->toArray();
         $catColors = ['#2563eb', '#dc2626', '#16a34a', '#f59e0b', '#8b5cf6', '#ec4899'];
         $catColorIdx = 0;
     ?>
@@ -295,12 +291,8 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    @php
-        $treemapNetwork = collect($networkSubDistribution)->map(function ($i) { return ['name' => $i['name'], 'count' => (int)$i['count']]; })->values();
-        $treemapMedia = collect($mediaSubDistribution)->map(function ($i) { return ['name' => $i['name'], 'count' => (int)$i['count']]; })->values();
-    @endphp
-    var networkData = @json($treemapNetwork);
-    var mediaData = @json($treemapMedia);
+    // @json 自动做 HEX 转义（防 </script> 等字符逃逸出脚本块），安全注入
+    var featuredData = @json($featuredDistributions);
 
     // 矩形树图（squarified treemap）：面积映射数值，颜色区分类别
     var TM_PALETTE = ['#2563eb', '#4f46e5', '#0891b2', '#7c3aed', '#db2777', '#dc2626', '#d97706', '#16a34a', '#0d9488', '#64748b'];
@@ -422,11 +414,11 @@ document.addEventListener('DOMContentLoaded', function() {
         container.appendChild(frag);
     }
 
-    var networkEl = document.getElementById('networkSubChart');
-    var mediaEl = document.getElementById('mediaSubChart');
     function drawTreemaps() {
-        renderTreemap(networkEl, networkData, TM_PALETTE);
-        renderTreemap(mediaEl, mediaData, TM_PALETTE);
+        for (var i = 0; i < featuredData.length; i++) {
+            var el = document.getElementById('subChart-' + i);
+            renderTreemap(el, featuredData[i].data, TM_PALETTE);
+        }
     }
     drawTreemaps();
     var tmResizeTimer;

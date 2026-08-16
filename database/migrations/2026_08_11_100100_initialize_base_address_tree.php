@@ -1,6 +1,5 @@
 <?php
 
-use App\Models\Campus;
 use App\Models\Location;
 use App\Models\LocationLevel;
 use Illuminate\Database\Migrations\Migration;
@@ -94,7 +93,7 @@ return new class extends Migration
 
         // ---------- 3. 依据 campuses 生成区域/园区节点 ----------
         $campusLvId = $levelId('campus');
-        foreach (Campus::orderBy('sort_order')->orderBy('id')->get() as $campus) {
+        foreach (DB::table('campuses')->orderBy('sort_order')->orderBy('id')->get() as $campus) {
             $node = Location::where('level_id', $campusLvId)->where('name', $campus->name)->first();
             if (! $node) {
                 Location::create([

@@ -243,29 +243,11 @@
                             </div>
 
                             <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
-                                <div data-tf="priority">
-                                    <label for="priority" class="label">优先级</label>
-                                    <select class="input" id="priority" name="priority">
-                                        <option value="medium" {{ old('priority') == 'medium' ? 'selected' : '' }}>中</option>
-                                        <option value="high" {{ old('priority') == 'high' ? 'selected' : '' }}>高</option>
-                                        <option value="low" {{ old('priority') == 'low' ? 'selected' : '' }}>低</option>
-                                    </select>
-                                </div>
                                 <div data-tf="time_limit_hours">
                                     <label for="time_limit_hours" class="label">处理时限（小时）</label>
                                     <input type="number" class="input" id="time_limit_hours" name="time_limit_hours"
                                            value="{{ old('time_limit_hours') }}" min="1" max="168" step="1"
                                            placeholder="默认根据工单类型设置" autocomplete="off">
-                                </div>
-                                <div data-tf="source">
-                                    <label for="source" class="label">来源</label>
-                                    <select class="input" id="source" name="source">
-                                        <option value="">请选择</option>
-                                        <option value="phone" {{ old('source') == 'phone' ? 'selected' : '' }}>电话</option>
-                                        <option value="web" {{ old('source') == 'web' ? 'selected' : '' }}>网页</option>
-                                        <option value="scene" {{ old('source') == 'scene' ? 'selected' : '' }}>现场</option>
-                                        <option value="email" {{ old('source') == 'email' ? 'selected' : '' }}>邮件</option>
-                                    </select>
                                 </div>
                             </div>
 
@@ -348,11 +330,12 @@
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z M12 17a4 4 0 1 0 0-8 4 4 0 0 0 0 8z"/></svg>
                                         <span>拍照</span>
                                     </button>
-                                    <button type="button" onclick="document.getElementById('attachments').click()" class="btn btn-secondary flex-1">
+                                    <button type="button" onclick="document.getElementById('attachmentFilePicker').click()" class="btn btn-secondary flex-1">
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4 M7 10l5 5 5-5 M12 15V3"/></svg>
                                         <span>选择文件</span>
                                     </button>
                                 </div>
+                                <input type="file" class="sr-only" id="attachmentFilePicker" multiple accept=".jpg,.jpeg,.png,.gif,.pdf,.doc,.docx,.txt">
                                 <input type="file" class="sr-only" id="attachments" name="attachments[]" multiple accept=".jpg,.jpeg,.png,.gif,.pdf,.doc,.docx,.txt" onchange="document.getElementById('attCreateName').textContent=this.files.length? '已选择 '+this.files.length+' 个文件':'未选择文件'">
 
                                 <div id="attCreateName" class="text-xs mt-1" style="color: var(--c-ink-subtle);">未选择文件</div>
@@ -491,6 +474,9 @@ $(document).ready(function() {
                 var val = fields[key];
                 if (val === null || val === '' || val === false) return;
                 if (key === 'category_main' || key === 'category_sub') return;
+                // 跳过 source：模板内置的 source 选项仍是旧 code（phone/web/...），
+                // 而页面 source 下拉用中文名（电话报修/...），强设会清空默认"电话报修"导致提交失败
+                if (key === 'source') return;
 
                 var input = $('[name="' + key + '"]');
                 if (input.length === 0) return;
@@ -541,9 +527,42 @@ $(document).ready(function() {
     // ��ʼ�������ѹ�ѡ��ҳ��ˢ�»��������ʾ������
     if ($('#phone_assisted').is(':checked')) { $('#phone_solution_div').removeClass('hidden'); }
     
+    // 供拍照（_camera.blade.php）调用：拍照/原生相机把文件写入 attachments input 后，
+    // 必须触发一次 change，才能让下面的统一处理（压缩 + 预览 + updateFileInput）纳入新照片，
+    // 否则照片只进了 input 却未进 processedFiles，提交时可能丢失。
+    window.handleAttachmentSelect = function(input) {
+        $(input).trigger('change');
+    };
+
+    // 「选择文件」走临时 input，选完后把新文件追加进主 attachments input（而非浏览器默认的替换），
+    // 这样与拍照的追加逻辑一致，选文件与拍照可以共存（多个附件同时上传）。
+    $('#attachmentFilePicker').change(function() {
+        var mainInput = document.getElementById('attachments');
+        var dt = new DataTransfer();
+        if (mainInput.files) {
+            for (var j = 0; j < mainInput.files.length; j++) dt.items.add(mainInput.files[j]);
+        }
+        for (var k = 0; k < this.files.length; k++) dt.items.add(this.files[k]);
+        mainInput.files = dt.files;
+        this.value = ''; // 清空临时 input，允许下次再选同一文件
+        $(mainInput).trigger('change');
+    });
+
+    // 附件描述缓存：按文件名关联，重渲染预览时恢复已填写的描述，避免追加附件清空描述
+    var attachmentDescriptions = {};
+
     // 附件预览
     $('#attachments').change(async function() {
         var preview = $('#attachmentPreview');
+        // 保存当前已填写的描述（按文件名）
+        var saved = {};
+        preview.find('.attachment-item').each(function() {
+            var name = $(this).data('file-name');
+            var desc = $(this).find('.attachment-desc-input').val();
+            if (name) saved[name] = desc;
+        });
+        attachmentDescriptions = saved;
+
         preview.empty();
         
         var files = this.files;
@@ -618,7 +637,7 @@ $(document).ready(function() {
     
     // 创建附件预览
     function createAttachmentPreview(file, fileIndex, previewContainer, options) {
-        var fileDiv = $('<div class="attachment-item mb-3 p-3 border rounded" data-file-index="' + fileIndex + '">');
+        var fileDiv = $('<div class="attachment-item mb-3 p-3 border rounded" data-file-index="' + fileIndex + '" data-file-name="' + file.name + '">');
         var thumbnailDiv = $('<div class="attachment-thumbnail mr-3">');
         
         if (file.type.startsWith('image/')) {
@@ -677,6 +696,10 @@ $(document).ready(function() {
         
         fileDiv.append(thumbnailDiv);
         fileDiv.append(fileInfoDiv);
+        // 恢复之前填写的描述（按文件名关联），避免追加/删除附件时重渲染清空描述
+        if (attachmentDescriptions[file.name]) {
+            fileDiv.find('.attachment-desc-input').val(attachmentDescriptions[file.name]);
+        }
         previewContainer.append(fileDiv);
     }
     

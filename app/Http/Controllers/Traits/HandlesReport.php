@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Traits;
 use App\Models\Workorder;
 use App\Models\WorkorderCategorySimplified;
 use App\Models\WorkorderAttachment;
-use App\Models\Campus;
 use App\Models\Location;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;

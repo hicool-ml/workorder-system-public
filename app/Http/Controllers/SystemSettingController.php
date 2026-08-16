@@ -90,7 +90,7 @@ class SystemSettingController extends Controller
                 'ssl_verify_enabled', 'ssl_cacert_path',
             ],
             '其他配置' => [
-                'notification_rules', 'campus_mapping',
+                'notification_rules',
             ],
         ];
 

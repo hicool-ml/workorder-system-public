@@ -4,7 +4,7 @@
      *
      * 用法：
      * @include('locations._topbar', [
-     *     'active' => 'tree'|'campuses'|'levels'|'import'|'base',
+     *     'active' => 'tree'|'levels'|'import'|'base',
      *     'title'  => '页面标题',
      *     'subtitle' => '可选副标题',
      *     'actions' => '<a href="..." class="btn btn-primary">...</a>',  // 可选，raw HTML
@@ -17,7 +17,6 @@
 
     $tabs = [
         'tree'     => ['route' => 'locations.index',         'label' => '地址树'],
-        'campuses' => ['route' => 'locations.campuses',      'label' => '区域管理'],
         'levels'   => ['route' => 'location-levels.index',   'label' => '层级定义'],
         'import'   => ['route' => 'locations.import',        'label' => '批量导入'],
         'base'     => ['route' => 'locations.base-address',  'label' => '基础地址'],

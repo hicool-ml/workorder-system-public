@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Campus;
 use App\Models\Location;
 use App\Models\LocationLevel;
 use Illuminate\Http\Request;
@@ -212,11 +211,11 @@ class LocationController extends Controller
         }
 
         $headers = $dailyLevels->pluck('name')->all();
-        $example = $dailyLevels->map(function ($lv) {
-            return match ($lv->code) {
-                'campus' => '总部园区',
-                'building' => 'A 楼',
-                'room' => '101 室',
+        $example = $dailyLevels->values()->map(function ($lv, $idx) {
+            return match ($idx) {
+                0 => '总部园区',
+                1 => 'A 楼',
+                2 => '101 室',
                 default => $lv->name.'示例',
             };
         })->all();
@@ -297,7 +296,6 @@ class LocationController extends Controller
                     'name' => $name,
                     'code' => null,
                     'level_id' => $lv->id,
-                    'campus_id' => $this->resolveImportedCampusId($lv, $name, $current),
                     'sort_order' => $current->children()->count(),
                     'status' => 'active',
                 ]);
@@ -316,20 +314,6 @@ class LocationController extends Controller
         }
 
         return redirect()->route('locations.import')->with('success', $message);
-    }
-
-    /**
-     * 导入时确定校区节点对应的 campus_id（按名称匹配历史 campuses 表）
-     */
-    private function resolveImportedCampusId($level, string $name, $parent)
-    {
-        if ($level->code === 'campus') {
-            $campus = Campus::where('name', $name)->first();
-
-            return $campus ? (int) $campus->id : null;
-        }
-
-        return $parent->campus_id ? (int) $parent->campus_id : null;
     }
 
     /**
@@ -366,9 +350,6 @@ class LocationController extends Controller
                 return back()->withInput()->with('error', '父节点的层级必须高于当前层级');
             }
         }
-
-        // 沿父链向上继承 campus_id，保证级联选择与统计可用
-        $validated['campus_id'] = $this->resolveCampusId($validated['parent_id'] ?? null);
 
         Location::create($validated);
 
@@ -424,9 +405,6 @@ class LocationController extends Controller
             }
         }
 
-        // 沿父链向上继承 campus_id，保证级联选择与统计可用
-        $validated['campus_id'] = $this->resolveCampusId($validated['parent_id'] ?? null);
-
         $location->update($validated);
 
         return redirect()->route('locations.index', $request->query())
@@ -465,149 +443,5 @@ class LocationController extends Controller
             $query->orderBy('sort_order')->orderBy('name')
                 ->get(['id', 'name', 'parent_id', 'level_id'])
         );
-    }
-
-    /**
-     * 沿父链向上查找 campus_id（新建/编辑地址时继承父节点的区域）
-     */
-    private function resolveCampusId($locationId)
-    {
-        $visited = [];
-        $currentId = $locationId;
-        while ($currentId && ! isset($visited[$currentId])) {
-            $visited[$currentId] = true;
-            $loc = Location::find($currentId, ['id', 'parent_id', 'campus_id']);
-            if (! $loc) {
-                break;
-            }
-            if ($loc->campus_id) {
-                return (int) $loc->campus_id;
-            }
-            $currentId = $loc->parent_id;
-        }
-
-        return null;
-    }
-
-    /**
-     * 区域管理页面
-     */
-    public function campuses(Request $request)
-    {
-        $query = Campus::query();
-
-        // 状态筛选
-        if ($request->filled('status')) {
-            $query->where('status', $request->input('status'));
-        }
-
-        // 搜索
-        if ($request->filled('keyword')) {
-            $keyword = $request->input('keyword');
-            $query->where(function ($q) use ($keyword) {
-                $q->where('name', 'like', "%{$keyword}%")
-                    ->orWhere('description', 'like', "%{$keyword}%");
-            });
-        }
-
-        $campuses = $query->orderBy('sort_order')
-            ->orderBy('name')
-            ->paginate(15);
-
-        return view('locations.campuses', compact('campuses'));
-    }
-
-    /**
-     * 创建区域页面
-     */
-    public function createCampus()
-    {
-        return view('locations.create-campus');
-    }
-
-    /**
-     * 保存区域
-     */
-    public function storeCampus(Request $request)
-    {
-        $request->validate([
-            'name' => 'required|string|max:255',
-            'description' => 'nullable|string|max:500',
-            'sort_order' => 'nullable|integer|min:0',
-            'status' => 'required|in:active,inactive',
-        ]);
-
-        Campus::create($request->all());
-
-        return redirect()->route('locations.campuses', $request->query())
-            ->with('success', '区域创建成功');
-    }
-
-    /**
-     * 区域详情页面
-     */
-    public function showCampus(Campus $campus)
-    {
-        $campus->load(['locations' => function ($query) {
-            $query->orderBy('sort_order')->orderBy('name');
-        }]);
-
-        return view('locations.show-campus', compact('campus'));
-    }
-
-    /**
-     * 编辑区域页面
-     */
-    public function editCampus(Campus $campus)
-    {
-        return view('locations.edit-campus', compact('campus'));
-    }
-
-    /**
-     * 更新区域
-     */
-    public function updateCampus(Request $request, Campus $campus)
-    {
-        $request->validate([
-            'name' => 'required|string|max:255',
-            'description' => 'nullable|string|max:500',
-            'sort_order' => 'nullable|integer|min:0',
-            'status' => 'required|in:active,inactive',
-        ]);
-
-        $campus->update($request->all());
-
-        return redirect()->route('locations.campuses', $request->query())
-            ->with('success', '区域更新成功');
-    }
-
-    /**
-     * 删除区域
-     */
-    public function destroyCampus(Request $request, Campus $campus)
-    {
-        // 检查是否可以删除
-        if (! $campus->canBeDeleted()) {
-            return redirect()->route('locations.campuses')
-                ->with('error', '该区域下还有地址，无法删除');
-        }
-
-        $campus->delete();
-
-        return redirect()->route('locations.campuses', $request->query())
-            ->with('success', '区域删除成功');
-    }
-
-    /**
-     * 切换区域状态
-     */
-    public function toggleCampusStatus(Request $request, Campus $campus)
-    {
-        $campus->update([
-            'status' => $campus->status === 'active' ? 'inactive' : 'active',
-        ]);
-
-        return redirect()->route('locations.campuses', $request->query())
-            ->with('success', '区域状态更新成功');
     }
 }

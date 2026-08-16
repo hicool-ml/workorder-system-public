@@ -214,7 +214,7 @@ class Workorder extends Model
     }
 
     /**
-     * 工单所在校区节点（沿 location_id 父链向上查找 level=6/campus 的祖先）。
+     * 工单所在「区域」节点（沿 location_id 父链向上查找日常层级第一级，旧称「校区」）。
      */
     public function getCampusNodeAttribute(): ?Location
     {
@@ -222,23 +222,23 @@ class Workorder extends Model
             return null;
         }
 
-        $campusLevelId = self::getLevelIdByCodeCached('campus');
-        if (! $campusLevelId) {
+        $regionLevelId = self::getRegionLevelIdCached();
+        if (! $regionLevelId) {
             return null;
         }
 
-        // 如果当前节点本身就是校区层级，直接返回
+        // 如果当前节点本身就是区域层级，直接返回
         $loc = $this->treeLocation;
         if (! $loc) {
             return null;
         }
-        if ($loc->level_id === $campusLevelId) {
+        if ($loc->level_id === $regionLevelId) {
             return $loc;
         }
 
         // 沿父链向上查找
         foreach ($loc->getAncestors() as $ancestor) {
-            if ($ancestor->level_id === $campusLevelId) {
+            if ($ancestor->level_id === $regionLevelId) {
                 return $ancestor;
             }
         }
@@ -247,19 +247,16 @@ class Workorder extends Model
     }
 
     /**
-     * 按层级 code 取 level_id（请求级静态缓存，避免列表页每行都查库）
+     * 日常层级第一级（区域）的 level_id（请求级静态缓存，避免列表页每行都查库）。
      */
-    private static ?array $levelIdCache = null;
-    private static function getLevelIdByCodeCached(string $code): ?int
+    private static ?int $regionLevelIdCache = null;
+    private static function getRegionLevelIdCached(): ?int
     {
-        if (self::$levelIdCache === null) {
-            self::$levelIdCache = LocationLevel::pluck('id', 'code')->all();
-        }
-        return self::$levelIdCache[$code] ?? null;
+        return self::$regionLevelIdCache ??= LocationLevel::dailyLevelAt(0)?->id;
     }
 
     /**
-     * 可读校区名：沿 location_id 父链找 level=6 节点，找不到则空字符串。
+     * 可读「区域」名：沿 location_id 父链找日常层级第一级节点，找不到则空字符串。
      * 前缀根之上的层级（省/市/区）通过 address_full 体现，不再混入这里。
      */
     public function getCampusNameAttribute(): string
@@ -846,7 +843,9 @@ class Workorder extends Model
                 'status' => 'resolved',
                 'solution' => $solution,
                 'resolved_at' => $now,
-                'processing_duration' => $this->created_at->diffInMinutes($now),
+                // processing_duration 是 integer 列，diffInMinutes 返回 float，
+                // 直接写入浮点数会触发 PG「无效的 integer 输入语法」，这里取整
+                'processing_duration' => (int) $this->created_at->diffInMinutes($now),
             ]);
 
         if ($affected === 0) {

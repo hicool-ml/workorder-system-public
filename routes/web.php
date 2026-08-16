@@ -190,20 +190,7 @@ Route::middleware(['auth'])->group(function () {
         // AJAX：获取地址子节点（级联选择用）
         Route::get('locations/{parentId}/children', [LocationController::class, 'children'])->name('locations.children');
 
-        Route::get('locations/campuses', [LocationController::class, 'campuses'])->name('locations.campuses');
-        Route::get('locations/create-campus', [LocationController::class, 'createCampus'])->name('locations.create-campus');
-        Route::post('locations/store-campus', [LocationController::class, 'storeCampus'])->name('locations.store-campus');
-        Route::get('locations/{campus}/show-campus', [LocationController::class, 'showCampus'])->name('locations.show-campus');
-        Route::get('locations/{campus}/edit-campus', [LocationController::class, 'editCampus'])->name('locations.edit-campus');
-        Route::put('locations/{campus}/update-campus', [LocationController::class, 'updateCampus'])->name('locations.update-campus');
-        Route::delete('locations/{campus}/destroy-campus', [LocationController::class, 'destroyCampus'])->name('locations.destroy-campus');
-        Route::patch('locations/{campus}/toggle-campus-status', [LocationController::class, 'toggleCampusStatus'])->name('locations.toggle-campus-status');
-        
-        // 区域重定向
-        Route::redirect('/campuses', '/locations/campuses', 301);
-        Route::redirect('/campuses/create', '/locations/create-campus', 301);
-        
-        // 地址资源路由 - must be after campus routes to avoid {location} catching them
+        // 地址资源路由
         Route::resource('locations', LocationController::class)->names([
             'index' => 'locations.index',
             'create' => 'locations.create',

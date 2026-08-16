@@ -75,6 +75,22 @@ class LocationLevel extends Model
     }
 
     /**
+     * 日常层级按 level 升序取第 N 级（0-based）。
+     *
+     * 用于替代历史代码里硬编码的 code='campus' / 'building'：
+     *   - 第 0 级 = 区域/园区（旧称「校区」）
+     *   - 第 1 级 = 楼栋/建筑
+     *   - 第 2 级 = 房间/工位
+     *
+     * 任何行业只要把日常层级按「最上层分区 → 最下层落点」排序，
+     * 即可无需改动业务代码地适配。
+     */
+    public static function dailyLevelAt(int $index): ?self
+    {
+        return self::dailyLevels()->values()->get($index);
+    }
+
+    /**
      * 是否基础地址层级
      */
     public function isBase(): bool

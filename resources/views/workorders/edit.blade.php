@@ -337,11 +337,12 @@
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z M12 17a4 4 0 1 0 0-8 4 4 0 0 0 0 8z"/></svg>
                                         <span>拍照</span>
                                     </button>
-                                    <button type="button" onclick="document.getElementById('new_attachments').click()" class="btn btn-secondary flex-1">
+                                    <button type="button" onclick="document.getElementById('attachmentFilePicker').click()" class="btn btn-secondary flex-1">
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4 M7 10l5 5 5-5 M12 15V3"/></svg>
                                         <span>选择文件</span>
                                     </button>
                                 </div>
+                                <input type="file" class="sr-only" id="attachmentFilePicker" multiple accept=".jpg,.jpeg,.png,.gif,.pdf,.doc,.docx,.txt">
                                 <input type="file" class="sr-only" id="new_attachments" name="new_attachments[]" multiple accept=".jpg,.jpeg,.png,.gif,.pdf,.doc,.docx,.txt" onchange="document.getElementById('attEditName').textContent=this.files.length?'已选择 '+this.files.length+' 个文件':'未选择文件'">
 
                               <div id="attEditName" class="text-xs mt-1" style="color: var(--c-ink-subtle);">未选择文件</div>
@@ -575,6 +576,27 @@ function initializeCampusBuilding() {
         buildingSelect.val(currentBuildingId);
     }
 }
+
+// 供拍照（_camera.blade.php）调用：拍照/原生相机把文件写入 new_attachments 后，
+// 必须触发一次 change，才能纳入下面的统一处理（压缩 + 预览 + updateFileInput），
+// 否则照片只进 input 却未进 processedFiles，提交时可能丢失。
+window.handleAttachmentSelect = function(input) {
+    $(input).trigger('change');
+};
+
+// 「选择文件」走临时 input，选完后把新文件追加进主 new_attachments input（而非浏览器默认的替换），
+// 这样与拍照的追加逻辑一致，选文件与拍照可以共存（多个附件同时上传）。
+$('#attachmentFilePicker').change(function() {
+    var mainInput = document.getElementById('new_attachments');
+    var dt = new DataTransfer();
+    if (mainInput.files) {
+        for (var j = 0; j < mainInput.files.length; j++) dt.items.add(mainInput.files[j]);
+    }
+    for (var k = 0; k < this.files.length; k++) dt.items.add(this.files[k]);
+    mainInput.files = dt.files;
+    this.value = ''; // 清空临时 input，允许下次再选同一文件
+    $(mainInput).trigger('change');
+});
 
 // 新附件预览
 $('#new_attachments').change(async function() {

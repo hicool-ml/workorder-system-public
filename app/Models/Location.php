@@ -17,10 +17,6 @@ class Location extends Model
         'code',
         'parent_id',
         'level_id',
-        // 以下为旧字段，保留兼容
-        'campus_id',
-        'building_type',
-        'building_code',
         'description',
         'sort_order',
         'status',
@@ -28,7 +24,6 @@ class Location extends Model
 
     protected $casts = [
         'sort_order' => 'integer',
-        'campus_id' => 'integer',
         'parent_id' => 'integer',
         'level_id' => 'integer',
     ];
@@ -55,12 +50,6 @@ class Location extends Model
     public function level(): BelongsTo
     {
         return $this->belongsTo(LocationLevel::class, 'level_id');
-    }
-
-    /** 旧关系兼容 */
-    public function campus()
-    {
-        return $this->belongsTo(Campus::class);
     }
 
     // ===== 祖先链 =====
@@ -257,24 +246,19 @@ class Location extends Model
     }
 
     /**
-     * 前缀根或所有项目根下指定 level code 的节点（用于工单表单的"区域下拉"）。
+     * 前缀根或所有项目根下指定层级（level_id）的节点（用于工单表单的"区域下拉"）。
      * - 有前缀根：只查该前缀根下的节点
      * - 无前缀根（多项目模式）：查所有项目根下的节点
      */
-    public static function getPrefixChildrenByLevelCode(string $levelCode): Collection
+    public static function getPrefixChildrenByLevelId(int $levelId): Collection
     {
-        $level = LocationLevel::where('code', $levelCode)->first();
-        if (! $level) {
-            return collect();
-        }
-
         $root = static::getPrefixRoot();
         if ($root) {
             // 有前缀根：只查该前缀根的子树
-            if ($root->level_id === $level->id) {
+            if ($root->level_id === $levelId) {
                 return collect([$root]);
             }
-            return static::where('level_id', $level->id)
+            return static::where('level_id', $levelId)
                 ->where('status', 'active')
                 ->where(function ($q) use ($root) {
                     $q->where('parent_id', $root->id)
@@ -291,7 +275,7 @@ class Location extends Model
             return collect();
         }
         $projectRootIds = $projectRoots->pluck('id')->all();
-        // campus/building/room 直接或间接挂在项目根下；
+        // 日常层级节点直接或间接挂在项目根下；
         // 先收集项目根的所有子孙 id，再筛选特定层级
         $allDescendantIds = [];
         foreach ($projectRootIds as $rid) {
@@ -299,7 +283,7 @@ class Location extends Model
         }
         // 该层级的节点：parent_id 在 [项目根 + 子孙] 中 AND level_id 匹配
         $allParentIds = array_merge($projectRootIds, $allDescendantIds);
-        return static::where('level_id', $level->id)
+        return static::where('level_id', $levelId)
             ->where('status', 'active')
             ->whereIn('parent_id', $allParentIds)
             ->orderBy('sort_order')
@@ -331,29 +315,34 @@ class Location extends Model
     }
 
     /**
-     * 工单表单两段式选择：返回 [校区Id => 校区名] 选项
-     * 数据源 = 前缀根下所有 level=6（campus）的节点
+     * 工单表单两段式选择：返回「区域」选项（日常层级第一级，旧称「校区」）。
+     * 数据源 = 前缀根下所有日常层级第一级的节点
      */
     public static function getCampusOptionsForWorkorder(): array
     {
-        return static::getPrefixChildrenByLevelCode('campus')
+        $regionLevelId = LocationLevel::dailyLevelAt(0)?->id;
+        if (! $regionLevelId) {
+            return [];
+        }
+
+        return static::getPrefixChildrenByLevelId($regionLevelId)
             ->pluck('name', 'id')
             ->toArray();
     }
 
     /**
-     * 工单表单两段式选择：返回某个校区下所有 level=7（building）节点
-     * 用于前端 JS 通过 campusId 联动 building 下拉
+     * 工单表单两段式选择：返回某个区域下所有「楼栋」（日常层级第二级）节点
+     * 用于前端 JS 通过 regionId 联动 building 下拉
      */
     public static function getBuildingsUnderCampus(int $campusLocationId): array
     {
-        $buildingLevel = LocationLevel::where('code', 'building')->first();
-        if (! $buildingLevel) {
+        $buildingLevelId = LocationLevel::dailyLevelAt(1)?->id;
+        if (! $buildingLevelId) {
             return [];
         }
 
         return static::where('parent_id', $campusLocationId)
-            ->where('level_id', $buildingLevel->id)
+            ->where('level_id', $buildingLevelId)
             ->where('status', 'active')
             ->orderBy('sort_order')
             ->orderBy('name')
@@ -363,19 +352,20 @@ class Location extends Model
     }
 
     /**
-     * 一次性返回所有校区 → 楼栋 的映射，供前端 JS 使用
-     * 返回格式：[campusId => ['name' => 校区名, 'buildings' => [['id'=>..,'name'=>..],...]]]
+     * 一次性返回所有 区域 → 楼栋 的映射，供前端 JS 使用
+     * 返回格式：[regionId => ['name' => 区域名, 'buildings' => [['id'=>..,'name'=>..],...]]]
      */
     public static function getCampusBuildingTree(): array
     {
-        $campuses = static::getPrefixChildrenByLevelCode('campus');
-        $buildingLevelId = LocationLevel::where('code', 'building')->value('id');
-        if (! $buildingLevelId) {
+        $regionLevelId = LocationLevel::dailyLevelAt(0)?->id;
+        $buildingLevelId = LocationLevel::dailyLevelAt(1)?->id;
+        if (! $regionLevelId || ! $buildingLevelId) {
             return [];
         }
 
-        $campusIds = $campuses->pluck('id')->all();
-        $buildings = static::whereIn('parent_id', $campusIds)
+        $regions = static::getPrefixChildrenByLevelId($regionLevelId);
+        $regionIds = $regions->pluck('id')->all();
+        $buildings = static::whereIn('parent_id', $regionIds)
             ->where('level_id', $buildingLevelId)
             ->where('status', 'active')
             ->orderBy('sort_order')
@@ -383,10 +373,10 @@ class Location extends Model
             ->get(['id', 'name', 'parent_id']);
 
         $result = [];
-        foreach ($campuses as $campus) {
-            $result[$campus->id] = [
-                'name' => $campus->name,
-                'buildings' => $buildings->where('parent_id', $campus->id)
+        foreach ($regions as $region) {
+            $result[$region->id] = [
+                'name' => $region->name,
+                'buildings' => $buildings->where('parent_id', $region->id)
                     ->map(fn ($b) => ['id' => $b->id, 'name' => $b->name])
                     ->values()
                     ->toArray(),

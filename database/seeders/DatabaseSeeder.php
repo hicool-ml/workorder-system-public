@@ -15,7 +15,6 @@ class DatabaseSeeder extends Seeder
            DepartmentSeeder::class,
            AdminUserSeeder::class,
             SystemSettingSeeder::class,
-            CampusSeeder::class,
             LocationLevelSeeder::class,
             LocationSeeder::class,
             WorkorderCategorySimplifiedSeeder::class,

@@ -40,11 +40,20 @@ class ReportController extends Controller
 
         $days = max($rangeStart->diffInDays($rangeEnd) + 1, 1);
         $recentStats = $this->getRecentStats($days, $rangeStart, $rangeEnd);
-        // 按名称解析「网络」「多媒体」根分类 id，避免硬编码 1/2
-        $networkRoot = WorkorderCategorySimplified::whereNull('parent_id')->where('name', '网络')->first();
-        $mediaRoot = WorkorderCategorySimplified::whereNull('parent_id')->where('name', '多媒体')->first();
-        $networkSubDistribution = $this->getSubCategoryDistribution($networkRoot?->id, $rangeStart, $rangeEnd);
-        $mediaSubDistribution = $this->getSubCategoryDistribution($mediaRoot?->id, $rangeStart, $rangeEnd);
+        // 报表首页「重点分类 Top10 子类分布」：动态遍历所有根分类，有数据才展示。
+        // 不再硬编码「网络 / 多媒体」这类具体业务分类名，任何行业的分类体系均可适配。
+        $featuredDistributions = [];
+        foreach (WorkorderCategorySimplified::whereNull('parent_id')->orderBy('sort_order')->orderBy('name')->get() as $rootCat) {
+            $sub = $this->getSubCategoryDistribution($rootCat->id, $rangeStart, $rangeEnd);
+            if (empty($sub)) {
+                continue;
+            }
+            $featuredDistributions[] = [
+                'id'   => $rootCat->id,
+                'name' => $rootCat->name,
+                'data' => collect($sub)->map(fn ($i) => ['name' => $i['name'], 'count' => (int) $i['count']])->values()->all(),
+            ];
+        }
         $sourceDistribution = $this->getSourceDistribution($rangeStart, $rangeEnd);
         $statusDistribution = $this->getStatusDistribution($rangeStart, $rangeEnd);
         $categoryDistribution = $this->getCategoryDistribution($rangeStart, $rangeEnd);
@@ -57,7 +66,7 @@ class ReportController extends Controller
         return view('reports.index', compact(
             'stats', 'recentStats', 'statusDistribution', 'categoryDistribution',
             'campusStats', 'engineerStats', 'processingTimeStats', 'satisfactionStats',
-            'sourceDistribution', 'networkSubDistribution', 'mediaSubDistribution', 'categoryTrend'
+            'sourceDistribution', 'featuredDistributions', 'categoryTrend'
         ));
     }
 
@@ -344,13 +353,13 @@ class ReportController extends Controller
 
     private function getCampusStats($rs = null, $re = null)
     {
-        // 工单已不再冗余 campus_id 列；通过 location_id 沿父链映射到 level=6（区域/园区）节点
-        $campusLevelId = DB::table('location_levels')->where('code', 'campus')->value('id');
+        // 工单已不再冗余 campus_id 列；通过 location_id 沿父链映射到「日常层级第一级（区域/园区）」节点
+        $campusLevelId = \App\Models\LocationLevel::dailyLevelAt(0)?->id;
         if (! $campusLevelId) {
             return [];
         }
 
-        // 拿到所有 level=6 节点，构造其 id => name 映射 + 子孙 id 列表
+        // 拿到所有区域节点，构造其 id => name 映射 + 子孙 id 列表
         $campusNodes = DB::table('locations')
             ->where('level_id', $campusLevelId)
             ->where('status', 'active')
