@@ -4,6 +4,7 @@ namespace App\Services\Sms;
 
 use App\Contracts\SmsDriver;
 use App\Models\SystemSetting;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -15,28 +16,7 @@ class SmsManager
     private ?SmsDriver $driver = null;
 
     /**
-     * 获取当前短信驱动
-     */
-    public function driver(): ?SmsDriver
-    {
-        if ($this->driver) {
-            return $this->driver;
-        }
-
-        // 从系统设置读取（与现有 SMS 设置页面兼容）
-        $enabled = SystemSetting::get('sms_enabled', false);
-        if (!$enabled) {
-            return null;
-        }
-
-        $provider = SystemSetting::get('sms_provider', '');
-        $config = $this->resolveConfig($provider);
-
-        return $this->driver = $this->makeDriver($provider, $config);
-    }
-
-    /**
-     * 发送短信
+     * 发送短信（带每日限额熔断：sms_daily_limit，按 app 时区当日计数）
      */
     public function send(string $phone, string $template, array $params = []): array
     {
@@ -46,8 +26,25 @@ class SmsManager
             return ['success' => false, 'message' => '短信服务未启用', 'raw' => null];
         }
 
+        // 每日限额：超限直接拒发（防事件风暴/配置失误导致的费用失控）
+        $limit = (int) SystemSetting::get('sms_daily_limit', 0);
+        if ($limit > 0) {
+            $key = 'sms_sent_count:' . now()->format('Ymd');
+            $sent = (int) Cache::get($key, 0);
+            if ($sent >= $limit) {
+                Log::warning("短信达到每日限额 {$limit}，本次拒发", ['template' => $template]);
+                return ['success' => false, 'message' => "已达到每日短信限额（{$limit}）", 'raw' => null];
+            }
+        }
+
         try {
             $result = $driver->send($phone, $template, $params);
+
+            // 成功才计数（失败不占限额）
+            if ($limit > 0 && ($result['success'] ?? false)) {
+                $key = 'sms_sent_count:' . now()->format('Ymd');
+                Cache::put($key, (int) Cache::get($key, 0) + 1, now()->endOfDay()->addMinute());
+            }
 
             Log::info('短信发送', [
                 'phone' => substr_replace($phone, '****', 3, 4),
@@ -79,6 +76,27 @@ class SmsManager
             }
         }
         return $results;
+    }
+
+    /**
+     * 获取当前短信驱动
+     */
+    public function driver(): ?SmsDriver
+    {
+        if ($this->driver) {
+            return $this->driver;
+        }
+
+        // 从系统设置读取（与现有 SMS 设置页面兼容）
+        $enabled = SystemSetting::get('sms_enabled', false);
+        if (!$enabled) {
+            return null;
+        }
+
+        $provider = SystemSetting::get('sms_provider', '');
+        $config = $this->resolveConfig($provider);
+
+        return $this->driver = $this->makeDriver($provider, $config);
     }
 
     /**

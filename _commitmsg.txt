@@ -1,0 +1,29 @@
+fix: 通知与认证通道审计修复（短信/企微/钉钉/飞书/CAS/OIDC 共 20 项）
+
+短信（4 个 blocker/high）：
+- 设置页补齐 4 个缺失字段：受理/调查模板代码、回调密钥、IP 白名单
+  （此前保存即清空 → 云厂商模板码永远配不上、回调永远 401）
+- 回调密钥空提交保留原值（不回显防泄露）
+- 报修人短信移出通道开关/接收者提前 return——独立开关真正独立
+- 每日限额 sms_daily_limit 落地执行（Cache 计数，超限拒发）
+- Custom 驱动：非 JSON 响应判失败、code 宽松转型；阿里云 http_errors=false
+  透出真实错误码（isv.* 可见）
+- 内部短信云厂商模式无真实模板码时降级跳过（不再发占位码必失败）
+- 队列 Job 重载模型（快照缺 sent_at 标记会导致重复发短信）
+
+企微/钉钉/飞书：
+- 飞书 @ 重写为官方内联 at 标签（旧 at 对象字段官方不存在，@ 全部静默失效）
+- 飞书 app 模式所有事件传接收人（旧逻辑非 created 事件空接收人必失败）
+- 飞书 receive_id_type 按 ou_ 前缀自动切 open_id
+- 企微/钉钉 app 模式无 userid 拒发并告警（旧逻辑 @all 全员广播工单隐私）
+- 钉钉 userid_list 分隔符改为逗号（官方规范，多接收人必失败）
+- 钉钉 token 失效重试匹配放宽（空格格式 errmsg）
+- 三通道 Secret 改 password 输入 + 留空不覆盖（防页面源码泄露）
+
+CAS/OIDC（2 个 blocker）：
+- account_type 枚举补 cas/oidc/wechat（旧枚举首登写库必败/500）
+- users.email 可空 + SSO 建号邮箱缺失/撞库时生成占位（旧 NOT NULL+unique 首登必败）
+- OIDC 设置页补 JWKS URI 字段（强制验签后无入口配置 = 登录必失败）
+- token 端点兼容 client_secret_basic（HTTP Basic 认证，严格 IdP 不再 invalid_client）
+- 验签支持 ES256（EC P-256 JWK 转 PEM + raw r||s 转 DER）
+- 单点登出带 id_token_hint + client_id（Keycloak/IDaaS 要求）

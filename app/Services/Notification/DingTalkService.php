@@ -168,7 +168,7 @@ class DingTalkService
      * 接口：/topapi/message/corpconversation/asyncsend_v2
      *
      * @param string $content    消息内容
-     * @param array  $atUserIds  钉钉 userid 列表；为空则发送给全员（touser = @all）
+     * @param array  $atUserIds  钉钉 userid 列表
      */
     private function sendAppWorkNotice(string $content, array $atUserIds = []): array
     {
@@ -177,30 +177,33 @@ class DingTalkService
             return ['success' => false, 'message' => '未配置钉钉应用 AgentId'];
         }
 
+        // 安全：无接收人 userid 时拒绝发送而不是全员广播（工单内容含隐私）
+        if (empty($atUserIds)) {
+            Log::warning('钉钉工作通知发送跳过：接收用户未配置 dingtalk_userid');
+            return ['success' => false, 'message' => '接收用户未配置钉钉 userid，已跳过发送（不向全员广播）'];
+        }
+
         $token = $this->getAccessToken();
         if (!$token) {
             return ['success' => false, 'message' => '无法获取钉钉 access_token，请检查 AppKey / AppSecret'];
         }
 
-        $toUser = !empty($atUserIds) ? implode('|', $atUserIds) : '@all';
-
+        // 官方规范：userid_list 为逗号分隔（企微用 |，此处是历史笔误）
         $payload = [
             'agent_id'    => (int) $agentId,
-            'to_all_user' => empty($atUserIds),
+            'to_all_user' => false,
+            'userid_list' => implode(',', $atUserIds),
             'msg'         => [
                 'msgtype' => 'text',
                 'text'    => ['content' => $content],
             ],
         ];
-        if (!empty($atUserIds)) {
-            $payload['userid_list'] = $toUser;
-        }
 
         $url = 'https://oapi.dingtalk.com/topapi/message/corpconversation/asyncsend_v2?access_token=' . $token;
         $result = $this->send($url, $payload);
 
-        // token 过期时清缓存重试一次
-        if (!$result['success'] && str_contains($result['message'] ?? '', 'access_token')) {
+        // token 过期时清缓存重试一次（钉钉 token 失效提示是 "access token is not exist" 带空格，兼容下划线格式）
+        if (!$result['success'] && str_contains(strtolower($result['message'] ?? ''), 'access')) {
             Cache::forget('dingtalk_app_access_token');
             $token = $this->getAccessToken();
             if ($token) {

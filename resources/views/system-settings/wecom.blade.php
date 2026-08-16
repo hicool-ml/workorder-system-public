@@ -83,7 +83,7 @@
                 </div>
                 <div>
                     <label class="label">应用 Secret</label>
-                    <input type="text" class="input" name="wecom_app_secret" id="wecom_app_secret" value="{{ $wecomSettings['app_secret'] }}" placeholder="自建应用的Secret">
+                    <input type="password" class="input" name="wecom_app_secret" id="wecom_app_secret" value="" placeholder="{{ $wecomSettings['app_secret'] ? '已设置，留空则不修改' : '自建应用的Secret' }}" autocomplete="new-password">
                     <p class="text-xs mt-1" style="color: var(--c-ink-subtle);">在应用详情页查看。</p>
                 </div>
                 <div>

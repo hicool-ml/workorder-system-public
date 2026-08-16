@@ -54,16 +54,21 @@ class CustomSmsDriver implements SmsDriver
             $body = $response->getBody()->getContents();
             $json = json_decode($body, true);
 
-            // 成功判断：HTTP 200 且响应体包含 success/code=0
-            $success = $response->getStatusCode() === 200;
-            if ($json) {
-                $success = $success && (($json['success'] ?? false) || ($json['code'] ?? 1) === 0);
+            // 成功判断：HTTP 200 且响应为 JSON 且 success=true 或 code=0（宽松转型，兼容 "0" 字符串）。
+            // 非 JSON 响应（网关错误页/HTML）一律判失败，避免厂商错误被静默当成功。
+            if ($response->getStatusCode() !== 200 || !is_array($json)) {
+                return [
+                    'success' => false,
+                    'message' => is_array($json) ? ($json['message'] ?? '发送失败') : '响应非 JSON：' . mb_substr($body, 0, 200),
+                    'raw' => $json ?? $body,
+                ];
             }
+            $success = (($json['success'] ?? null) === true) || ((int) ($json['code'] ?? -1) === 0);
 
             return [
                 'success' => $success,
                 'message' => $success ? '发送成功' : ($json['message'] ?? '发送失败'),
-                'raw' => $json ?? $body,
+                'raw' => $json,
             ];
         } catch (\Exception $e) {
             return ['success' => false, 'message' => $e->getMessage(), 'raw' => null];

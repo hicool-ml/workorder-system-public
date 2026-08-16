@@ -89,7 +89,7 @@
                 </div>
                 <div>
                     <label class="label">App Secret</label>
-                    <input type="text" class="input" name="feishu_app_secret" id="app_secret" value="{{ $feishuSettings['app_secret'] }}" placeholder="应用的 App Secret">
+                    <input type="password" class="input" name="feishu_app_secret" id="app_secret" value="" placeholder="{{ $feishuSettings['app_secret'] ? '已设置，留空则不修改' : '应用的 App Secret' }}" autocomplete="new-password">
                 </div>
             </div>
         </div>

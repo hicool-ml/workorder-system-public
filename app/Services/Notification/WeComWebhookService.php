@@ -173,7 +173,7 @@ class WeComWebhookService
      * 通过自建应用发送文本消息
      *
      * @param string $content       消息内容
-     * @param array  $mentionedList 企业微信用户ID列表，为空则发送给 @all
+     * @param array  $mentionedList 企业微信用户ID列表
      */
     private function sendAppText(string $content, array $mentionedList = []): array
     {
@@ -183,13 +183,19 @@ class WeComWebhookService
             return ['success' => false, 'message' => '未配置企业微信应用 AgentID'];
         }
 
+        // 安全：无接收人 userid 时拒绝发送而不是 @all——
+        // 工单内容含地点/联系方式/故障描述，全员广播 = 隐私泄露
+        if (empty($mentionedList)) {
+            Log::warning('企微自建应用发送跳过：接收用户未配置 wecom_userid');
+            return ['success' => false, 'message' => '接收用户未配置企业微信 UserID，已跳过发送（不向全员广播）'];
+        }
+
         $token = $this->getAccessToken();
         if (!$token) {
             return ['success' => false, 'message' => '无法获取企业微信 access_token，请检查 CorpID 和 Secret'];
         }
 
-        // 有指定用户ID时发给指定用户，否则 @all
-        $touser = !empty($mentionedList) ? implode('|', $mentionedList) : '@all';
+        $touser = implode('|', $mentionedList);
 
         $payload = [
             'touser'  => $touser,

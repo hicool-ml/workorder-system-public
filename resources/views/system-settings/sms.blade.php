@@ -119,6 +119,20 @@
         <h4 class="text-sm font-semibold text-ink mt-5 mb-2">短信模板</h4>
         <p class="text-xs mb-3" style="color: var(--c-ink-muted);">支持占位符：<code class="px-1 py-0.5 rounded bg-slate-200/70 text-slate-700 dark:bg-slate-700/60 dark:text-slate-100">{系统名称}</code> <code class="px-1 py-0.5 rounded bg-slate-200/70 text-slate-700 dark:bg-slate-700/60 dark:text-slate-100">{工程师电话}</code> <code class="px-1 py-0.5 rounded bg-slate-200/70 text-slate-700 dark:bg-slate-700/60 dark:text-slate-100">{预约时间}</code> <code class="px-1 py-0.5 rounded bg-slate-200/70 text-slate-700 dark:bg-slate-700/60 dark:text-slate-100">{工单编号}</code>，发送时自动替换。</p>
 
+        {{-- 云厂商模板代码：阿里云/腾讯云必须配置，否则报修人短信无法发送 --}}
+        <div id="tpl-code-fields" class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-3">
+            <div>
+                <label class="label">受理通知模板代码 <span class="text-red-500">*</span></label>
+                <input type="text" class="input" name="sms_creator_acceptance_code" value="{{ $smsSettings['acceptance_code'] ?? '' }}" placeholder="阿里云 SMS_xxx… / 腾讯云数字ID">
+                <p class="text-xs mt-1" style="color: var(--c-ink-subtle);">服务商控制台报备通过的模板 CODE/ID</p>
+            </div>
+            <div>
+                <label class="label">满意度调查模板代码 <span class="text-red-500">*</span></label>
+                <input type="text" class="input" name="sms_creator_survey_code" value="{{ $smsSettings['survey_code'] ?? '' }}" placeholder="阿里云 SMS_xxx… / 腾讯云数字ID">
+                <p class="text-xs mt-1" style="color: var(--c-ink-subtle);">不开启满意度调查可留空</p>
+            </div>
+        </div>
+
         <div class="space-y-3">
             <div>
                 <label class="label">受理通知（有预约时间）</label>
@@ -143,10 +157,28 @@
             <li><b>阿里云 / 腾讯云</b>：以上文案仅作参考。云服务商要求模板必须在 <b>服务商控制台预先报备审核</b>，实际发送用的是控制台里报备通过的模板。修改文案的步骤：</li>
             <li class="pl-4">1. 登录短信服务商控制台（阿里云：短信服务 → 国内消息 → 模板管理；腾讯云：短信 → 国内短信 → 正文模板）。</li>
             <li class="pl-4">2. 新建或修改模板，内容使用对应占位符（阿里云 <code class="px-1 py-0.5 rounded bg-slate-200/70 text-slate-700 dark:bg-slate-700/60 dark:text-slate-100">${name}</code>、腾讯云 <code class="px-1 py-0.5 rounded bg-slate-200/70 text-slate-700 dark:bg-slate-700/60 dark:text-slate-100">{1}</code>），提交审核（通常 2 小时内）。</li>
-            <li class="pl-4">3. 审核通过后记下 <b>模板 CODE / ID</b>，此处文案保持一致，便于核对。</li>
+            <li class="pl-4">3. 审核通过后记下 <b>模板 CODE / ID</b>，填入上方「模板代码」输入框（阿里云模板变量需恰好声明 <code class="px-1 py-0.5 rounded bg-slate-200/70 text-slate-700 dark:bg-slate-700/60 dark:text-slate-100">${workorder_number}</code> 和 <code class="px-1 py-0.5 rounded bg-slate-200/70 text-slate-700 dark:bg-slate-700/60 dark:text-slate-100">${content}</code>；腾讯云按顺序 {1}=工单编号、{2}=正文）。</li>
             <li class="pl-4">4. 模板审核期间，短信可能发送失败；建议先用「自定义接口」或「测试短信」验证流程。</li>
             <li class="pt-2"><b>满意度回复回调</b>：开启满意度调查后，报修人回复短信需回写系统。请在服务商后台配置上行回调地址为 <code class="px-1 py-0.5 rounded bg-slate-200/70 text-slate-700 dark:bg-slate-700/60 dark:text-slate-100">{{ rtrim(config('app.url'), '/') }}/sms/reply</code>。系统自动适配各服务商字段（阿里云 <code class="px-1 py-0.5 rounded bg-slate-200/70 text-slate-700 dark:bg-slate-700/60 dark:text-slate-100">phone_number/content</code>、腾讯云 <code class="px-1 py-0.5 rounded bg-slate-200/70 text-slate-700 dark:bg-slate-700/60 dark:text-slate-100">PhoneNumber/ReplyContent</code>），自定义接口默认取 <code class="px-1 py-0.5 rounded bg-slate-200/70 text-slate-700 dark:bg-slate-700/60 dark:text-slate-100">phone/content</code>。</li>
         </ul>
+    </div>
+
+    {{-- 回调鉴权配置 --}}
+    <div class="card p-5 mb-4">
+        <h3 class="font-semibold text-ink mb-1">回复回调鉴权</h3>
+        <p class="text-xs mb-4" style="color: var(--c-ink-muted);">满意度回复回调（/sms/reply）的鉴权方式。生产环境至少配置其一，否则回调返回 401。</p>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+                <label class="label">回调密钥（推荐）</label>
+                <input type="password" class="input" name="sms_reply_secret" value="{{ $smsSettings['reply_secret'] ?? '' }}" placeholder="留空 = 不修改" autocomplete="new-password">
+                <p class="text-xs mt-1" style="color: var(--c-ink-subtle);">支持 token 直传 / md5 签名 / HMAC-SHA256+时间戳（推荐，服务商侧按 hmac=HMAC(phone|content|timestamp, secret) 计算）</p>
+            </div>
+            <div>
+                <label class="label">回调 IP 白名单（可选，逗号分隔 CIDR）</label>
+                <input type="text" class="input" name="sms_reply_ip_whitelist" value="{{ $smsSettings['reply_ip_whitelist'] ?? '' }}" placeholder="如 47.102.x.x, 8.209.x.x/24">
+                <p class="text-xs mt-1" style="color: var(--c-ink-subtle);">仅配合 TRUSTED_PROXIES 生效；建议优先使用密钥</p>
+            </div>
+        </div>
     </div>
 
     <div class="flex justify-end">

@@ -93,6 +93,11 @@
                 <input type="text" class="input" name="oidc_end_session_endpoint" value="{{ $oidcSettings['end_session_endpoint'] }}" placeholder="https://iam.example.com/oauth2/logout">
                 <p class="text-xs mt-1" style="color: var(--c-ink-subtle);">用于单点登出，留空则仅登出本系统</p>
             </div>
+            <div class="sm:col-span-2">
+                <label class="label">JWKS URI <span class="text-red-500">*</span></label>
+                <input type="text" class="input" name="oidc_jwks_uri" value="{{ $oidcSettings['jwks_uri'] ?? '' }}" placeholder="https://iam.example.com/.well-known/jwks.json">
+                <p class="text-xs mt-1" style="color: var(--c-ink-subtle);">id_token 验签公钥地址（<b>必填，登录强制验签</b>）。填写 Issuer 后可自动发现，无需手填；仅当平台不支持 Discovery 时才需手动填写</p>
+            </div>
         </div>
     </div>
 

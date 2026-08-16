@@ -97,6 +97,7 @@ class AuthSettingController extends Controller
             'token_endpoint'      => SystemSetting::get('oidc_token_endpoint', ''),
             'userinfo_endpoint'   => SystemSetting::get('oidc_userinfo_endpoint', ''),
             'end_session_endpoint' => SystemSetting::get('oidc_end_session_endpoint', ''),
+            'jwks_uri'            => SystemSetting::get('oidc_jwks_uri', ''),
         ];
 
         return view('system-settings.oidc', compact('oidcSettings'));
@@ -120,6 +121,7 @@ class AuthSettingController extends Controller
             'oidc_token_endpoint'       => 'nullable|string|max:500',
             'oidc_userinfo_endpoint'    => 'nullable|string|max:500',
             'oidc_end_session_endpoint' => 'nullable|string|max:500',
+            'oidc_jwks_uri'             => 'nullable|string|max:500',
         ]);
 
         $fields = [
@@ -131,6 +133,7 @@ class AuthSettingController extends Controller
             'oidc_token_endpoint'      => $request->input('oidc_token_endpoint'),
             'oidc_userinfo_endpoint'   => $request->input('oidc_userinfo_endpoint'),
             'oidc_end_session_endpoint' => $request->input('oidc_end_session_endpoint'),
+            'oidc_jwks_uri'            => $request->input('oidc_jwks_uri'),
         ];
 
         foreach ($fields as $key => $value) {

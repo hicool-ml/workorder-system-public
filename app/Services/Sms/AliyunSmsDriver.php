@@ -50,7 +50,9 @@ class AliyunSmsDriver implements SmsDriver
             // 计算签名
             $apiParams['Signature'] = $this->computeSignature($apiParams, $accessKeySecret);
 
-            $httpClient = new \GuzzleHttp\Client(['timeout' => 10]);
+            // http_errors=false：阿里云 API 级错误（模板非法/签名错误/限流）返回 HTTP 400 + JSON Code/Message，
+            // 默认 Guzzle 抛异常会吞掉真实原因只剩 "400 Bad Request"，排障极难
+            $httpClient = new \GuzzleHttp\Client(['timeout' => 10, 'http_errors' => false]);
             $response = $httpClient->post('https://dysmsapi.aliyuncs.com/', [
                 'query' => $apiParams,
             ]);
@@ -61,7 +63,9 @@ class AliyunSmsDriver implements SmsDriver
                 return ['success' => true, 'message' => '发送成功', 'raw' => $body];
             }
 
-            return ['success' => false, 'message' => $body['Message'] ?? '发送失败', 'raw' => $body];
+            // 透出阿里云错误码（isv.SMS_TEMPLATE_ILLEGAL 等）便于定位
+            $errCode = $body['Code'] ?? 'HTTP_' . $response->getStatusCode();
+            return ['success' => false, 'message' => ($body['Message'] ?? '发送失败') . "（{$errCode}）", 'raw' => $body];
         } catch (\Exception $e) {
             return ['success' => false, 'message' => $e->getMessage(), 'raw' => null];
         }

@@ -84,7 +84,10 @@ class ChannelSettingController extends Controller
             return back()->withInput()->with('error', '启用前请先填写企业ID（CorpID）');
         }
         SystemSetting::set('wecom_app_corpid', $corpid, 'string', '企业微信企业ID', false);
-        SystemSetting::set('wecom_app_secret', trim($request->input('wecom_app_secret', '')), 'string', '企业微信自建应用Secret', false);
+        // Secret 密文不回显：留空 = 保留原值
+        if ($request->filled('wecom_app_secret')) {
+            SystemSetting::set('wecom_app_secret', trim($request->input('wecom_app_secret')), 'string', '企业微信自建应用Secret', false);
+        }
         SystemSetting::set('wecom_app_agentid', trim($request->input('wecom_app_agentid', '')), 'string', '企业微信自建应用AgentID', false);
         SystemSetting::set('wecom_app_enabled', $appEnabled, 'boolean', '是否启用企业微信自建应用通知', false);
         Cache::forget('wecom_app_access_token');
@@ -193,7 +196,10 @@ class ChannelSettingController extends Controller
             return back()->withInput()->with('error', '启用前请先填写钉钉 AppKey');
         }
         SystemSetting::set('dingtalk_app_key', $appKey, 'string', '钉钉应用 AppKey', false);
-        SystemSetting::set('dingtalk_app_secret', trim($request->input('dingtalk_app_secret', '')), 'string', '钉钉应用 AppSecret', false);
+        // Secret 密文不回显：留空 = 保留原值
+        if ($request->filled('dingtalk_app_secret')) {
+            SystemSetting::set('dingtalk_app_secret', trim($request->input('dingtalk_app_secret')), 'string', '钉钉应用 AppSecret', false);
+        }
         SystemSetting::set('dingtalk_app_agentid', trim($request->input('dingtalk_app_agentid', '')), 'string', '钉钉应用 AgentId', false);
         SystemSetting::set('dingtalk_app_enabled', $appEnabled, 'boolean', '是否启用钉钉工作通知', false);
         Cache::forget('dingtalk_app_access_token');
@@ -291,7 +297,10 @@ class ChannelSettingController extends Controller
             return back()->withInput()->with('error', '启用前请先填写飞书 App ID');
         }
         SystemSetting::set('feishu_app_id', $appId, 'string', '飞书自建应用 App ID', false);
-        SystemSetting::set('feishu_app_secret', trim($request->input('feishu_app_secret', '')), 'string', '飞书自建应用 App Secret', false);
+        // Secret 密文不回显：留空 = 保留原值
+        if ($request->filled('feishu_app_secret')) {
+            SystemSetting::set('feishu_app_secret', trim($request->input('feishu_app_secret')), 'string', '飞书自建应用 App Secret', false);
+        }
         SystemSetting::set('feishu_app_enabled', $appEnabled, 'boolean', '是否启用飞书自建应用通知', false);
         Cache::forget('feishu_tenant_access_token');
         return back()->with('success', '飞书配置已保存' . ($appEnabled ? '（已启用）' : '（未启用）'));

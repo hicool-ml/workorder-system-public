@@ -78,16 +78,21 @@ class FeishuService
             return ['success' => false, 'message' => '未配置飞书 Webhook 地址'];
         }
 
-        $at = ['is_at_all' => $isAtAll];
-        if (!empty($userIds)) {
-            // 字段名兼容：open_id 优先；飞书群机器人 text 类型可用 at.open_ids
-            $at['open_ids'] = array_values($userIds);
+        // 飞书 text 消息的 @ 必须内联在 content.text 中：
+        //   <at user_id="ou_xxx"></at> @指定人（open_id）
+        //   <at user_id="all"></at> @所有人
+        // 官方 webhook 请求体不存在 at 对象字段（旧实现发送无效 at 字段导致 @ 全部静默失效）
+        $atPrefix = '';
+        if ($isAtAll) {
+            $atPrefix .= '<at user_id="all"></at> ';
+        }
+        foreach ($userIds as $uid) {
+            $atPrefix .= '<at user_id="' . $uid . '"></at> ';
         }
 
         $payload = array_merge($this->webhookSignEnvelope(), [
             'msg_type' => 'text',
-            'content'  => ['text' => $content],
-            'at'       => $at,
+            'content'  => ['text' => $atPrefix . $content],
         ]);
 
         return $this->send($url, $payload);
@@ -161,7 +166,8 @@ class FeishuService
     {
         if (empty($userIds)) {
             // 应用消息无「@all」语义，必须指定接收人；为空则提示配置
-            return ['success' => false, 'message' => '自建应用模式下需指定接收用户（请填写用户的飞书 user_id）'];
+            Log::warning('飞书自建应用发送跳过：未配置接收用户的 feishu_user_id');
+            return ['success' => false, 'message' => '自建应用模式下需指定接收用户（请填写用户的飞书 user_id/open_id）'];
         }
 
         $token = $this->getTenantAccessToken();
@@ -177,7 +183,9 @@ class FeishuService
                 'content'    => json_encode(['text' => $content]),
             ];
 
-            $url = 'https://open.feishu.cn/open-apis/im/v1/messages?receive_id_type=user_id';
+            // open_id（ou_ 前缀）与 user_id 走不同的 receive_id_type，自动识别
+            $receiveType = str_starts_with($uid, 'ou_') ? 'open_id' : 'user_id';
+            $url = "https://open.feishu.cn/open-apis/im/v1/messages?receive_id_type={$receiveType}";
             $resp = $this->sendWithBearer($url, $payload, $token);
             if (!$resp['success']) {
                 $overall = $resp;

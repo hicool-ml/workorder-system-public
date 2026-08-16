@@ -42,6 +42,15 @@ class SmsSettingController extends Controller
                 "【{系统名称}】您的报修已受理，请保持电话畅通，便于工程师\"{工程师电话}\"能联系到您并为您服务。"),
             'tpl_survey' => SystemSetting::get('sms_creator_survey_tpl',
                 "【{系统名称}】您的报修服务已完成，请对本次服务进行评价：满意回复 1，不满意回复 0。"),
+
+            // 云厂商模板代码（阿里云/腾讯云必填，报修人短信发送用）
+            'acceptance_code' => SystemSetting::get('sms_creator_acceptance_code', ''),
+            'survey_code' => SystemSetting::get('sms_creator_survey_code', ''),
+
+            // 回调鉴权（回显空 = 未配置；密钥不留空回填，避免页面源码泄露）
+            'reply_secret' => '',
+            'reply_secret_set' => SystemSetting::get('sms_reply_secret', '') !== '',
+            'reply_ip_whitelist' => SystemSetting::get('sms_reply_ip_whitelist', ''),
         ];
 
         return view('system-settings.sms', compact('smsSettings'));
@@ -101,8 +110,10 @@ class SmsSettingController extends Controller
         // 短信总开关
         SystemSetting::set('sms_enabled', $request->boolean('sms_enabled') ? '1' : '0', 'boolean', '短信通知总开关', false);
 
-        // 短信回调鉴权（生产环境必须配置，否则回复回调返回 401）
-        SystemSetting::set('sms_reply_secret', $request->input('sms_reply_secret', ''), 'string', '短信回复回调密钥（token 或 sign secret）', false);
+        // 短信回调鉴权：密钥空提交 = 保留原值（页面不回显，避免源码泄露）；白名单空提交 = 清空（非敏感）
+        if ($request->filled('sms_reply_secret')) {
+            SystemSetting::set('sms_reply_secret', $request->input('sms_reply_secret'), 'string', '短信回复回调密钥（token 或 sign secret）', false);
+        }
         SystemSetting::set('sms_reply_ip_whitelist', $request->input('sms_reply_ip_whitelist', ''), 'string', '短信回复回调 IP 白名单（逗号分隔）', false);
 
         // 报修人短信模板代码（阿里云/腾讯云的模板 CODE）

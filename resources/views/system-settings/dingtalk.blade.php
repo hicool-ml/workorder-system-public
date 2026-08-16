@@ -89,7 +89,7 @@
                 </div>
                 <div>
                     <label class="label">AppSecret</label>
-                    <input type="text" class="input" name="dingtalk_app_secret" id="app_secret" value="{{ $dingtalkSettings['app_secret'] }}" placeholder="应用的 AppSecret">
+                    <input type="password" class="input" name="dingtalk_app_secret" id="app_secret" value="" placeholder="{{ $dingtalkSettings['app_secret'] ? '已设置，留空则不修改' : '应用的 AppSecret' }}" autocomplete="new-password">
                 </div>
                 <div class="sm:col-span-2">
                     <label class="label">AgentId</label>

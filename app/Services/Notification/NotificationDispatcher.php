@@ -145,6 +145,16 @@ class NotificationDispatcher
      */
     public function dispatch(Workorder $workorder, string $event, array $extra = []): void
     {
+        // 报修人短信：独立于内部通知通道开关与接收者解析——
+        // 由独立开关（creator_sms_enabled / creator_survey_enabled）+ sent_at 标记控制，
+        // 即使所有内部通道关闭或内部接收者为空，报修人短信照常发送。
+        if (($event === 'assigned') || ($event === 'created' && $workorder->assignee_id)) {
+            $this->sendCreatorAcceptanceSms($workorder);
+        }
+        if ($event === 'completed') {
+            $this->sendCreatorSurveySms($workorder);
+        }
+
         $rules = self::getRules();
         $inAppEnabled = ($rules[$event]['in_app'] ?? false) === true;
         $smsEnabled = ($rules[$event]['sms'] ?? false) === true;
@@ -194,17 +204,6 @@ class NotificationDispatcher
         // 飞书通知
         if ($feishuEnabled) {
             $this->sendFeishu($workorder, $event, $recipients);
-        }
-
-        // 报修人短信：内容独立于内部广播通道，整单生命周期只发两条，
-        // 由 sent_at 标记保证不重复：
-        // 1. 受理通知——"已受理"时（创建即分配或后续接单），用 sms_acceptance_sent_at 防重
-        // 2. 满意度调查——完结（completed）时，用 sms_survey_sent_at 防重
-        if (($event === 'assigned') || ($event === 'created' && $workorder->assignee_id)) {
-            $this->sendCreatorAcceptanceSms($workorder);
-        }
-        if ($event === 'completed') {
-            $this->sendCreatorSurveySms($workorder);
         }
     }
 
@@ -332,10 +331,20 @@ class NotificationDispatcher
             return;
         }
 
-        // 模板代码优先从系统设置 sms_template_codes（JSON）读取，fallback 到 config，再 fallback 到占位
+        // 模板代码优先从系统设置 sms_template_codes（JSON）读取，fallback 到 config。
+        // 云厂商模式（aliyun/tencent）下无真实模板码则降级不发——占位码发给厂商必失败，
+        // 白花 API 调用还刷日志；自定义接口无模板概念不受影响。
         $tplCodesRaw = SystemSetting::get('sms_template_codes', '{}');
         $tplCodes = is_string($tplCodesRaw) ? json_decode($tplCodesRaw, true) : (array) $tplCodesRaw;
-        $template = $tplCodes[$event] ?? config("services.sms.templates.{$event}", 'SMS_' . strtoupper($event));
+        $template = $tplCodes[$event] ?? config("services.sms.templates.{$event}");
+        if ($template === null) {
+            $provider = SystemSetting::get('sms_provider', 'custom');
+            if (in_array($provider, ['aliyun', 'tencent'], true)) {
+                Log::warning("内部短信跳过：{$provider} 未配置事件 {$event} 的模板代码（sms_template_codes）");
+                return;
+            }
+            $template = 'SMS_' . strtoupper($event);
+        }
         $params = [
             'workorder_number' => $workorder->ticket_no,
             'content'          => $this->buildSmsContent($workorder, $event),
@@ -615,25 +624,21 @@ class NotificationDispatcher
 
         $content = $this->buildBroadcastContent($workorder, $event);
 
+        // app 模式必须有接收人（无接收人会失败），webhook 模式 @ 由 sendText 内部处理
+        $userIds = [];
+        foreach ($recipients as $user) {
+            if (!empty($user->feishu_user_id)) {
+                $userIds[] = $user->feishu_user_id;
+            }
+        }
+
         if ($event === 'created') {
             // 群机器人 @all；自建应用模式需指定接收人，用收集到的飞书 user_id 发送
-            $userIds = [];
-            foreach ($recipients as $user) {
-                if (!empty($user->feishu_user_id)) {
-                    $userIds[] = $user->feishu_user_id;
-                }
-            }
-            // isAtAll=true 仅对 webhook 模式生效；app 模式必须传 user_id
             $result = $feishu->sendText($content, $userIds, [], true);
         } else {
-            $userIds = [];
-            foreach ($recipients as $user) {
-                if (!empty($user->feishu_user_id)) {
-                    $userIds[] = $user->feishu_user_id;
-                }
-            }
+            // assigned/overdue @ 工程师（webhook 内联 at 标签）；app 模式始终传接收人
             $shouldMention = in_array($event, ['assigned', 'overdue']) && !empty($userIds);
-            $result = $feishu->sendText($content, $shouldMention ? $userIds : []);
+            $result = $feishu->sendText($content, $shouldMention ? $userIds : $userIds);
         }
 
         Log::info('工单飞书通知', [

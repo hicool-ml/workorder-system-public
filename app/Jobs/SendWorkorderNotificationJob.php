@@ -33,15 +33,20 @@ class SendWorkorderNotificationJob implements ShouldQueue
 
     public function handle(): void
     {
-        // SerializesModels 反序列化后工单可能已被删除
-        if (! $this->workorder?->exists) {
+        // SerializesModels 反序列化后工单可能已被删除；同时重新从 DB 加载——
+        // 入队时的快照可能缺失 sms_acceptance_sent_at 等防重标记，用快照会导致重复发送
+        $workorder = $this->workorder?->id
+            ? \App\Models\Workorder::find($this->workorder->id)
+            : null;
+
+        if (!$workorder) {
             Log::info('通知任务跳过：工单已不存在', [
                 'event' => $this->event,
             ]);
             return;
         }
 
-        app(NotificationDispatcher::class)->dispatch($this->workorder, $this->event);
+        app(NotificationDispatcher::class)->dispatch($workorder, $this->event);
     }
 
     public function failed(\Throwable $e): void

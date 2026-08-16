@@ -285,14 +285,22 @@ class CasAuthController extends Controller
             return $user->fresh();
         }
 
-        // 创建新用户（默认为报修人）
+        // 创建新用户（默认为报修人）；email 可空且需唯一——缺失或撞库时生成占位邮箱
+        $safeEmail = $email;
+        if ($safeEmail && User::where('email', $safeEmail)->exists()) {
+            Log::warning('CAS 用户邮箱与本地账号冲突，使用占位邮箱', ['email' => $safeEmail]);
+            $safeEmail = null;
+        }
+        if (!$safeEmail) {
+            $safeEmail = 'cas_' . str()->random(16) . '@migrated.local';
+        }
         try {
             return User::create([
                 'name'         => $name ?: $casUsername,
                 'username'     => 'cas_' . $casUsername,
                 'employee_id'  => $casUsername,
                 'phone'        => $phone,
-                'email'        => $email,
+                'email'        => $safeEmail,
                 'password'     => bcrypt(str()->random(32)),
                 'role'         => 'user',
                 'status'       => 'active',

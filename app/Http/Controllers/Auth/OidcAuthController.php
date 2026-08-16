@@ -146,8 +146,10 @@ class OidcAuthController extends Controller
             return redirect()->route('login')->with('error', '该账号已被禁用，请联系管理员');
         }
 
-        // 清理 session 中的临时数据
+        // 清理 session 中的临时数据；保存 id_token 供单点登出（id_token_hint，
+        // Keycloak/IDaaS 等要求该参数才接受 post_logout_redirect_uri）
         session()->forget(['oidc.state', 'oidc.nonce', 'oidc.code_verifier']);
+        session(['oidc.id_token' => $tokens['id_token']]);
 
         // 登录并重新生成会话
         auth()->login($user, true);
@@ -165,16 +167,22 @@ class OidcAuthController extends Controller
     public function logout(Request $request)
     {
         $config = $this->getConfig();
+        $idTokenHint = session('oidc.id_token');
         auth()->logout();
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
         // 如果 IdP 支持 end_session_endpoint，跳转到 IdP 统一登出
         if ($config && !empty($config['end_session_endpoint'])) {
-            $params = http_build_query([
+            $params = [
                 'post_logout_redirect_uri' => route('login'),
-            ]);
-            return redirect($config['end_session_endpoint'] . '?' . $params);
+                'client_id'                => $config['client_id'],
+            ];
+            // 多数 IdP（Keycloak/IDaaS）要求 id_token_hint 才接受 post_logout_redirect_uri
+            if ($idTokenHint) {
+                $params['id_token_hint'] = $idTokenHint;
+            }
+            return redirect($config['end_session_endpoint'] . '?' . http_build_query($params));
         }
 
         return redirect()->route('login');
@@ -281,8 +289,12 @@ class OidcAuthController extends Controller
 
         // client_secret 非空时使用 (confidential client)
         // 为空时依赖 PKCE (public client)
+        // 兼容两种客户端认证：body 直传（client_secret_post）+ HTTP Basic（client_secret_basic），
+        // 严格 IdP（仅支持 Basic）也能通过
+        $basicAuth = null;
         if (!empty($config['client_secret'])) {
             $payload['client_secret'] = $config['client_secret'];
+            $basicAuth = [$config['client_id'], $config['client_secret']];
         }
 
         if ($codeVerifier) {
@@ -290,7 +302,11 @@ class OidcAuthController extends Controller
         }
 
         try {
-            $response = Http::timeout(15)->asForm()->post($config['token_endpoint'], $payload);
+            $request = Http::timeout(15)->asForm();
+            if ($basicAuth) {
+                $request = $request->withBasicAuth($basicAuth[0], $basicAuth[1]);
+            }
+            $response = $request->post($config['token_endpoint'], $payload);
 
             if (!$response->ok()) {
                 Log::error('OIDC Token 交换失败', [
@@ -447,8 +463,9 @@ class OidcAuthController extends Controller
         }
 
         $header = $this->decodeJwtPart($parts[0]);
-        if (!$header || ($header['alg'] ?? '') !== 'RS256') {
-            Log::error('OIDC id_token 算法不支持（仅 RS256）', ['alg' => $header['alg'] ?? null]);
+        $alg = $header['alg'] ?? '';
+        if (!in_array($alg, ['RS256', 'ES256'], true)) {
+            Log::error('OIDC id_token 算法不支持（仅 RS256/ES256）', ['alg' => $alg ?: null]);
             return false;
         }
 
@@ -461,9 +478,10 @@ class OidcAuthController extends Controller
 
             $keys = $response->json('keys', []);
             $kid = $header['kid'] ?? null;
+            $wantKty = $alg === 'RS256' ? 'RSA' : 'EC';
             $key = null;
             foreach ($keys as $candidate) {
-                if (($candidate['kty'] ?? '') !== 'RSA') continue;
+                if (($candidate['kty'] ?? '') !== $wantKty) continue;
                 if ($kid && ($candidate['kid'] ?? null) === $kid) {
                     $key = $candidate;
                     break;
@@ -473,25 +491,74 @@ class OidcAuthController extends Controller
                 }
             }
 
-            if (!$key || empty($key['n']) || empty($key['e'])) {
-                Log::error('OIDC JWKS 中未找到匹配密钥', ['kid' => $kid]);
+            if (!$key) {
+                Log::error('OIDC JWKS 中未找到匹配密钥', ['kid' => $kid, 'kty' => $wantKty]);
                 return false;
             }
 
-            $pem = $this->rsaJwkToPem($key['n'], $key['e']);
+            $pem = $alg === 'RS256'
+                ? $this->rsaJwkToPem($key['n'] ?? '', $key['e'] ?? '')
+                : $this->ecJwkToPem($key['crv'] ?? 'P-256', $key['x'] ?? '', $key['y'] ?? '');
             if (!$pem) {
                 return false;
             }
 
             $signature = $this->base64UrlDecode($parts[2]);
             $data = $parts[0] . '.' . $parts[1];
-            $verified = openssl_verify($data, $signature, $pem, OPENSSL_ALGO_SHA256);
 
-            return $verified === 1;
+            if ($alg === 'RS256') {
+                return openssl_verify($data, $signature, $pem, OPENSSL_ALGO_SHA256) === 1;
+            }
+
+            // ES256：JWS 签名为 raw r||s 各 32 字节，需转 DER 才能被 openssl 接受
+            $derSig = $this->ecRawToDer($signature, 32);
+            if ($derSig === null) {
+                Log::error('OIDC ES256 签名长度非法', ['len' => strlen($signature)]);
+                return false;
+            }
+            return openssl_verify($data, $derSig, $pem, OPENSSL_ALGO_SHA256) === 1;
         } catch (\Exception $e) {
             Log::error('OIDC 签名验证异常', ['error' => $e->getMessage()]);
             return false;
         }
+    }
+
+    /**
+     * ECDSA raw 签名（r||s 定长）转 DER SEQUENCE 编码
+     */
+    private function ecRawToDer(string $sig, int $partLen): ?string
+    {
+        if (strlen($sig) !== $partLen * 2) {
+            return null;
+        }
+        $r = $this->derInteger(substr($sig, 0, $partLen));
+        $s = $this->derInteger(substr($sig, $partLen));
+        return "\x30" . $this->derLength(strlen($r . $s)) . $r . $s;
+    }
+
+    /**
+     * 将 EC JWK（crv/x/y，P-256）转换为 PEM（仅支持 ES256 所需的 P-256）
+     */
+    private function ecJwkToPem(string $crv, string $x, string $y): ?string
+    {
+        if ($crv !== 'P-256') {
+            Log::error('OIDC EC 密钥曲线不支持（仅 P-256）', ['crv' => $crv]);
+            return null;
+        }
+        $xBin = $this->base64UrlDecode($x);
+        $yBin = $this->base64UrlDecode($y);
+        if ($xBin === null || $yBin === null || strlen($xBin) !== 32 || strlen($yBin) !== 32) {
+            return null;
+        }
+
+        // SubjectPublicKeyInfo：AlgorithmIdentifier(id-ecPublicKey 1.2.840.10045.2.1 + prime256v1 1.2.840.10045.3.1.7)
+        //   + BIT STRING( uncompressed point 0x04 || x || y )
+        $algId = "\x30\x13\x06\x07\x2a\x86\x48\xce\x3d\x02\x01\x06\x08\x2a\x86\x48\xce\x3d\x03\x01\x07";
+        $point = "\x04" . $xBin . $yBin;
+        $bitString = "\x03" . $this->derLength(strlen($point) + 1) . "\x00" . $point;
+        $spki = "\x30" . $this->derLength(strlen($algId) + strlen($bitString)) . $algId . $bitString;
+
+        return "-----BEGIN PUBLIC KEY-----\n" . chunk_split(base64_encode($spki), 64, "\n") . "-----END PUBLIC KEY-----";
     }
 
     /**
@@ -650,7 +717,15 @@ class OidcAuthController extends Controller
             return $user->fresh();
         }
 
-        // 创建新用户（默认为报修人）
+        // 创建新用户（默认为报修人）；email 可空且需唯一——缺失或撞库时生成占位邮箱
+        $safeEmail = $email;
+        if ($safeEmail && User::where('email', $safeEmail)->exists()) {
+            Log::warning('OIDC 用户邮箱与本地账号冲突，使用占位邮箱', ['email' => $safeEmail]);
+            $safeEmail = null;
+        }
+        if (!$safeEmail) {
+            $safeEmail = 'oidc_' . Str::random(16) . '@migrated.local';
+        }
         try {
             return User::create([
                 'name'         => $name ?: $username,
@@ -658,7 +733,7 @@ class OidcAuthController extends Controller
                 'employee_id'  => ($username !== $sub) ? $username : null,
                 'oidc_sub'     => $sub,
                 'phone'        => $phone,
-                'email'        => $email,
+                'email'        => $safeEmail,
                 'password'     => bcrypt(Str::random(32)),
                 'role'         => 'user',
                 'status'       => 'active',
