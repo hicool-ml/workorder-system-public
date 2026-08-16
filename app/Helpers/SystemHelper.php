@@ -107,4 +107,25 @@ class SystemHelper
         }
         return 'v1.0.0';
     }
+
+    /**
+     * 获取系统对外访问的基础地址（不含末尾斜杠）。
+     *
+     * 统一口径：通知链接、CAS/OIDC/微信回调地址等所有「对外可见 URL」
+     * 都以同一个「系统访问地址」（system_settings.system_url）为准，
+     * 未配置时回退到 .env 的 APP_URL。
+     */
+    public static function getSystemBaseUrl(): string
+    {
+        return rtrim((string) SystemSetting::get('system_url', config('app.url', '')), '/');
+    }
+
+    /**
+     * 基于系统访问地址拼接一个绝对 URL。
+     * 例：absoluteUrl('/cas/callback') => http://域名/cas/callback
+     */
+    public static function absoluteUrl(string $path): string
+    {
+        return self::getSystemBaseUrl() . '/' . ltrim($path, '/');
+    }
 }

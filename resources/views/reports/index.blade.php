@@ -291,7 +291,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // 用 Blade 的 json 指令输出，自动做 HEX 转义（防 </script> 等字符逃逸出脚本块）
+    // 用 Blade 的 json 指令输出，自动做 HEX 转义（防脚本标签逃逸出脚本块）
     var featuredData = @json($featuredDistributions);
 
     // 矩形树图（squarified treemap）：面积映射数值，颜色区分类别

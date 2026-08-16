@@ -62,7 +62,7 @@ class OidcAuthController extends Controller
         $params = http_build_query([
             'response_type'      => 'code',
             'client_id'          => $config['client_id'],
-            'redirect_uri'       => route('oidc.callback'),
+            'redirect_uri'       => \App\Helpers\SystemHelper::absoluteUrl('/oidc/callback'),
             'scope'              => $config['scope'],
             'state'              => $state,
             'nonce'              => $nonce,
@@ -283,7 +283,7 @@ class OidcAuthController extends Controller
         $payload = [
             'grant_type'    => 'authorization_code',
             'code'          => $code,
-            'redirect_uri'  => route('oidc.callback'),
+            'redirect_uri'  => \App\Helpers\SystemHelper::absoluteUrl('/oidc/callback'),
             'client_id'     => $config['client_id'],
         ];
 

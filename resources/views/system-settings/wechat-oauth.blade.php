@@ -65,7 +65,7 @@
             </div>
             <div class="sm:col-span-2">
                 <label class="label">授权回调地址</label>
-                <input type="text" class="input bg-neutral-100 dark:bg-neutral-800" readonly value="{{ route('wechat.callback') }}">
+                <input type="text" class="input bg-neutral-100 dark:bg-neutral-800" readonly value="{{ \App\Helpers\SystemHelper::absoluteUrl('/wechat/callback') }}">
                 <p class="text-xs mt-1" style="color: var(--c-ink-subtle);">需在公众号后台「设置与开发」→「公众号设置」→「功能设置」→「网页授权域名」中配置为本站域名</p>
             </div>
         </div>
@@ -85,7 +85,7 @@
     <ol class="text-xs space-y-1.5" style="color: var(--c-ink-muted);">
         <li>1. 准备一个【已认证】的微信公众号（服务号/订阅号均可），在公众号后台获取 AppID / AppSecret</li>
         <li>2. 在公众号后台「设置与开发 → 公众号设置 → 功能设置 → 网页授权域名」中，添加本系统域名（仅域名，不含路径，无需加 http）</li>
-        <li>3. 将回调地址设置为：<code class="text-blue-600">{{ route('wechat.callback') }}</code></li>
+        <li>3. 将回调地址设置为：<code class="text-blue-600">{{ \App\Helpers\SystemHelper::absoluteUrl('/wechat/callback') }}</code></li>
         <li>4. 在本页填写 AppID / AppSecret，选择授权 Scope，勾选启用并保存</li>
         <li>5. 登录页出现「微信登录」按钮，用户点击后跳转微信授权</li>
         <li>6. 首次登录的用户会进入绑定页，输入系统用户名/密码完成一次性绑定，之后即可免密登录</li>

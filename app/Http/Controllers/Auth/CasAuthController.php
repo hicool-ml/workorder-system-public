@@ -32,7 +32,7 @@ class CasAuthController extends Controller
             return redirect()->route('login')->with('error', '统一身份认证未启用');
         }
 
-        $serviceUrl = route('cas.callback');
+        $serviceUrl = \App\Helpers\SystemHelper::absoluteUrl('/cas/callback');
         $casBaseUrl = rtrim(SystemSetting::get('cas_base_url', ''), '/');
 
         // CAS 标准登录入口
@@ -116,7 +116,7 @@ class CasAuthController extends Controller
      */
     private function validateTicket(string $ticket): ?array
     {
-        $serviceUrl = route('cas.callback');
+        $serviceUrl = \App\Helpers\SystemHelper::absoluteUrl('/cas/callback');
         $casBaseUrl = rtrim(SystemSetting::get('cas_base_url', ''), '/');
         $validateUrl = "{$casBaseUrl}/serviceValidate?ticket=" . urlencode($ticket)
             . "&service=" . urlencode($serviceUrl);

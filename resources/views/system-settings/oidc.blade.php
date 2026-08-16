@@ -114,7 +114,7 @@
     <h3 class="text-sm font-semibold text-ink mb-2">接入说明</h3>
     <ol class="text-xs space-y-1.5" style="color: var(--c-ink-muted);">
         <li>1. 在 IAM 平台（如泛微令信通、派拉、阿里云 IDaaS、TOPIAM 等）注册本系统为 OAuth2 Client</li>
-        <li>2. 将回调地址设置为：<code class="text-blue-600">{{ route('oidc.callback') }}</code></li>
+        <li>2. 将回调地址设置为：<code class="text-blue-600">{{ \App\Helpers\SystemHelper::absoluteUrl('/oidc/callback') }}</code>（= <a href="{{ route('system-settings.index') }}" target="_blank" class="text-blue-600 hover:underline">系统访问地址</a> + /oidc/callback）</li>
         <li>3. 获取 Issuer URL / Client ID / Client Secret（在 IAM 平台的客户端管理页面获取）</li>
         <li>4. 如果 IAM 平台支持 Discovery，仅需填写 Issuer + Client ID + Client Secret；否则需手动填写各端点地址</li>
         <li>5. 勾选启用并保存</li>

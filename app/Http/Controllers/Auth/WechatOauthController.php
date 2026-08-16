@@ -58,7 +58,7 @@ class WechatOauthController extends Controller
 
         $params = http_build_query([
             'appid'         => $appid,
-            'redirect_uri'  => route('wechat.callback'),
+            'redirect_uri'  => \App\Helpers\SystemHelper::absoluteUrl('/wechat/callback'),
             'response_type' => 'code',
             'scope'         => $scope,
             'state'         => $state,

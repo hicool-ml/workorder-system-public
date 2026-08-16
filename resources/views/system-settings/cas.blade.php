@@ -86,7 +86,7 @@
     <h3 class="text-sm font-semibold text-ink mb-2">接入说明</h3>
     <ol class="text-xs space-y-1.5" style="color: var(--c-ink-muted);">
         <li>1. 在 LinkID 平台注册本系统为 Service Provider</li>
-        <li>2. 将回调地址设置为：<code class="text-blue-600">{{ route('cas.callback') }}</code></li>
+        <li>2. 将回调地址设置为：<code class="text-blue-600">{{ \App\Helpers\SystemHelper::absoluteUrl('/cas/callback') }}</code>（= <a href="{{ route('system-settings.index') }}" target="_blank" class="text-blue-600 hover:underline">系统访问地址</a> + /cas/callback）</li>
         <li>3. 填写上方的 Base URL 和 Service ID</li>
         <li>4. 勾选启用并保存</li>
         <li>5. 登录页将出现「统一身份认证」按钮，用户点击后跳转至身份认证服务方页面</li>
