@@ -62,3 +62,8 @@ database/*.sqlite*
 # Python ç¼“å­˜ï¼ˆscripts/ ä¸‹çš„è½¬æ¢è„šæœ¬ï¼‰
 __pycache__/
 *.py[cod]
+
+# Ë½ÓĞÇ¨ÒÆ¹¤¾ßÁ´£¨±¾µØ±£Áô£¬²»Èë¿â£©
+app/Console/Commands/ImportWorkordersFromMysql.php
+app/Console/Commands/ReorganizeCategories.php
+app/Console/Commands/RehearseMigration.php
