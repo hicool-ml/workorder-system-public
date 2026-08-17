@@ -78,13 +78,13 @@ class SystemHelper
     public const PROJECT_NAME = '通用工单系统';
 
     /**
-     * 获取系统版权信息：© 年份 项目名称 - v版本号
-     * 版本号以版本管理页（DB system_version）为唯一源。
+     * 获取系统版权信息：© 年份 系统名称
+     * 显示用户可配置的系统名称（system_name），不再显示版本号。
      */
     public static function getSystemCopyright(): string
     {
         $year = date('Y');
-        return '© ' . $year . ' ' . self::PROJECT_NAME . ' - ' . self::getProjectVersion();
+        return '© ' . $year . ' ' . self::getSystemName();
     }
 
     /**

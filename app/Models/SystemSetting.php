@@ -205,6 +205,16 @@ class SystemSetting extends Model
      */
     public static function initializeDefaults()
     {
+        // 部署版本从 VERSION 文件读取，作为 system_version 默认值，避免与仓库版本脱节
+        $deployVersion = '2.0.0';
+        $versionFile = base_path('VERSION');
+        if (file_exists($versionFile)) {
+            $v = trim((string) file_get_contents($versionFile));
+            if ($v !== '') {
+                $deployVersion = $v;
+            }
+        }
+
         $defaults = [
             [
                 'key' => 'registration_enabled',
@@ -229,7 +239,7 @@ class SystemSetting extends Model
             ],
             [
                 'key' => 'system_version',
-                'value' => '2.0.0',
+                'value' => $deployVersion,
                 'type' => 'string',
                 'description' => '系统版本号',
                 'is_public' => true,
