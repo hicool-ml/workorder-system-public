@@ -79,7 +79,7 @@
         <div class="p-4 {{ !$notification->is_read ? 'bg-blue-50/40' : '' }}">
             <div class="flex items-start justify-between gap-2 mb-1">
                 <p class="text-sm font-medium text-ink">{{ $notification->title }}</p>
-                <span class="text-xs whitespace-nowrap shrink-0" style="color: var(--c-ink-subtle);">{{ $notification->created_at->diffForHumans() }}</span>
+                <span class="text-xs whitespace-nowrap shrink-0" style="color: var(--c-ink-subtle);">{{ $notification->created_at->format('Y-m-d H:i') }}</span>
             </div>
             <p class="text-sm mb-2" style="color: var(--c-ink-muted);">{{ $notification->content }}</p>
             <div class="flex items-center gap-2 flex-wrap">
@@ -116,7 +116,7 @@
                         @if ($notification->data && isset($notification->data['action_url']))<a href="{{ $notification->data['action_url'] }}" class="text-xs text-brand-600 hover:underline mt-1 inline-block">查看详情</a>@endif
                     </td>
                     <td class="px-4 py-3">@if (!$notification->is_read)<span class="badge bg-blue-100 text-blue-700">未读</span>@else<span class="badge bg-slate-100 text-slate-600">已读</span>@endif</td>
-                    <td class="px-4 py-3 text-xs" style="color: var(--c-ink-subtle);">{{ $notification->created_at->diffForHumans() }}</td>
+                    <td class="px-4 py-3 text-xs" style="color: var(--c-ink-subtle);">{{ $notification->created_at->format('Y-m-d H:i') }}</td>
                     <td class="px-4 py-3 text-right">
                         <div class="flex items-center justify-end gap-1">
                             @if (!$notification->is_read)<button class="btn btn-ghost btn-sm mark-read-btn" data-id="{{ $notification->id }}">已读</button>@endif
