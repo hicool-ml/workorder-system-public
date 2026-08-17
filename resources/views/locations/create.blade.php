@@ -17,24 +17,36 @@
             <div class="space-y-4">
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                        <label class="label" for="level_id">所属层级 <span class="text-red-500">*</span></label>
-                        <select class="input" id="level_id" name="level_id" required>
-                            <option value="">请选择层级</option>
-                            @foreach($levels as $lv)
-                                <option value="{{ $lv->id }}" {{ old('level_id') == $lv->id ? 'selected' : '' }}>{{ $lv->name }}（第{{ $lv->level }}层）</option>
-                            @endforeach
-                        </select>
-                        @error('level_id') <p class="text-xs text-red-600 mt-1">{{ $message }}</p> @enderror
+                        @if($inferredLevelId)
+                            <label class="label">所属层级</label>
+                            <input type="hidden" name="level_id" value="{{ $inferredLevelId }}">
+                            <input type="text" class="input bg-neutral-100 dark:bg-neutral-800" value="{{ $inferredLevelName }}（自动）" readonly>
+                        @else
+                            <label class="label" for="level_id">所属层级 <span class="text-red-500">*</span></label>
+                            <select class="input" id="level_id" name="level_id" required>
+                                <option value="">请选择层级</option>
+                                @foreach($levels as $lv)
+                                    <option value="{{ $lv->id }}" {{ old('level_id') == $lv->id ? 'selected' : '' }}>{{ $lv->name }}（第{{ $lv->level }}层）</option>
+                                @endforeach
+                            </select>
+                            @error('level_id') <p class="text-xs text-red-600 mt-1">{{ $message }}</p> @enderror
+                        @endif
                     </div>
                     <div>
-                        <label class="label" for="parent_id">上级地址</label>
-                        <select class="input" id="parent_id" name="parent_id">
-                            <option value="">无（顶层节点）</option>
-                            @foreach($parentOptions as $id => $label)
-                                <option value="{{ $id }}" {{ old('parent_id', request('parent_id')) == $id ? 'selected' : '' }}>{{ $label }}</option>
-                            @endforeach
-                        </select>
-                        <p class="text-xs text-ink-muted mt-1">父节点的层级必须高于当前层级</p>
+                        @if($parent)
+                            <label class="label">上级地址</label>
+                            <input type="hidden" name="parent_id" value="{{ $parent->id }}">
+                            <input type="text" class="input bg-neutral-100 dark:bg-neutral-800" value="{{ $parent->full_address_delimited }}" readonly>
+                        @else
+                            <label class="label" for="parent_id">上级地址</label>
+                            <select class="input" id="parent_id" name="parent_id">
+                                <option value="">无（顶层节点）</option>
+                                @foreach($parentOptions as $id => $label)
+                                    <option value="{{ $id }}" {{ old('parent_id', request('parent_id')) == $id ? 'selected' : '' }}>{{ $label }}</option>
+                                @endforeach
+                            </select>
+                            <p class="text-xs text-ink-muted mt-1">父节点的层级必须高于当前层级</p>
+                        @endif
                     </div>
                 </div>
 

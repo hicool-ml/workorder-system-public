@@ -319,12 +319,28 @@ class LocationController extends Controller
     /**
      * 创建地址页面
      */
-    public function create()
+    public function create(Request $request)
     {
         $levels = LocationLevel::getActiveLevels();
         $parentOptions = Location::getSelectOptions();
 
-        return view('locations.create', compact('levels', 'parentOptions'));
+        // 从「添加子节点」进入时（带 parent_id），自动推断子节点层级（父节点的下一级）
+        $parent = null;
+        $inferredLevelId = null;
+        $inferredLevelName = null;
+        if ($request->filled('parent_id')) {
+            $parent = Location::with('level')->find($request->input('parent_id'));
+            if ($parent && $parent->level) {
+                $next = LocationLevel::where('is_active', true)
+                    ->where('level', '>', $parent->level->level)
+                    ->orderBy('level')
+                    ->first();
+                $inferredLevelId = $next?->id;
+                $inferredLevelName = $next?->name;
+            }
+        }
+
+        return view('locations.create', compact('levels', 'parentOptions', 'parent', 'inferredLevelId', 'inferredLevelName'));
     }
 
     /**

@@ -113,8 +113,9 @@
                                 @endif
                             </div>
                         </td>
-                        <td colspan="3" class="px-4 py-3 text-right">
-                            <a href="{{ route('locations.projects.edit', $projectRoot->id) }}" class="text-brand-600 hover:underline text-sm">编辑门牌</a>
+                        <td colspan="3" class="px-4 py-3 text-right whitespace-nowrap">
+                            <a href="{{ route('locations.create', ['parent_id' => $projectRoot->id]) }}" class="text-brand-600 hover:underline text-sm">添加子节点</a>
+                            <a href="{{ route('locations.projects.edit', $projectRoot->id) }}" class="text-brand-600 hover:underline text-sm ml-3">编辑门牌</a>
                         </td>
                     </tr>
                     @if($projectRoot->relationLoaded('children') && $projectRoot->children->isNotEmpty())
