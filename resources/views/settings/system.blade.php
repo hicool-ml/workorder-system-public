@@ -204,7 +204,7 @@
 @section('scripts')
 <script>
 function toggleRegistration(enabled) {
-    fetch('{{ route("system-settings.toggle-registration") }}', {
+    fetch('{{ \App\Helpers\UrlHelper::relative_route("system-settings.toggle-registration") }}', {
         method: 'POST',
         headers: { 'Accept': 'application/json', 'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content },
         body: JSON.stringify({ enabled: enabled })
@@ -221,7 +221,7 @@ function toggleRegistration(enabled) {
 }
 function initializeDefaults() {
     if (!confirm('确定要初始化所有缺失的默认设置吗？已有设置不会被覆盖。')) return;
-    fetch('{{ route("system-settings.initialize-defaults") }}', { method: 'POST', headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content } })
+    fetch('{{ \App\Helpers\UrlHelper::relative_route("system-settings.initialize-defaults") }}', { method: 'POST', headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content } })
         .then(function(r) { return r.json(); })
         .then(function(data) {
             if (data.success) { alert(data.message || '已初始化'); location.reload(); }
@@ -256,7 +256,7 @@ function openVersionModal() {
 
 function deleteVersionHistory(version) {
     if (!confirm('确定删除版本 ' + version + ' 的发布记录吗？')) return;
-    fetch('{{ route("system-settings.version-history.delete") }}', {
+    fetch('{{ \App\Helpers\UrlHelper::relative_route("system-settings.version-history.delete") }}', {
         method: 'DELETE',
         headers: { 'Accept': 'application/json', 'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content },
         body: JSON.stringify({ version: version })
@@ -274,7 +274,7 @@ function loadVersionHistory() {
     if (!historyDiv.classList.contains('hidden')) { historyDiv.classList.add('hidden'); return; }
     historyList.innerHTML = '<div class="text-center py-4 text-sm" style="color: var(--c-ink-muted);">加载中...</div>';
     historyDiv.classList.remove('hidden');
-    fetch('{{ route("system-settings.version-history") }}', { headers: { 'Accept': 'application/json' } })
+    fetch('{{ \App\Helpers\UrlHelper::relative_route("system-settings.version-history") }}', { headers: { 'Accept': 'application/json' } })
         .then(function(r) { return r.json(); })
         .then(function(data) {
             if (data && data.length > 0) {
@@ -305,7 +305,7 @@ document.getElementById('versionUpdateForm').addEventListener('submit', function
     var formData = new FormData(this);
     var data = {};
     formData.forEach(function(v, k) { data[k] = v; });
-    fetch('{{ route("system-settings.update-version") }}', {
+    fetch('{{ \App\Helpers\UrlHelper::relative_route("system-settings.update-version") }}', {
         method: 'POST',
         headers: { 'Accept': 'application/json', 'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content },
         body: JSON.stringify(data)

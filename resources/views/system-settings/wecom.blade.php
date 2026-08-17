@@ -204,7 +204,7 @@ function testWecom() {
     var resultDiv = document.getElementById('wecom-test-result');
     resultDiv.innerHTML = '<p class="text-sm" style="color: var(--c-ink-muted);">发送中...</p>';
 
-    fetch('{!! route("api.wecom.test") !!}', {
+    fetch('{!! \App\Helpers\UrlHelper::relative_route("api.wecom.test") !!}', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -230,7 +230,7 @@ function testWecom() {
 }
 
 function toggleSslVerify(enabled) {
-    fetch('{!! route("api.ssl-verify") !!}', {
+    fetch('{!! \App\Helpers\UrlHelper::relative_route("api.ssl-verify") !!}', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -256,7 +256,7 @@ function uploadCacert() {
     formData.append('cacert_file', input.files[0]);
     formData.append('_token', '{!! csrf_token() !!}');
 
-    fetch('{!! route("api.upload-cacert") !!}', {
+    fetch('{!! \App\Helpers\UrlHelper::relative_route("api.upload-cacert") !!}', {
         method: 'POST',
         headers: { 'X-Requested-With': 'XMLHttpRequest' },
         body: formData
@@ -276,7 +276,7 @@ function uploadCacert() {
 
 function deleteCacert() {
     if (!confirm('确定要删除已上传的 CA 证书吗？')) return;
-    fetch('{!! route("api.cacert.delete") !!}', {
+    fetch('{!! \App\Helpers\UrlHelper::relative_route("api.cacert.delete") !!}', {
         method: 'DELETE',
         headers: {
             'X-Requested-With': 'XMLHttpRequest',
@@ -308,7 +308,7 @@ function testWecom_old() {
     var resultDiv = document.getElementById('wecom-test-result');
     resultDiv.innerHTML = '<p class="text-sm" style="color: var(--c-ink-muted);">发送中...</p>';
 
-    fetch('{!! route("api.wecom.test") !!}', {
+    fetch('{!! \App\Helpers\UrlHelper::relative_route("api.wecom.test") !!}', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',

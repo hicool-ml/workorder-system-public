@@ -83,7 +83,7 @@ let eventLabels = {};
 
 async function loadRules() {
     try {
-        const resp = await fetch('{!! route("api.notification-rules") !!}', {
+        const resp = await fetch('{!! \App\Helpers\UrlHelper::relative_route("api.notification-rules") !!}', {
             headers: { 'X-Requested-With': 'XMLHttpRequest' }
         });
         const data = await resp.json();
@@ -158,7 +158,7 @@ async function saveRules() {
     btn.textContent = '保存中...';
 
     try {
-        var resp = await fetch('{!! route("api.notification-rules.update") !!}', {
+        var resp = await fetch('{!! \App\Helpers\UrlHelper::relative_route("api.notification-rules.update") !!}', {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',
@@ -189,7 +189,7 @@ async function testSms() {
     resultDiv.innerHTML = '<p class="text-sm" style="color: var(--c-ink-muted);">发送中...</p>';
 
     try {
-        var resp = await fetch('{!! route("api.sms.test") !!}', {
+        var resp = await fetch('{!! \App\Helpers\UrlHelper::relative_route("api.sms.test") !!}', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

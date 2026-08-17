@@ -361,7 +361,7 @@ class Notification extends Model
         $first = null;
         foreach ($userIds as $userId) {
             try {
-                $first ??= self::create([
+                $created = self::create([
                     'type' => self::TYPE_SYSTEM_ANNOUNCEMENT,
                     'title' => $title,
                     'content' => $content,
@@ -369,6 +369,9 @@ class Notification extends Model
                     'user_id' => $userId,
                     'data' => ['announcement_title' => $title],
                 ]);
+                if ($first === null) {
+                    $first = $created;
+                }
             } catch (\Exception $e) {
                 Log::error('创建系统公告失败', [
                     'user_id' => $userId,

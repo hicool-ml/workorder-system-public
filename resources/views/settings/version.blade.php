@@ -101,7 +101,7 @@ function loadVersionHistory() {
     if (!historyDiv.classList.contains('hidden')) { historyDiv.classList.add('hidden'); return; }
     historyList.innerHTML = '<div class="text-center py-4 text-sm" style="color: var(--c-ink-muted);">加载中...</div>';
     historyDiv.classList.remove('hidden');
-    fetch('{{ route("system-settings.version-history") }}', { headers: { 'Accept': 'application/json' } })
+    fetch('{{ \App\Helpers\UrlHelper::relative_route("system-settings.version-history") }}', { headers: { 'Accept': 'application/json' } })
         .then(function(r) { return r.json(); })
         .then(function(data) {
             if (data && data.length > 0) {
@@ -127,7 +127,7 @@ document.getElementById('versionUpdateForm').addEventListener('submit', function
     var formData = new FormData(this);
     var data = {};
     formData.forEach(function(v, k) { data[k] = v; });
-    fetch('{{ route("system-settings.update-version") }}', {
+    fetch('{{ \App\Helpers\UrlHelper::relative_route("system-settings.update-version") }}', {
         method: 'POST',
         headers: { 'Accept': 'application/json', 'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content },
         body: JSON.stringify(data)

@@ -391,7 +391,7 @@
 
         // Notification badge
         function loadNotifBadge() {
-            fetch('{{ route("notifications.unread-count") }}', {
+            fetch('{{ \App\Helpers\UrlHelper::relative_route("notifications.unread-count") }}', {
                 headers: { 'X-Requested-With': 'XMLHttpRequest' }
             }).then(function(r) { return r.json(); })
               .then(function(data) {

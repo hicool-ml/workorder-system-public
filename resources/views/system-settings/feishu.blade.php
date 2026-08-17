@@ -147,7 +147,7 @@ function switchMode(mode) {
 function testNotify() {
     var resultDiv = document.getElementById('test-result');
     resultDiv.innerHTML = '<p class="text-sm" style="color: var(--c-ink-muted);">发送中...</p>';
-    fetch('{!! route("api.feishu.test") !!}', {
+    fetch('{!! \App\Helpers\UrlHelper::relative_route("api.feishu.test") !!}', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',

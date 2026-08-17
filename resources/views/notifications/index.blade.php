@@ -151,7 +151,7 @@
             <h3 class="text-sm font-semibold text-ink">发布系统公告</h3>
             <button type="button" onclick="closeModal('announcementModal')" class="btn btn-ghost btn-icon btn-sm"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M18 6 6 18M6 6l12 12"/></svg></button>
         </div>
-        <form method="POST" action="{{ route('notifications.create-announcement') }}" id="announcementForm">
+        <form method="POST" action="{{ \App\Helpers\UrlHelper::relative_route('notifications.create-announcement') }}" id="announcementForm">
             @csrf
             <div class="mb-4">
                 <label class="label" for="ann_title">标题 <span class="text-red-500">*</span></label>

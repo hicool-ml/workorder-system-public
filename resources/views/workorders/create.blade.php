@@ -454,7 +454,7 @@ $(document).ready(function() {
         // 先恢复所有模板字段为可见
         document.querySelectorAll('[data-tf]').forEach(function(el) { el.style.display = ''; });
 
-        $.getJSON('{{ route("api.template-by-category", "__CAT__") }}'.replace('__CAT__', categoryId), function(data) {
+        $.getJSON('{{ \App\Helpers\UrlHelper::relative_route("api.template-by-category", ["categoryId" => "__CAT__"]) }}'.replace('__CAT__', categoryId), function(data) {
             if (!data.found) {
                 $('#templateHint').addClass('hidden');
                 return;

@@ -399,7 +399,7 @@ document.addEventListener('keydown', function(e) {
 });
 
 function toggleRegistration(enabled) {
-    fetch('{{ route("system-settings.toggle-registration") }}', {
+    fetch('{{ \App\Helpers\UrlHelper::relative_route("system-settings.toggle-registration") }}', {
         method: 'POST',
         headers: { 'Accept': 'application/json', 'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content },
         body: JSON.stringify({ enabled: enabled })
@@ -431,7 +431,7 @@ document.addEventListener('click', function(e) {
 
 function initializeDefaults() {
     if (!confirm('确定要初始化默认设置吗？这可能会覆盖现有设置。')) return;
-    fetch('{{ route("system-settings.initialize-defaults") }}', {
+    fetch('{{ \App\Helpers\UrlHelper::relative_route("system-settings.initialize-defaults") }}', {
         method: 'POST',
         headers: { 'Accept': 'application/json', 'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content }
     }).then(function(r) { return r.json(); })
@@ -463,7 +463,7 @@ function openVersionModal() {
 
 function deleteVersionHistory(version) {
     if (!confirm('确定删除版本 ' + version + ' 的发布记录吗？')) return;
-    fetch('{{ route("system-settings.version-history.delete") }}', {
+    fetch('{{ \App\Helpers\UrlHelper::relative_route("system-settings.version-history.delete") }}', {
         method: 'DELETE',
         headers: { 'Accept': 'application/json', 'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content },
         body: JSON.stringify({ version: version })
@@ -484,7 +484,7 @@ function loadVersionHistory() {
     }
     historyList.innerHTML = '<div class="text-center py-4 text-sm" style="color: var(--c-ink-muted);">加载中...</div>';
     historyDiv.classList.remove('hidden');
-    fetch('{{ route("system-settings.version-history") }}', { headers: { 'Accept': 'application/json' } })
+    fetch('{{ \App\Helpers\UrlHelper::relative_route("system-settings.version-history") }}', { headers: { 'Accept': 'application/json' } })
         .then(function(r) { return r.json(); })
         .then(function(data) {
             if (data && data.length > 0) {
@@ -516,7 +516,7 @@ document.getElementById('versionUpdateForm').addEventListener('submit', function
     var formData = new FormData(this);
     var data = {};
     formData.forEach(function(v, k) { data[k] = v; });
-    fetch('{{ route("system-settings.update-version") }}', {
+    fetch('{{ \App\Helpers\UrlHelper::relative_route("system-settings.update-version") }}', {
         method: 'POST',
         headers: { 'Accept': 'application/json', 'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content },
         body: JSON.stringify(data)
@@ -530,12 +530,12 @@ document.getElementById('versionUpdateForm').addEventListener('submit', function
 
 // ========== 数据备份与恢复 ==========
 var BACKUP_ROUTES = {
-    index: '{{ route("system-settings.backups.index") }}',
-    create: '{{ route("system-settings.backups.create") }}',
-    upload: '{{ route("system-settings.backups.upload") }}',
-    download: function(name) { return '{{ route("system-settings.backups.download", ["__NAME__"]) }}'.replace('__NAME__', name); },
-    destroy: function(name) { return '{{ route("system-settings.backups.destroy", ["__NAME__"]) }}'.replace('__NAME__', name); },
-    restore: function(name) { return '{{ route("system-settings.backups.restore", ["__NAME__"]) }}'.replace('__NAME__', name); }
+    index: '{{ \App\Helpers\UrlHelper::relative_route("system-settings.backups.index") }}',
+    create: '{{ \App\Helpers\UrlHelper::relative_route("system-settings.backups.create") }}',
+    upload: '{{ \App\Helpers\UrlHelper::relative_route("system-settings.backups.upload") }}',
+    download: function(name) { return '{{ \App\Helpers\UrlHelper::relative_route("system-settings.backups.download", ["__NAME__"]) }}'.replace('__NAME__', name); },
+    destroy: function(name) { return '{{ \App\Helpers\UrlHelper::relative_route("system-settings.backups.destroy", ["__NAME__"]) }}'.replace('__NAME__', name); },
+    restore: function(name) { return '{{ \App\Helpers\UrlHelper::relative_route("system-settings.backups.restore", ["__NAME__"]) }}'.replace('__NAME__', name); }
 };
 var CSRF = document.querySelector('meta[name="csrf-token"]').content;
 var pendingRestoreName = null;

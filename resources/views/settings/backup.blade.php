@@ -68,12 +68,12 @@ document.addEventListener('keydown', function(e) {
 });
 
 var BACKUP_ROUTES = {
-    index: '{{ route("system-settings.backups.index") }}',
-    create: '{{ route("system-settings.backups.create") }}',
-    upload: '{{ route("system-settings.backups.upload") }}',
-    download: function(name) { return '{{ route("system-settings.backups.download", ["__NAME__"]) }}'.replace('__NAME__', name); },
-    destroy: function(name) { return '{{ route("system-settings.backups.destroy", ["__NAME__"]) }}'.replace('__NAME__', name); },
-    restore: function(name) { return '{{ route("system-settings.backups.restore", ["__NAME__"]) }}'.replace('__NAME__', name); }
+    index: '{{ \App\Helpers\UrlHelper::relative_route("system-settings.backups.index") }}',
+    create: '{{ \App\Helpers\UrlHelper::relative_route("system-settings.backups.create") }}',
+    upload: '{{ \App\Helpers\UrlHelper::relative_route("system-settings.backups.upload") }}',
+    download: function(name) { return '{{ \App\Helpers\UrlHelper::relative_route("system-settings.backups.download", ["__NAME__"]) }}'.replace('__NAME__', name); },
+    destroy: function(name) { return '{{ \App\Helpers\UrlHelper::relative_route("system-settings.backups.destroy", ["__NAME__"]) }}'.replace('__NAME__', name); },
+    restore: function(name) { return '{{ \App\Helpers\UrlHelper::relative_route("system-settings.backups.restore", ["__NAME__"]) }}'.replace('__NAME__', name); }
 };
 var CSRF = document.querySelector('meta[name="csrf-token"]').content;
 var pendingRestoreName = null;

@@ -637,7 +637,7 @@ document.addEventListener('DOMContentLoaded', function() {
         var assignee = document.getElementById('batch_assignee_id');
         if (!assignee || !assignee.value) { alert('请选择工程师'); return; }
         var note = document.getElementById('batch_assign_note');
-        fetch('{{ route("workorders.batch.assign") }}', {
+        fetch('{{ \App\Helpers\UrlHelper::relative_route("workorders.batch.assign") }}', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken, 'X-Requested-With': 'XMLHttpRequest' },
             body: JSON.stringify({ workorder_ids: selectedWorkorders.join(','), assignee_id: assignee.value, note: note ? note.value : '' })
@@ -667,7 +667,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!noMatsChk || !noMatsChk.checked) {
             if (!matsUsage || !matsUsage.value.trim()) { alert('请填写备件耗材使用情况或勾选无备件耗材使用'); return; }
         }
-        fetch('{{ route("workorders.batch.resolve") }}', {
+        fetch('{{ \App\Helpers\UrlHelper::relative_route("workorders.batch.resolve") }}', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken, 'X-Requested-With': 'XMLHttpRequest' },
             body: JSON.stringify({
@@ -696,7 +696,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (batchStartBtn) batchStartBtn.addEventListener('click', function() {
         if (selectedWorkorders.length === 0) { alert('请先选择工单'); return; }
         if (!confirm('确认开始处理选中的 ' + selectedWorkorders.length + ' 个工单？')) return;
-        fetch('{{ route("workorders.batch.start") }}', {
+        fetch('{{ \App\Helpers\UrlHelper::relative_route("workorders.batch.start") }}', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken, 'X-Requested-With': 'XMLHttpRequest' },
             body: JSON.stringify({ workorder_ids: selectedWorkorders.join(',') })
@@ -711,7 +711,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (batchCloseBtn) batchCloseBtn.addEventListener('click', function() {
         if (selectedWorkorders.length === 0) { alert('请先选择工单'); return; }
         if (!confirm('确认关闭选中的 ' + selectedWorkorders.length + ' 个工单？此操作不可撤销！')) return;
-        fetch('{{ route("workorders.batch.close") }}', {
+        fetch('{{ \App\Helpers\UrlHelper::relative_route("workorders.batch.close") }}', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken, 'X-Requested-With': 'XMLHttpRequest' },
             body: JSON.stringify({ workorder_ids: selectedWorkorders.join(',') })
@@ -751,7 +751,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         confirmBatchForceDeleteBtn.disabled = true;
         confirmBatchForceDeleteBtn.innerHTML = '删除中…';
-        fetch('{{ route("workorders.batch.force-delete") }}', {
+        fetch('{{ \App\Helpers\UrlHelper::relative_route("workorders.batch.force-delete") }}', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken, 'X-Requested-With': 'XMLHttpRequest' },
             body: JSON.stringify({ workorder_ids: selectedWorkorders.join(',') })

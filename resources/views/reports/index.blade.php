@@ -578,7 +578,7 @@ document.addEventListener('DOMContentLoaded', function() {
         var ev = document.getElementById('endDate').value;
         if (sv) params.push('start_date=' + sv);
         if (ev) params.push('end_date=' + ev);
-        window.location.href = '{{ route('reports.index') }}?' + params.join('&');
+        window.location.href = '{{ \App\Helpers\UrlHelper::relative_route('reports.index') }}?' + params.join('&');
     }
     document.getElementById('catApplyBtn').addEventListener('click', catApply);
 
