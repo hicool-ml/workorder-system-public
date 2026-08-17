@@ -1325,7 +1325,7 @@ class WorkorderController extends Controller
             if ($existingId > 0) {
                 $existing = Workorder::withTrashed()->find($existingId);
                 if ($existing) {
-                    return redirect()->route('workorders.show', $existing)
+                    return redirect(\App\Helpers\UrlHelper::relative_route('workorders.show', ['workorder' => $existing]))
                         ->with('info', '检测到重复提交，已为您跳转到刚才创建的工单（' . $existing->ticket_no . '）');
                 }
             }
