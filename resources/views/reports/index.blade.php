@@ -6,6 +6,8 @@
 @php
     // 工单分类分布配色（doughnut 图与右侧表格色块共用）
     $catColors = ['#FF6384','#36A2EB','#FFCE56','#4BC0C0','#9966FF','#FF9F40','#C9CBCF','#5A7FC4','#EF8354','#2FBF71'];
+    // 工单来源分布配色（doughnut 图与右侧表格色块共用）
+    $sourceColors = ['#2563eb','#16a34a','#F59E0B','#8B5CF6','#6B7280','#EC4899'];
 @endphp
 <div class="flex items-center justify-between mb-6 gap-3 flex-wrap">
     <h1 class="text-xl font-semibold text-ink">统计报表</h1>
@@ -107,7 +109,30 @@
     </div>
     <div class="card p-5">
         <h3 class="text-sm font-semibold text-ink mb-4">工单来源分布</h3>
-        <div class="flex items-center justify-center" style="height:220px;"><canvas id="sourceChart"></canvas></div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center">
+            <div class="flex items-center justify-center"><canvas id="sourceChart"></canvas></div>
+            <div class="overflow-x-auto max-h-[200px]">
+                <table class="w-full text-sm">
+                    <thead><tr class="text-left border-b border-border sticky top-0" style="background-color: var(--c-card);">
+                        <th class="py-2 font-medium" style="color: var(--c-ink-muted);">来源</th>
+                        <th class="py-2 font-medium text-right" style="color: var(--c-ink-muted);">数量</th>
+                        <th class="py-2 font-medium text-right" style="color: var(--c-ink-muted);">占比</th>
+                    </tr></thead>
+                    <tbody>
+                    @php($sourceTotal = array_sum($sourceDistribution))
+                    @foreach($sourceDistribution as $name => $cnt)
+                    <tr class="border-b border-border">
+                        <td class="py-2 text-ink">
+                            <span class="inline-block w-3 h-3 rounded-sm mr-2 align-middle" style="background-color: {{ $sourceColors[$loop->index % count($sourceColors)] }};"></span>{{ $name }}
+                        </td>
+                        <td class="py-2 text-right text-ink">{{ $cnt }}</td>
+                        <td class="py-2 text-right text-ink">{{ $sourceTotal > 0 ? round($cnt / $sourceTotal * 100) . '%' : '0%' }}</td>
+                    </tr>
+                    @endforeach
+                    </tbody>
+                </table>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -605,40 +630,9 @@ document.addEventListener('DOMContentLoaded', function() {
         type: 'doughnut',
         data: {
             labels: [@foreach($sourceDistribution as $name => $cnt)'{{ $name }}',@endforeach],
-            datasets: [{ data: [@foreach($sourceDistribution as $cnt){{ $cnt }},@endforeach], backgroundColor: ['#2563eb','#16a34a','#F59E0B','#8B5CF6','#6B7280','#EC4899'], borderWidth: 1 }]
+            datasets: [{ data: [@foreach($sourceDistribution as $cnt){{ $cnt }},@endforeach], backgroundColor: @json($sourceColors), borderWidth: 1 }]
         },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    position: 'right',
-                    labels: {
-                        generateLabels: function(chart) {
-                            var data = chart.data;
-                            var ds = data.datasets[0];
-                            var meta = chart.getDatasetMeta(0);
-                            var total = ds.data.reduce(function(a, b) { return a + b; }, 0);
-                            return data.labels.map(function(label, i) {
-                                var style = meta.controller.getStyle(i);
-                                var count = ds.data[i];
-                                var pct = total > 0 ? Math.round(count / total * 100) : 0;
-                                return {
-                                    text: label + '  ' + count + '（' + pct + '%）',
-                                    fillStyle: style.backgroundColor,
-                                    strokeStyle: style.borderColor,
-                                    hidden: !meta.data[i].hidden,
-                                    lineWidth: style.borderWidth,
-                                    pointStyle: style.pointStyle,
-                                    rotation: style.rotation,
-                                    index: i
-                                };
-                            });
-                        }
-                    }
-                }
-            }
-        }
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
     });
 });
 </script>
