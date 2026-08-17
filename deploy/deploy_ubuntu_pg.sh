@@ -122,6 +122,14 @@ cd "${APP_DIR}"
 [ -f .env ] || cp .env.example .env
 
 sed -i "s|^APP_URL=.*|APP_URL=${APP_URL}|" .env
+# APP_URL 是 http 时关闭 Secure Cookie，否则浏览器在 http 下不发送会话 Cookie 导致登录后掉线
+if [[ "${APP_URL}" == https* ]]; then
+    sed -i "s|^SESSION_SECURE_COOKIE=.*|SESSION_SECURE_COOKIE=true|" .env
+else
+    sed -i "s|^SESSION_SECURE_COOKIE=.*|SESSION_SECURE_COOKIE=false|" .env
+fi
+sed -i "s|^APP_ENV=.*|APP_ENV=production|" .env
+sed -i "s|^APP_DEBUG=.*|APP_DEBUG=false|" .env
 sed -i "s|^DB_CONNECTION=.*|DB_CONNECTION=pgsql|" .env
 sed -i "s|^DB_HOST=.*|DB_HOST=127.0.0.1|" .env
 sed -i "s|^DB_PORT=.*|DB_PORT=5432|" .env
