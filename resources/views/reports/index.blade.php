@@ -3,6 +3,10 @@
 @section('title', '统计报表')
 
 @section('content')
+@php
+    // 工单分类分布配色（doughnut 图与右侧表格色块共用）
+    $catColors = ['#FF6384','#36A2EB','#FFCE56','#4BC0C0','#9966FF','#FF9F40','#C9CBCF','#5A7FC4','#EF8354','#2FBF71'];
+@endphp
 <div class="flex items-center justify-between mb-6 gap-3 flex-wrap">
     <h1 class="text-xl font-semibold text-ink">统计报表</h1>
     <div class="flex flex-wrap items-center gap-2 text-sm">
@@ -90,7 +94,9 @@
                     <tbody>
                     @foreach($categoryDistribution as $category)
                     <tr class="border-b border-border">
-                        <td class="py-2 text-ink">{{ $category->name }}</td>
+                        <td class="py-2 text-ink">
+                            <span class="inline-block w-3 h-3 rounded-sm mr-2 align-middle" style="background-color: {{ $catColors[$loop->index % count($catColors)] }};"></span>{{ $category->name }}
+                        </td>
                         <td class="py-2 text-right text-ink">{{ $category->workorders_count }}</td>
                     </tr>
                     @endforeach
@@ -588,7 +594,7 @@ document.addEventListener('DOMContentLoaded', function() {
         type: 'doughnut',
         data: {
             labels: [@foreach($categoryDistribution as $c)'{{ $c->name }}',@endforeach],
-            datasets: [{ data: [@foreach($categoryDistribution as $c){{ $c->workorders_count }},@endforeach], backgroundColor: ['#FF6384','#36A2EB','#FFCE56','#4BC0C0','#9966FF','#FF9F40','#C9CBCF','#FF6384','#36A2EB','#FFCE56'] }]
+            datasets: [{ data: [@foreach($categoryDistribution as $c){{ $c->workorders_count }},@endforeach], backgroundColor: @json($catColors), borderWidth: 1 }]
         },
         options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
     });
@@ -599,9 +605,40 @@ document.addEventListener('DOMContentLoaded', function() {
         type: 'doughnut',
         data: {
             labels: [@foreach($sourceDistribution as $name => $cnt)'{{ $name }}',@endforeach],
-            datasets: [{ data: [@foreach($sourceDistribution as $cnt){{ $cnt }},@endforeach], backgroundColor: ['#2563eb','#16a34a','#F59E0B','#8B5CF6','#6B7280','#EC4899'] }]
+            datasets: [{ data: [@foreach($sourceDistribution as $cnt){{ $cnt }},@endforeach], backgroundColor: ['#2563eb','#16a34a','#F59E0B','#8B5CF6','#6B7280','#EC4899'], borderWidth: 1 }]
         },
-        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right' } } }
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'right',
+                    labels: {
+                        generateLabels: function(chart) {
+                            var data = chart.data;
+                            var ds = data.datasets[0];
+                            var meta = chart.getDatasetMeta(0);
+                            var total = ds.data.reduce(function(a, b) { return a + b; }, 0);
+                            return data.labels.map(function(label, i) {
+                                var style = meta.controller.getStyle(i);
+                                var count = ds.data[i];
+                                var pct = total > 0 ? Math.round(count / total * 100) : 0;
+                                return {
+                                    text: label + '  ' + count + '（' + pct + '%）',
+                                    fillStyle: style.backgroundColor,
+                                    strokeStyle: style.borderColor,
+                                    hidden: !meta.data[i].hidden,
+                                    lineWidth: style.borderWidth,
+                                    pointStyle: style.pointStyle,
+                                    rotation: style.rotation,
+                                    index: i
+                                };
+                            });
+                        }
+                    }
+                }
+            }
+        }
     });
 });
 </script>
