@@ -62,6 +62,12 @@ trait HandlesReport
             'attachments.*' => 'file|max:10240|mimes:jpg,jpeg,png,gif,bmp,webp,pdf,doc,docx,xls,xlsx,ppt,pptx,txt,md,mp4,mov,avi,wmv,mkv,mp3,wav,flac,aac,ogg,zip,rar,7z',
         ]);
 
+        // 防重复提交：同一表单令牌只允许创建一次（外网访问慢导致用户重复点击时兜底）
+        $duplicate = $this->claimSubmission($request);
+        if ($duplicate) {
+            return $duplicate;
+        }
+
         DB::beginTransaction();
         try {
             $user = Auth::user();
@@ -110,11 +116,14 @@ trait HandlesReport
 
             DB::commit();
 
+            $this->finalizeSubmission($request, $workorder);
+
             return redirect()
                 ->route('workorders.show', $workorder)
                 ->with('success', '故障申报提交成功，工程师将尽快处理');
         } catch (\Exception $e) {
             DB::rollBack();
+            $this->releaseSubmission($request);
             return back()
                 ->withInput()
                 ->with('error', '提交失败：' . $e->getMessage());

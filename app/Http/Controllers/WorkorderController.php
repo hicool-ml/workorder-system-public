@@ -14,6 +14,7 @@ use App\Models\Department;
 use App\Models\Location;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use App\Http\Controllers\Traits\HandlesReport;
@@ -310,6 +311,12 @@ class WorkorderController extends Controller
             'attachments.*' => 'file|max:10240|mimes:jpg,jpeg,png,gif,bmp,webp,pdf,doc,docx,xls,xlsx,ppt,pptx,txt,md,mp4,mov,avi,wmv,mkv,mp3,wav,flac,aac,ogg,zip,rar,7z', // 最大10MB，白名单扩展名
         ]);
 
+        // 防重复提交：同一表单令牌只允许创建一次（外网访问慢导致用户重复点击时兜底）
+        $duplicate = $this->claimSubmission($request);
+        if ($duplicate) {
+            return $duplicate;
+        }
+
         DB::beginTransaction();
         try {
             // 白名单取值，防止 mass assignment 写入签单/满意度/完结时间等敏感字段
@@ -459,11 +466,14 @@ class WorkorderController extends Controller
             $workorder->addLog('created', '工单创建成功');
 
             DB::commit();
+
+            $this->finalizeSubmission($request, $workorder);
             
             return redirect(\App\Helpers\UrlHelper::relative_url("/workorders/{$workorder->id}"))
                 ->with('success', '工单创建成功，工单编号：' . $workorder->ticket_no);
         } catch (\Exception $e) {
             DB::rollBack();
+            $this->releaseSubmission($request);
             return back()->withInput()->with('error', '工单创建失败：' . $e->getMessage());
         }
     }
@@ -1274,5 +1284,76 @@ class WorkorderController extends Controller
 
         return redirect(\App\Helpers\UrlHelper::relative_url('/workorders'))
             ->with('success', '工单已删除');
+    }
+
+    /**
+     * 彻底删除工单（硬删除，仅管理员）
+     * 会同时清理附件物理文件、日志、回访、协作、通知等关联数据。
+     */
+    public function forceDestroy(Request $request, Workorder $workorder)
+    {
+        if (!Auth::user()->canForceDeleteWorkorders()) {
+            abort(403, '您没有权限彻底删除工单');
+        }
+
+        try {
+            $workorder->forceDeleteWithFiles();
+        } catch (\Throwable $e) {
+            return back()->with('error', '彻底删除失败：' . $e->getMessage());
+        }
+
+        return redirect(\App\Helpers\UrlHelper::relative_url('/workorders'))
+            ->with('success', '工单已彻底删除（含附件及所有关联记录）');
+    }
+
+    /**
+     * 防重复提交：校验并占用表单提交令牌
+     * 返回 null 表示可继续创建；返回 RedirectResponse 表示检测到重复提交。
+     */
+    protected function claimSubmission(Request $request): ?\Illuminate\Http\RedirectResponse
+    {
+        $token = $request->input('submission_token');
+        if (empty($token)) {
+            return null; // 兼容未带令牌的旧表单
+        }
+
+        $key = 'workorder_submit_token:' . $token;
+
+        // 原子占位：令牌已存在说明该表单此前已提交过
+        if (!Cache::add($key, 0, now()->addMinutes(10))) {
+            $existingId = (int) Cache::get($key);
+            if ($existingId > 0) {
+                $existing = Workorder::withTrashed()->find($existingId);
+                if ($existing) {
+                    return redirect()->route('workorders.show', $existing)
+                        ->with('info', '检测到重复提交，已为您跳转到刚才创建的工单（' . $existing->ticket_no . '）');
+                }
+            }
+            return back()->withInput()->with('error', '提交正在处理中，请勿重复提交');
+        }
+
+        return null;
+    }
+
+    /**
+     * 提交成功后：把令牌映射到新工单，供重复请求跳转
+     */
+    protected function finalizeSubmission(Request $request, Workorder $workorder): void
+    {
+        $token = $request->input('submission_token');
+        if (!empty($token)) {
+            Cache::put('workorder_submit_token:' . $token, $workorder->id, now()->addMinutes(10));
+        }
+    }
+
+    /**
+     * 提交失败时：释放令牌，允许用户修正后重新提交
+     */
+    protected function releaseSubmission(Request $request): void
+    {
+        $token = $request->input('submission_token');
+        if (!empty($token)) {
+            Cache::forget('workorder_submit_token:' . $token);
+        }
     }
 }

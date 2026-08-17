@@ -169,6 +169,48 @@ class WorkorderBatchController extends Controller
         });
     }
 
+    /**
+     * 批量彻底删除工单（仅管理员）
+     */
+    public function forceDelete(Request $request)
+    {
+        if (!auth()->user()->canForceDeleteWorkorders()) {
+            return response()->json(['success' => false, 'message' => '您没有权限彻底删除工单'], 403);
+        }
+
+        $request->validate(['workorder_ids' => 'required|string']);
+        $workorderIds = $this->parseWorkorderIds($request);
+
+        $successCount = 0;
+        $failedCount = 0;
+        $failedWorkorders = [];
+
+        try {
+            $workorders = $this->prefetchWorkorders($workorderIds);
+            foreach ($workorderIds as $workorderId) {
+                $workorder = $workorders->get($workorderId);
+
+                if (!$workorder) {
+                    $failedCount++;
+                    $failedWorkorders[] = 'Unknown';
+                    continue;
+                }
+
+                try {
+                    $workorder->forceDeleteWithFiles();
+                    $successCount++;
+                } catch (\Throwable $e) {
+                    $failedCount++;
+                    $failedWorkorders[] = $workorder->ticket_no;
+                }
+            }
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => '批量彻底删除失败：' . $e->getMessage()]);
+        }
+
+        return $this->batchResponse('成功彻底删除', $successCount, $failedCount, $failedWorkorders, '批量彻底删除失败');
+    }
+
     // ===== 辅助方法 =====
 
     /**

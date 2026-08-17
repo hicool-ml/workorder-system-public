@@ -20,8 +20,9 @@
                 <h5 class="text-sm font-semibold text-ink">工单信息</h5>
             </div>
             <div>
-                <form method="POST" action="{{ route('workorders.store') }}" enctype="multipart/form-data" id="workorderForm">
+                <form method="POST" action="{{ route('workorders.store') }}" enctype="multipart/form-data" id="workorderForm" data-prevent-double-submit>
                     @csrf
+                    <input type="hidden" name="submission_token" value="{{ \Illuminate\Support\Str::uuid() }}">
                     
                     <!-- 自报家门：用户信息 -->
                     <div class="card mb-4">
@@ -396,6 +397,7 @@
 @endsection
 
 @section('scripts')
+@include('partials._double_submit_guard')
 <script>
 // 从地址管理获取区域楼栋数据（Location 树 level=6 校区 + level=7 楼栋）
 var campusBuildings = @json($campusBuildings);

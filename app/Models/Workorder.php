@@ -733,6 +733,33 @@ class Workorder extends Model
     }
 
     /**
+     * 彻底删除工单及全部关联数据（含附件物理文件）。
+     * 子表（附件/日志/回访/协作/通知/签单文档）均有 onDelete cascade，硬删除工单时自动级联。
+     * 仅管理员经鉴权控制器调用；工单管理员无此权限。
+     */
+    public function forceDeleteWithFiles(): void
+    {
+        // 先收集附件物理文件路径，DB 硬删除提交后再删文件，避免回滚导致记录指向已删文件
+        $attachmentPaths = $this->attachments()->pluck('file_path')->all();
+
+        DB::transaction(function () {
+            $this->forceDelete();
+        });
+
+        foreach ($attachmentPaths as $path) {
+            try {
+                if (\Illuminate\Support\Facades\Storage::disk('attachments')->exists($path)) {
+                    \Illuminate\Support\Facades\Storage::disk('attachments')->delete($path);
+                } elseif (\Illuminate\Support\Facades\Storage::disk('public')->exists($path)) {
+                    \Illuminate\Support\Facades\Storage::disk('public')->delete($path);
+                }
+            } catch (\Throwable $e) {
+                \Log::warning('删除工单附件文件失败: ' . $path, ['error' => $e->getMessage()]);
+            }
+        }
+    }
+
+    /**
      * 分配工单
      */
     public function assign(int $assigneeId, $note = null, ?int $userId = null): bool

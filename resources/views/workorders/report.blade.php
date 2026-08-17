@@ -9,8 +9,9 @@
         <p class="text-sm mt-1" style="color: var(--c-ink-muted);">填写故障信息，提交后系统将尽快安排处理</p>
     </div>
 
-    <form method="POST" action="{{ route('workorders.report.store') }}" enctype="multipart/form-data" id="reportForm">
+    <form method="POST" action="{{ route('workorders.report.store') }}" enctype="multipart/form-data" id="reportForm" data-prevent-double-submit>
         @csrf
+        <input type="hidden" name="submission_token" value="{{ \Illuminate\Support\Str::uuid() }}">
 
         {{-- 报修人信息 --}}
         <div class="card p-5 mb-4">
@@ -148,6 +149,7 @@
 @endsection
 
 @section('scripts')
+@include('partials._double_submit_guard')
 <script src="{{ asset('vendor/browser-image-compression.min.js') }}" defer></script>
 <script>
 var subCategories = @json($categories['sub']);

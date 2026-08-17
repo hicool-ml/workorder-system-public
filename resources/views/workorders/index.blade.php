@@ -232,6 +232,12 @@
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M18 6 6 18M6 6l12 12"/></svg>
                 批量关闭
             </button>
+            @if(auth()->user()->canForceDeleteWorkorders())
+            <button type="button" class="btn btn-danger btn-sm" id="batchForceDeleteBtn">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0 1 16.138 21H7.862a2 2 0 0 1-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v3M4 7h16"/></svg>
+                批量彻底删除
+            </button>
+            @endif
             <button type="button" class="btn btn-ghost btn-sm" id="clearSelectionBtn">
                 清除选择
             </button>
@@ -456,6 +462,9 @@
 @if(auth()->user()->canHandleWorkorders())
 @include('workorders._batch_assign_modal')
 @include('workorders._batch_resolve_modal')
+@if(auth()->user()->canForceDeleteWorkorders())
+@include('workorders._batch_force_delete_modal')
+@endif
 @endif
 
 <script>
@@ -710,6 +719,49 @@ document.addEventListener('DOMContentLoaded', function() {
             if (data.success) location.reload();
             else { alert('操作失败：' + (data.message || '未知错误')); }
         }).catch(function() { alert('请求失败，请检查网络'); });
+    });
+
+    // -- 批量彻底删除（仅管理员）--
+    var batchForceDeleteBtn = document.getElementById('batchForceDeleteBtn');
+    var confirmBatchForceDeleteBtn = document.getElementById('confirmBatchForceDeleteBtn');
+    var forceDeleteConfirmInput = document.getElementById('force_delete_confirm_input');
+
+    if (batchForceDeleteBtn) batchForceDeleteBtn.addEventListener('click', function() {
+        if (selectedWorkorders.length === 0) { alert('请先选择工单'); return; }
+        var count = selectedWorkorders.length;
+        var countEl = document.getElementById('forceDeleteCount');
+        var hintEl = document.getElementById('forceDeleteCountHint');
+        if (countEl) countEl.textContent = count;
+        if (hintEl) hintEl.textContent = count;
+        if (forceDeleteConfirmInput) forceDeleteConfirmInput.value = '';
+        var err = document.getElementById('forceDeleteConfirmError');
+        if (err) err.classList.add('hidden');
+        openModal('batchForceDeleteModal');
+    });
+
+    if (confirmBatchForceDeleteBtn) confirmBatchForceDeleteBtn.addEventListener('click', function() {
+        if (selectedWorkorders.length === 0) { alert('请先选择工单'); return; }
+        var expected = String(selectedWorkorders.length);
+        var input = forceDeleteConfirmInput ? forceDeleteConfirmInput.value.trim() : '';
+        if (input !== expected) {
+            var err = document.getElementById('forceDeleteConfirmError');
+            if (err) err.classList.remove('hidden');
+            if (forceDeleteConfirmInput) forceDeleteConfirmInput.focus();
+            return;
+        }
+        confirmBatchForceDeleteBtn.disabled = true;
+        confirmBatchForceDeleteBtn.innerHTML = '删除中…';
+        fetch('{{ route("workorders.batch.force-delete") }}', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken, 'X-Requested-With': 'XMLHttpRequest' },
+            body: JSON.stringify({ workorder_ids: selectedWorkorders.join(',') })
+        }).then(function(r) { return r.json(); }).then(function(data) {
+            if (data.success) { closeModal('batchForceDeleteModal'); alert(data.message); location.reload(); }
+            else { alert('操作失败：' + (data.message || '未知错误')); }
+        }).catch(function() { alert('请求失败，请检查网络'); })
+          .finally(function() {
+              if (confirmBatchForceDeleteBtn) { confirmBatchForceDeleteBtn.disabled = false; confirmBatchForceDeleteBtn.innerHTML = '确认彻底删除'; }
+          });
     });
 
     // -- 清除选择 --

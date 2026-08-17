@@ -109,6 +109,12 @@
             <span>回滚</span>
         </button>
         @endif
+        @if(auth()->user()->canForceDeleteWorkorders())
+        <button type="button" onclick="var i=document.getElementById('force_delete_ticket_input'); if(i) i.value=''; var e=document.getElementById('forceDeleteTicketError'); if(e) e.classList.add('hidden'); openModal('forceDeleteModal')" class="btn btn-danger btn-sm">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0 1 16.138 21H7.862a2 2 0 0 1-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v3M4 7h16"/></svg>
+            <span>彻底删除</span>
+        </button>
+        @endif
     </div>
 </div>
 
@@ -711,6 +717,38 @@
 </div>
 @endif
 
+{{-- Force delete modal（管理员二次确认：输入工单编号） --}}
+<div id="forceDeleteModal" class="hidden fixed inset-0 z-50 items-center justify-center p-4 bg-black/50" data-modal>
+    <div class="card w-full max-w-md shadow-xl">
+        <div class="flex items-center justify-between px-5 py-3 border-b border-border">
+            <h3 class="font-medium text-red-600">彻底删除工单</h3>
+            <button type="button" onclick="closeModal('forceDeleteModal')" class="btn btn-ghost btn-icon btn-sm">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M18 6 6 18M6 6l12 12"/></svg>
+            </button>
+        </div>
+        <div class="p-5 space-y-4">
+            <p class="text-sm text-ink-muted">
+                即将彻底删除工单 <strong class="text-red-600">{{ $workorder->ticket_no }}</strong>，
+                并同时删除其附件及所有关联记录，<span class="text-red-600 font-medium">不可恢复</span>。
+            </p>
+            <div>
+                <label class="label" for="force_delete_ticket_input">
+                    请输入工单编号 <strong class="text-red-600">{{ $workorder->ticket_no }}</strong> 以确认
+                </label>
+                <input type="text" class="input" id="force_delete_ticket_input" placeholder="输入工单编号确认" autocomplete="off">
+                <p id="forceDeleteTicketError" class="hidden text-xs text-red-600 mt-1">输入的工单编号不正确</p>
+            </div>
+        </div>
+        <form method="POST" action="{{ route('workorders.force-delete', $workorder->id) }}" id="forceDeleteForm">
+            @csrf
+            <div class="flex items-center justify-end gap-2 px-5 py-3 border-t border-border">
+                <button type="button" onclick="closeModal('forceDeleteModal')" class="btn btn-secondary">取消</button>
+                <button type="submit" class="btn btn-danger">确认彻底删除</button>
+            </div>
+        </form>
+    </div>
+</div>
+
 {{-- File preview modal --}}
 <div id="filePreviewModal" class="hidden fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/70" onclick="if(event.target===this)closeFilePreview()">
     <div class="card max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
@@ -749,6 +787,24 @@ document.addEventListener('keydown', function(e) {
         closeFilePreview();
     }
 });
+
+// 彻底删除：输入工单编号二次确认
+(function() {
+    var form = document.getElementById('forceDeleteForm');
+    if (!form) return;
+    form.addEventListener('submit', function(e) {
+        var input = document.getElementById('force_delete_ticket_input');
+        var err = document.getElementById('forceDeleteTicketError');
+        var expected = '{{ $workorder->ticket_no }}';
+        if (!input || input.value.trim() !== expected) {
+            e.preventDefault();
+            if (err) err.classList.remove('hidden');
+            if (input) input.focus();
+            return false;
+        }
+        if (err) err.classList.add('hidden');
+    });
+})();
 
 // No materials checkbox
 document.getElementById('no_materials')?.addEventListener('change', function() {
