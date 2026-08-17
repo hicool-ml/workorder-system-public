@@ -215,8 +215,19 @@ class UserController extends Controller
         }
 
         // 检查是否有未完成的工单
-        if ($user->assignedWorkorders()->whereIn('status', ['pending', 'assigned', 'processing'])->count() > 0) {
-            return back()->with('error', '该用户还有未处理的工单，无法删除');
+        $openCount = $user->assignedWorkorders()->whereIn('status', ['pending', 'assigned', 'processing'])->count();
+        if ($openCount > 0) {
+            return back()->with('error', "该用户还有 {$openCount} 个未处理的工单，无法删除，建议停用该用户");
+        }
+
+        // 统计历史关联数据，提示删除的影响面，建议停用而非删除
+        $relatedCount = \App\Models\Workorder::where('creator_id', $user->id)->orWhere('assignee_id', $user->id)->count()
+            + \App\Models\WorkorderAttachment::where('user_id', $user->id)->count()
+            + \App\Models\WorkorderLog::where('user_id', $user->id)->count()
+            + \App\Models\WorkorderVisit::where('visitor_id', $user->id)->count();
+
+        if ($relatedCount > 0) {
+            return back()->with('error', "该用户有 {$relatedCount} 条历史关联数据（工单/附件/日志/回访），删除会因外键约束失败，建议停用该用户");
         }
 
         try {
@@ -377,6 +388,17 @@ class UserController extends Controller
 
                     if ($hasPendingWorkorders) {
                         throw new \Exception('选中的用户中还有未处理的工单，无法删除');
+                    }
+
+                    // 统计历史关联数据，提示删除的影响面，建议停用而非删除
+                    $relatedCount = \App\Models\Workorder::whereIn('creator_id', $userIds)
+                            ->orWhereIn('assignee_id', $userIds)->count()
+                        + \App\Models\WorkorderAttachment::whereIn('user_id', $userIds)->count()
+                        + \App\Models\WorkorderLog::whereIn('user_id', $userIds)->count()
+                        + \App\Models\WorkorderVisit::whereIn('visitor_id', $userIds)->count();
+
+                    if ($relatedCount > 0) {
+                        throw new \Exception("选中的用户有 {$relatedCount} 条历史关联数据（工单/附件/日志/回访），删除会因外键约束失败，建议停用而非删除");
                     }
 
                     // 防止删除全部管理员
