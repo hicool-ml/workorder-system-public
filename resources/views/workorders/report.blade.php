@@ -118,7 +118,7 @@
                 </button>
             </div>
             <input type="file" class="hidden" id="attachments" name="attachments[]" multiple
-                   accept=".jpg,.jpeg,.png,.gif,.pdf,.doc,.docx,.txt" autocomplete="off">
+                   accept=".jpg,.jpeg,.png,.gif,.bmp,.webp,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.md,.mp4,.mov,.avi,.wmv,.mkv,.mp3,.wav,.flac,.aac,.ogg,.zip,.rar,.7z" autocomplete="off">
             <div id="attachmentPreview" class="mt-2"></div>
         </div>
 

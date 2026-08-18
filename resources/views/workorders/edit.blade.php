@@ -342,8 +342,8 @@
                                         <span>选择文件</span>
                                     </button>
                                 </div>
-                                <input type="file" class="sr-only" id="attachmentFilePicker" multiple accept=".jpg,.jpeg,.png,.gif,.pdf,.doc,.docx,.txt">
-                                <input type="file" class="sr-only" id="new_attachments" name="new_attachments[]" multiple accept=".jpg,.jpeg,.png,.gif,.pdf,.doc,.docx,.txt" onchange="document.getElementById('attEditName').textContent=this.files.length?'已选择 '+this.files.length+' 个文件':'未选择文件'">
+                                <input type="file" class="sr-only" id="attachmentFilePicker" multiple accept=".jpg,.jpeg,.png,.gif,.bmp,.webp,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.md,.mp4,.mov,.avi,.wmv,.mkv,.mp3,.wav,.flac,.aac,.ogg,.zip,.rar,.7z">
+                                <input type="file" class="sr-only" id="new_attachments" name="new_attachments[]" multiple accept=".jpg,.jpeg,.png,.gif,.bmp,.webp,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.md,.mp4,.mov,.avi,.wmv,.mkv,.mp3,.wav,.flac,.aac,.ogg,.zip,.rar,.7z" onchange="document.getElementById('attEditName').textContent=this.files.length?'已选择 '+this.files.length+' 个文件':'未选择文件'">
 
                               <div id="attEditName" class="text-xs mt-1" style="color: var(--c-ink-subtle);">未选择文件</div>
                           <div class="text-xs text-ink-muted mt-1">
