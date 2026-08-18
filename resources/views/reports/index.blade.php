@@ -8,6 +8,8 @@
     $catColors = ['#FF6384','#36A2EB','#FFCE56','#4BC0C0','#9966FF','#FF9F40','#C9CBCF','#5A7FC4','#EF8354','#2FBF71'];
     // 工单来源分布配色（doughnut 图与右侧表格色块共用）
     $sourceColors = ['#2563eb','#16a34a','#F59E0B','#8B5CF6','#6B7280','#EC4899'];
+    // 工单来源总数（用于右侧表格占比）
+    $sourceTotal = array_sum($sourceDistribution);
 @endphp
 <div class="flex items-center justify-between mb-6 gap-3 flex-wrap">
     <h1 class="text-xl font-semibold text-ink">统计报表</h1>
@@ -119,7 +121,6 @@
                         <th class="py-2 font-medium text-right" style="color: var(--c-ink-muted);">占比</th>
                     </tr></thead>
                     <tbody>
-                    @php($sourceTotal = array_sum($sourceDistribution))
                     @foreach($sourceDistribution as $name => $cnt)
                     <tr class="border-b border-border">
                         <td class="py-2 text-ink">
