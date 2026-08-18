@@ -266,10 +266,22 @@ class Workorder extends Model
 
     /**
      * 可读楼栋名：直接返回 location_id 对应节点名。
+     * 若 location_id 落在「区域/园区」层级（迁移遗留），则它不是楼栋落点，
+     * 返回空字符串，避免与 campus_name 重复显示成「新校区 - 新校区」。
      */
     public function getBuildingNameAttribute(): string
     {
-        return $this->treeLocation?->name ?? '';
+        $loc = $this->treeLocation;
+        if (!$loc) {
+            return '';
+        }
+
+        $regionLevelId = self::getRegionLevelIdCached();
+        if ($regionLevelId && $loc->level_id === $regionLevelId) {
+            return '';
+        }
+
+        return $loc->name;
     }
 
     /**
