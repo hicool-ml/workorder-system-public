@@ -89,7 +89,7 @@
         <h3 class="text-sm font-semibold text-ink mb-4">工单分类分布</h3>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center">
             <div class="flex items-center justify-center"><canvas id="categoryChart"></canvas></div>
-            <div class="overflow-x-auto max-h-[200px]">
+            <div class="overflow-x-auto">
                 <table class="w-full text-sm">
                     <thead><tr class="text-left border-b border-border sticky top-0" style="background-color: var(--c-card);">
                         <th class="py-2 font-medium" style="color: var(--c-ink-muted);">分类</th>
@@ -113,7 +113,7 @@
         <h3 class="text-sm font-semibold text-ink mb-4">工单来源分布</h3>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center">
             <div class="flex items-center justify-center"><canvas id="sourceChart"></canvas></div>
-            <div class="overflow-x-auto max-h-[200px]">
+            <div class="overflow-x-auto">
                 <table class="w-full text-sm">
                     <thead><tr class="text-left border-b border-border sticky top-0" style="background-color: var(--c-card);">
                         <th class="py-2 font-medium" style="color: var(--c-ink-muted);">来源</th>
