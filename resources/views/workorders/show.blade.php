@@ -739,7 +739,7 @@
                 <p id="forceDeleteTicketError" class="hidden text-xs text-red-600 mt-1">输入的工单编号不正确</p>
             </div>
         </div>
-        <form method="POST" action="{{ route('workorders.force-delete', $workorder->id) }}" id="forceDeleteForm">
+        <form method="POST" action="{{ route('workorders.force-delete', $workorder->id) }}" id="forceDeleteForm" data-prevent-double-submit>
             @csrf
             <div class="flex items-center justify-end gap-2 px-5 py-3 border-t border-border">
                 <button type="button" onclick="closeModal('forceDeleteModal')" class="btn btn-secondary">取消</button>
@@ -774,6 +774,7 @@
 @endsection
 
 @section('scripts')
+@include('partials._double_submit_guard')
 <script>
 // openModal/closeModal 由 layouts/app 全局提供
 // Close on backdrop click

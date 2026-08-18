@@ -1289,11 +1289,19 @@ class WorkorderController extends Controller
     /**
      * 彻底删除工单（硬删除，仅管理员）
      * 会同时清理附件物理文件、日志、回访、协作、通知等关联数据。
+     * 使用显式 ID 查找（含软删除），避免工单已被删除时路由模型绑定直接抛 404。
      */
-    public function forceDestroy(Request $request, Workorder $workorder)
+    public function forceDestroy(Request $request, $workorder)
     {
         if (!Auth::user()->canForceDeleteWorkorders()) {
             abort(403, '您没有权限彻底删除工单');
+        }
+
+        // 含软删除查找：已硬删除则返回友好提示，而非 404
+        $workorder = Workorder::withTrashed()->find((int) $workorder);
+        if (!$workorder) {
+            return redirect(\App\Helpers\UrlHelper::relative_url('/workorders'))
+                ->with('error', '该工单不存在或已被删除，请刷新列表后重试');
         }
 
         try {
