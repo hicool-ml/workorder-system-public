@@ -13,6 +13,9 @@
         <div class="flex items-end gap-2"><button type="submit" class="btn btn-primary btn-sm"><span>搜索</span></button><a href="{{ route('workorder-categories.index') }}" class="btn btn-secondary btn-sm">重置</a></div>
     </form>
 </div>
+
+@if($categories)
+{{-- 平铺筛选结果 --}}
 <div class="card">
     <div class="md:hidden divide-y divide-border">
         @forelse($categories as $cat)
@@ -26,7 +29,6 @@
         @forelse($categories as $cat)
         <tr class="border-b border-border hover:bg-surface-muted">
             <td class="px-4 py-3 font-medium text-ink" style="padding-left: {{ 16 + ($cat->level - 1) * 24 }}px;">{{ $cat->name }}</td>
-            
             <td class="px-4 py-3"><span class="badge bg-slate-100 text-slate-600">{{ $cat->level_text }}</span></td>
             <td class="px-4 py-3 text-ink">{{ $cat->parent?->name ?? '-' }}</td>
             <td class="px-4 py-3">@if($cat->status)<span class="badge bg-green-100 text-green-700">{{ $cat->status_text }}</span>@else<span class="badge bg-red-100 text-red-700">{{ $cat->status_text }}</span>@endif</td>
@@ -37,4 +39,83 @@
     </div>
 </div>
 @if($categories->hasPages())<div class="flex items-center justify-between mt-4 gap-3"><p class="text-sm text-ink-muted">{{ $categories->firstItem() ?? 0 }} - {{ $categories->lastItem() ?? 0 }} / {{ $categories->total() }}</p><div>{{ $categories->appends(request()->query())->links() }}</div></div>@endif
+@else
+{{-- 层级树展示（默认收起） --}}
+<div class="card overflow-hidden">
+    <div class="px-4 py-3 border-b border-border flex items-center justify-between">
+        <span class="text-sm font-medium text-ink">分类层级树</span>
+        <div class="flex items-center gap-2">
+            <button type="button" class="btn btn-sm btn-secondary" data-expand-all>展开全部</button>
+            <button type="button" class="btn btn-sm btn-secondary" data-collapse-all>收起全部</button>
+        </div>
+    </div>
+    <table class="w-full text-sm">
+        <thead class="bg-surface-muted text-ink-muted text-xs uppercase">
+            <tr>
+                <th class="text-left px-4 py-3 font-medium">分类名称</th>
+                <th class="text-left px-4 py-3 font-medium">编号前缀</th>
+                <th class="text-left px-4 py-3 font-medium">状态</th>
+                <th class="text-right px-4 py-3 font-medium">操作</th>
+            </tr>
+        </thead>
+        <tbody id="category-tree-body" class="divide-y divide-border">
+            @include('workorder-categories._tree-rows', ['nodes' => $roots, 'depth' => 0])
+        </tbody>
+    </table>
+</div>
+@endif
+@endsection
+
+@section('scripts')
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    var treeBody = document.getElementById('category-tree-body');
+    if (!treeBody) return;
+
+    var rows = Array.from(treeBody.querySelectorAll('tr.tree-row'));
+
+    function sync() {
+        var byId = {};
+        rows.forEach(function (r) { byId[r.dataset.id] = r; });
+        rows.forEach(function (row) {
+            var visible = true;
+            var pid = row.dataset.parentId;
+            while (pid) {
+                var p = byId[pid];
+                if (!p) break;
+                if (p.dataset.collapsed === '1') { visible = false; break; }
+                pid = p.dataset.parentId;
+            }
+            row.style.display = visible ? '' : 'none';
+            var icon = row.querySelector('.tree-toggle svg');
+            if (icon) icon.style.transform = row.dataset.collapsed === '1' ? 'rotate(-90deg)' : '';
+        });
+    }
+
+    rows.forEach(function (row) {
+        if (row.dataset.defaultCollapsed === '1') row.dataset.collapsed = '1';
+        var toggle = row.querySelector('.tree-toggle');
+        if (toggle) {
+            toggle.addEventListener('click', function () {
+                row.dataset.collapsed = row.dataset.collapsed === '1' ? '0' : '1';
+                sync();
+            });
+        }
+    });
+
+    var expandAll = document.querySelector('[data-expand-all]');
+    if (expandAll) expandAll.addEventListener('click', function () {
+        rows.forEach(function (r) { r.dataset.collapsed = '0'; });
+        sync();
+    });
+
+    var collapseAll = document.querySelector('[data-collapse-all]');
+    if (collapseAll) collapseAll.addEventListener('click', function () {
+        rows.forEach(function (r) { if (r.dataset.collapsible === '1') r.dataset.collapsed = '1'; });
+        sync();
+    });
+
+    sync();
+});
+</script>
 @endsection

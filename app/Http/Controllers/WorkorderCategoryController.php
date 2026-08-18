@@ -41,25 +41,30 @@ class WorkorderCategoryController extends Controller
             $query->where('status', $status);
         }
 
-        $categories = $query->paginate(15);
-        
-        // 获取顶级分类用于筛选
-        $topLevelCategories = WorkorderCategorySimplified::whereNull('parent_id')
-            ->where('status', true)
-            ->orderBy('sort_order')
-            ->get();
-        
-        return view('workorder-categories.index', compact('categories', 'topLevelCategories'));
+        // 有筛选条件时保持平铺列表；无筛选时按层级树展示（默认收起）
+        $hasFilter = $request->filled('keyword') || $request->filled('level') || $request->filled('status');
+
+        $categories = $hasFilter ? $query->paginate(15) : null;
+
+        $roots = $hasFilter
+            ? collect()
+            : WorkorderCategorySimplified::whereNull('parent_id')
+                ->orderBy('sort_order')->orderBy('name')
+                ->with('children.children')
+                ->get();
+
+        return view('workorder-categories.index', compact('categories', 'roots'));
     }
 
     /**
      * 创建分类页面
      */
-    public function create()
+    public function create(Request $request)
     {
-        $parentCategories = WorkorderCategorySimplified::getTopLevelCategories();
+        $parentCategories = $this->buildParentOptions();
+        $parentId = $request->input('parent_id');
             
-        return view('workorder-categories.create', compact('parentCategories'));
+        return view('workorder-categories.create', compact('parentCategories', 'parentId'));
     }
 
     /**
@@ -130,7 +135,7 @@ class WorkorderCategoryController extends Controller
      */
     public function edit(WorkorderCategorySimplified $workorderCategory)
     {
-        $parentCategories = WorkorderCategorySimplified::getTopLevelCategories();
+        $parentCategories = $this->buildParentOptions();
             
         return view('workorder-categories.edit', compact('workorderCategory', 'parentCategories'));
     }
@@ -308,5 +313,33 @@ class WorkorderCategoryController extends Controller
         ];
         
         return response()->json($stats);
+    }
+
+    /**
+     * 构建父分类下拉选项：全部启用分类按层级展开（最多3级），depth 表示缩进层级。
+     */
+    private function buildParentOptions(): array
+    {
+        $roots = WorkorderCategorySimplified::whereNull('parent_id')
+            ->where('status', true)
+            ->orderBy('sort_order')->orderBy('name')
+            ->with('children.children')
+            ->get();
+
+        $options = [];
+        foreach ($roots as $root) {
+            $root->depth = 0;
+            $options[] = $root;
+            foreach ($root->children as $child) {
+                $child->depth = 1;
+                $options[] = $child;
+                foreach ($child->children as $grand) {
+                    $grand->depth = 2;
+                    $options[] = $grand;
+                }
+            }
+        }
+
+        return $options;
     }
 }

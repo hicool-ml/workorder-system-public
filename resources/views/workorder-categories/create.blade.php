@@ -27,7 +27,7 @@
                         <select class="input" id="parent_id" name="parent_id">
                             <option value="">无（一级分类）</option>
                             @foreach($parentCategories as $category)
-                            <option value="{{ $category->id }}" data-level="{{ $category->level }}" {{ old('parent_id') == $category->id ? 'selected' : '' }}>{{ str_repeat('　　', $category->level - 1) }}{{ $category->name }}</option>
+                            <option value="{{ $category->id }}" data-level="{{ $category->depth + 1 }}" {{ old('parent_id', $parentId) == $category->id ? 'selected' : '' }}>{{ str_repeat('　　', $category->depth) }}{{ $category->name }}</option>
                             @endforeach
                         </select>
                     </div>
