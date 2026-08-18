@@ -336,8 +336,8 @@
                                         <span>选择文件</span>
                                     </button>
                                 </div>
-                                <input type="file" class="sr-only" id="attachmentFilePicker" multiple accept=".jpg,.jpeg,.png,.gif,.bmp,.webp,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.md,.mp4,.mov,.avi,.wmv,.mkv,.mp3,.wav,.flac,.aac,.ogg,.zip,.rar,.7z">
-                                <input type="file" class="sr-only" id="attachments" name="attachments[]" multiple accept=".jpg,.jpeg,.png,.gif,.bmp,.webp,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.md,.mp4,.mov,.avi,.wmv,.mkv,.mp3,.wav,.flac,.aac,.ogg,.zip,.rar,.7z" onchange="document.getElementById('attCreateName').textContent=this.files.length? '已选择 '+this.files.length+' 个文件':'未选择文件'">
+                                <input type="file" class="sr-only" id="attachmentFilePicker" multiple accept="*/*">
+                                <input type="file" class="sr-only" id="attachments" name="attachments[]" multiple accept="*/*" onchange="document.getElementById('attCreateName').textContent=this.files.length? '已选择 '+this.files.length+' 个文件':'未选择文件'">
 
                                 <div id="attCreateName" class="text-xs mt-1" style="color: var(--c-ink-subtle);">未选择文件</div>
 
