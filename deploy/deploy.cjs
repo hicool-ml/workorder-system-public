@@ -20,7 +20,7 @@ const { Client } = require("ssh2");
 
 const HOST = process.env.P_HOST || "192.168.1.8";
 const USER = process.env.P_USER || "cdu";
-const PASS = process.env.P_PASS || "REDACTED";
+const PASS = process.env.P_PASS || "";
 const RROOT = process.env.P_PATH || "/var/www/workorder";
 const LROOT = path.resolve(__dirname, "..");
 const BACKUP_ROOT = process.env.P_BACKUP || "/home/cdu/workorder-backups";
@@ -317,6 +317,10 @@ function ts() {
 
 (async () => {
   const cmd = process.argv[2] || "diff";
+  if (!PASS) {
+    console.error("未提供 SSH 密码：请通过环境变量 P_PASS 指定，例如 P_PASS=xxx node deploy/deploy.cjs " + cmd);
+    process.exit(2);
+  }
   try {
     if (cmd === "diff") await doDiff();
     else if (cmd === "apply") await doApply();

@@ -16,10 +16,23 @@ set -euo pipefail
 APP_DIR="/var/www/workorder"
 DB_NAME="workorder_db"
 DB_USER="workorder"
-DB_PASSWORD="REDACTED"
 APP_URL="http://192.168.1.4"
 GIT_REPO="https://github.com/hicool-ml/workorder-system-public.git"
 # --------------------------------
+
+# 数据库密码：优先从环境变量 DB_PASSWORD 读取；未设置则自动生成随机密码，
+# 并持久化到 ~/.workorder_db_password，保证重复执行（幂等）时密码一致。
+DB_PASSWORD="${DB_PASSWORD:-}"
+DB_PASSWORD_FILE="${HOME}/.workorder_db_password"
+if [ -z "$DB_PASSWORD" ]; then
+    if [ -f "$DB_PASSWORD_FILE" ]; then
+        DB_PASSWORD="$(cat "$DB_PASSWORD_FILE")"
+    else
+        DB_PASSWORD="$(tr -dc 'A-Za-z0-9' < /dev/urandom | head -c 20)"
+        printf '%s' "$DB_PASSWORD" > "$DB_PASSWORD_FILE"
+        chmod 600 "$DB_PASSWORD_FILE"
+    fi
+fi
 
 # 输出辅助
 info()  { echo -e "\033[1;32m[✓]\033[0m $*"; }
@@ -187,5 +200,6 @@ echo "=============================================="
 echo "  部署完成！"
 echo "  访问地址：${APP_URL}"
 echo "  管理员账号：用户名 admin（密码见上方 db:seed 输出）"
+echo "  数据库密码：保存在 ${DB_PASSWORD_FILE}（本机文件，勿提交）"
 echo "  注意：尚未迁移生产数据，可先测试地址初始化等操作"
 echo "=============================================="
